@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Holiday Request</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="firebase.js"></script>
+    <style>
+      .holiday-form {
+        max-width: 100%;
+        margin: 0 auto;
+        padding: 0 20px;
+        background: white;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+      }
+      input[type="date"],
+      textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+      textarea {
+        height: 120px;
+        resize: vertical;
+      }
+      .submit-btn {
+        background: linear-gradient(135deg, #2596be 0%, #1c7593 100%);
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        width: 100%;
+        font-size: 16px;
+        font-weight: 500;
+      }
+      .submit-btn:hover {
+        opacity: 0.9;
+      }
+      .request-history {
+        max-width: 100%;
+        margin: 30px auto;
+        padding: 0 20px;
+      }
+      .request-history h2 {
+        color: #333;
+        margin-bottom: 20px;
+        font-size: 1.3em;
+      }
+      .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        background: white;
+      }
+      .history-table th {
+        background: linear-gradient(135deg, #2596be 0%, #1c7593 100%);
+        color: white;
+        font-weight: 600;
+        padding: 12px;
+        text-align: left;
+      }
+      .history-table td {
+        padding: 12px;
+        border-bottom: 1px solid #eee;
+      }
+      .history-table tr:hover {
+        background-color: #f8f9fa;
+      }
+      .status-pending {
+        color: #f39c12;
+        font-weight: bold;
+      }
+      .status-approved {
+        color: #27ae60;
+        font-weight: bold;
+      }
+      .status-rejected {
+        color: #c0392b;
+        font-weight: bold;
+      }
+      .no-requests {
+        text-align: center;
+        color: #666;
+        padding: 20px;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="holiday-form">
+      <h2>Holiday Request Form</h2>
+      <form id="holidayRequestForm">
+        <label for="startDate">Start Date:</label>
+        <div class="form-group">
+          <input type="date" id="startDate" required />
+        </div>
+        <label for="endDate">End Date:</label>
+        <div class="form-group">
+          <input type="date" id="endDate" required />
+        </div>
+        <label for="reason">Reason for Leave:</label>
+        <div class="form-group">
+          <textarea
+            id="reason"
+            placeholder="Type The Reason"
+            required
+          ></textarea>
+        </div>
+        <button type="submit" class="submit-btn">Submit Request</button>
+      </form>
+    </div>
+    <div class="request-history">
+      <h2>Your Holiday Request History</h2>
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Days</th>
+            <th>Reason</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="requestHistoryTable"></tbody>
+      </table>
+    </div>
+    <script>
+      const STATUS_UPDATED_EVENT = "holidayRequestStatusUpdated";
+      function getLoggedInEmployee() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const employee = urlParams.get("employee");
+        if (!employee) {
+          console.error("No employee name provided in URL");
+          return null;
+        }
+        return decodeURIComponent(employee);
+      }
+      function loadRequestHistory() {
+        const currentEmployee = getLoggedInEmployee();
+        if (!currentEmployee) {
+          const tableBody = document.getElementById("requestHistoryTable");
+          tableBody.innerHTML =
+            '<tr><td colspan="5" class="no-requests">Error: Could not determine employee name</td></tr>';
+          return;
+        }
+        const requests =
+          JSON.parse(localStorage.getItem("holidayRequests")) || [];
+        const tableBody = document.getElementById("requestHistoryTable");
+        tableBody.innerHTML = "";
+        const userRequests = requests.filter(
+          (request) => request.employee === currentEmployee
+        );
+        if (userRequests.length === 0) {
+          const row = document.createElement("tr");
+          row.innerHTML =
+            '<td colspan="5" class="no-requests">No holiday requests found</td>';
+          tableBody.appendChild(row);
+          return;
+        }
+        userRequests.sort(
+          (a, b) => new Date(b.startDate) - new Date(a.startDate)
+        );
+        userRequests.forEach((request) => {
+          const row = document.createElement("tr");
+          const statusClass = request.status || "pending";
+          const statusText =
+            (request.status || "Pending").charAt(0).toUpperCase() +
+            (request.status || "pending").slice(1);
+          row.innerHTML = `
+                    <td>${request.startDate}</td>
+                    <td>${request.endDate}</td>
+                    <td>${request.days}</td>
+                    <td>${request.reason}</td>
+                    <td><span class="status-${statusClass}">${statusText}</span></td>
+                `;
+          tableBody.appendChild(row);
+        });
+      }
+      document
+        .getElementById("holidayRequestForm")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          const currentEmployee = getLoggedInEmployee();
+          if (!currentEmployee) {
+            alert(
+              "Error: Could not determine employee name. Please try again."
+            );
+            return;
+          }
+          const startDate = document.getElementById("startDate").value;
+          const endDate = document.getElementById("endDate").value;
+          const reason = document.getElementById("reason").value;
+          if (new Date(endDate) < new Date(startDate)) {
+            alert("End date cannot be before start date");
+            return;
+          }
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+          const holidayRequest = {
+            id: Date.now(),
+            employee: currentEmployee,
+            startDate,
+            endDate,
+            days,
+            reason,
+            status: "pending",
+            submittedDate: new Date().toISOString(),
+          };
+          let holidayRequests = JSON.parse(
+            localStorage.getItem("holidayRequests") || "[]"
+          );
+          holidayRequests.push(holidayRequest);
+          localStorage.setItem(
+            "holidayRequests",
+            JSON.stringify(holidayRequests)
+          );
+          window.dispatchEvent(
+            new CustomEvent(STATUS_UPDATED_EVENT, {
+              detail: {
+                requestId: holidayRequest.id,
+                status: "pending",
+                employee: currentEmployee,
+              },
+            })
+          );
+          if (window.opener && !window.opener.closed) {
+            window.opener.dispatchEvent(
+              new CustomEvent(STATUS_UPDATED_EVENT, {
+                detail: {
+                  requestId: holidayRequest.id,
+                  status: "pending",
+                  employee: currentEmployee,
+                },
+              })
+            );
+          }
+          alert("Holiday request submitted successfully!");
+          document.getElementById("holidayRequestForm").reset();
+          loadRequestHistory();
+        });
+      window.addEventListener(STATUS_UPDATED_EVENT, function (event) {
+        const currentEmployee = getLoggedInEmployee();
+        if (currentEmployee && event.detail.employee === currentEmployee) {
+          loadRequestHistory();
+        }
+      });
+      window.onload = loadRequestHistory;
+    </script>
+  </body>
+</html>

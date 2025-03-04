@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Holiday Requests - Admin Panel</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="firebase.js"></script>
+    <style>
+      .container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid #ddd;
+      }
+      th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+      }
+      tr:hover {
+        background-color: #f9f9f9;
+      }
+      .status-pending {
+        color: #f39c12;
+        font-weight: bold;
+      }
+      .status-approved {
+        color: #27ae60;
+        font-weight: bold;
+      }
+      .status-rejected {
+        color: #c0392b;
+        font-weight: bold;
+      }
+      .action-buttons {
+        display: flex;
+        gap: 8px;
+      }
+      .approve-btn,
+      .reject-btn {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .approve-btn {
+        background-color: #27ae60;
+        color: white;
+      }
+      .reject-btn {
+        background-color: #e74c3c;
+        color: white;
+      }
+      .approve-btn:hover {
+        background-color: #219a52;
+      }
+      .reject-btn:hover {
+        background-color: #c0392b;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Holiday Requests</h2>
+      <button
+        onclick="clearHolidayRequests()"
+        style="
+          background-color: #e74c3c;
+          color: white;
+          padding: 8px 16px;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          margin-bottom: 10px;
+        "
+      >
+        Clear All Records
+      </button>
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Days</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="holidayRequestsTable"></tbody>
+      </table>
+    </div>
+    <script>
+      const STATUS_UPDATED_EVENT = "holidayRequestStatusUpdated";
+      function loadHolidayRequests() {
+        const table = document.getElementById("holidayRequestsTable");
+        table.innerHTML = "";
+        const requests =
+          JSON.parse(localStorage.getItem("holidayRequests")) || [];
+        if (requests.length === 0) {
+          const row = document.createElement("tr");
+          row.innerHTML =
+            '<td colspan="7" style="text-align: center;">No holiday requests found</td>';
+          table.appendChild(row);
+          return;
+        }
+        requests.sort((a, b) => {
+          if (a.status === "pending" && b.status !== "pending") return -1;
+          if (a.status !== "pending" && b.status === "pending") return 1;
+          return new Date(b.startDate) - new Date(a.startDate);
+        });
+        requests.forEach((request, index) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+                    <td>${request.employee}</td>
+                    <td>${request.startDate}</td>
+                    <td>${request.endDate}</td>
+                    <td>${request.days}</td>
+                    <td>${request.reason}</td>
+                    <td><span class="status-${request.status || "pending"}">${
+            (request.status || "Pending").charAt(0).toUpperCase() +
+            (request.status || "pending").slice(1)
+          }</span></td>
+                    <td class="action-buttons">
+                        ${
+                          request.status === "pending"
+                            ? `
+                            <button class="approve-btn" onclick="updateStatus(${index}, 'approved')">Approve</button>
+                            <button class="reject-btn" onclick="updateStatus(${index}, 'rejected')">Reject</button>
+                        `
+                            : ""
+                        }
+                    </td>
+                `;
+          table.appendChild(row);
+        });
+      }
+      function updateStatus(requestIndex, status) {
+        const requests =
+          JSON.parse(localStorage.getItem("holidayRequests")) || [];
+        if (requests[requestIndex]) {
+          requests[requestIndex].status = status;
+          localStorage.setItem("holidayRequests", JSON.stringify(requests));
+          const row = document.getElementById("holidayRequestsTable").children[
+            requestIndex
+          ];
+          if (row) {
+            const statusCell = row.children[5];
+            statusCell.innerHTML = `<span class="status-${status}">${
+              status.charAt(0).toUpperCase() + status.slice(1)
+            }</span>`;
+            const actionsCell = row.children[6];
+            actionsCell.innerHTML = "";
+          }
+          window.dispatchEvent(
+            new CustomEvent(STATUS_UPDATED_EVENT, {
+              detail: {
+                requestId: requests[requestIndex].id,
+                status: status,
+                employee: requests[requestIndex].employee,
+              },
+            })
+          );
+          if (window.opener && !window.opener.closed) {
+            window.opener.dispatchEvent(
+              new CustomEvent(STATUS_UPDATED_EVENT, {
+                detail: {
+                  requestId: requests[requestIndex].id,
+                  status: status,
+                  employee: requests[requestIndex].employee,
+                },
+              })
+            );
+            if (
+              typeof window.opener.loadEmployeeHolidayRequests === "function"
+            ) {
+              window.opener.loadEmployeeHolidayRequests();
+            }
+          }
+          try {
+            const holidayWindows = Array.from(
+              window.opener?.window || []
+            ).filter(
+              (win) =>
+                win &&
+                !win.closed &&
+                win.location.href.includes("holiday_request.html")
+            );
+            holidayWindows.forEach((win) => {
+              win.dispatchEvent(
+                new CustomEvent(STATUS_UPDATED_EVENT, {
+                  detail: {
+                    requestId: requests[requestIndex].id,
+                    status: status,
+                    employee: requests[requestIndex].employee,
+                  },
+                })
+              );
+              if (typeof win.loadRequestHistory === "function") {
+                win.loadRequestHistory();
+              }
+            });
+          } catch (error) {
+            console.log("No holiday request windows to refresh");
+          }
+          alert(
+            `Holiday request for ${requests[requestIndex].employee} has been ${status}`
+          );
+        }
+      }
+      function clearHolidayRequests() {
+        if (
+          confirm(
+            "Are you sure you want to clear all holiday request records? This cannot be undone."
+          )
+        ) {
+          localStorage.removeItem("holidayRequests");
+          document.getElementById("holidayRequestsTable").innerHTML =
+            '<tr><td colspan="7" style="text-align: center;">No holiday requests found</td></tr>';
+          alert("All holiday request records have been cleared.");
+        }
+      }
+      window.addEventListener(STATUS_UPDATED_EVENT, function (event) {
+        loadHolidayRequests();
+      });
+      document.addEventListener("DOMContentLoaded", loadHolidayRequests);
+    </script>
+  </body>
+</html>
