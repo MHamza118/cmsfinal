@@ -989,7 +989,7 @@
                     // Delete from local object
                     delete users[username];
                     localStorage.setItem('users', JSON.stringify(users));
-                    
+
                     // Delete from Firebase
                     database.ref(`users/${username}`).remove()
                         .then(() => {
@@ -998,7 +998,7 @@
                         .catch(error => {
                             console.error('Error removing employee from Firebase:', error);
                         });
-                    
+
                     //Remove the employee from admin select dropdown
                     const adminUserSelect = document.getElementById('adminUserSelect');
                     const optionToRemove = Array.from(adminUserSelect.options).find(option => option.value === username);
@@ -1037,7 +1037,7 @@
                     phone: phone,
                     email: email
                 };
-                
+
                 // Save to Firebase
                 saveToFirebase(`users/${username}`, {
                     password: password,
@@ -1050,7 +1050,7 @@
                 }).catch(error => {
                     console.error('Error adding employee to Firebase:', error);
                 });
-                
+
                 //Update the select dropdown in the Admin Page.
                 const selectElement = document.getElementById('adminUserSelect');
                 const option = document.createElement('option');
@@ -1093,7 +1093,7 @@
                         }
                     });
                 }
-                
+
                 // Then load from Firebase for most up-to-date data
                 getFirebaseData('users', (firebaseUsers) => {
                     if (firebaseUsers) {
@@ -1902,7 +1902,7 @@
                         const dateComparison = new Date(b.date) - new Date(a.date);
                         if (dateComparison !== 0) return dateComparison;
                         const aCheckInTime = a.checkIn ? new Date(`${a.date} ${a.checkIn}`) : null;
-                        const bCheckInTime = b.checkIn ? new Date(`${b.date} ${b.checkIn}`) : null;
+                        const bCheckInTime = b.checkIn ? new Date(`${a.date} ${b.checkIn}`) : null;
                         if (aCheckInTime && bCheckInTime) return bCheckInTime - aCheckInTime;
                         return 0;
                     })

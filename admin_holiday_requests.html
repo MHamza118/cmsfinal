@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -110,35 +111,43 @@
     </div>
     <script>
       const STATUS_UPDATED_EVENT = "holidayRequestStatusUpdated";
+      
       function loadHolidayRequests() {
         const table = document.getElementById("holidayRequestsTable");
-        table.innerHTML = "";
-        const requests =
-          JSON.parse(localStorage.getItem("holidayRequests")) || [];
-        if (requests.length === 0) {
-          const row = document.createElement("tr");
-          row.innerHTML =
-            '<td colspan="7" style="text-align: center;">No holiday requests found</td>';
-          table.appendChild(row);
-          return;
-        }
-        requests.sort((a, b) => {
-          if (a.status === "pending" && b.status !== "pending") return -1;
-          if (a.status !== "pending" && b.status === "pending") return 1;
-          return new Date(b.startDate) - new Date(a.startDate);
-        });
-        requests.forEach((request, index) => {
-          const row = document.createElement("tr");
-          row.innerHTML = `
+        table.innerHTML = '<tr><td colspan="7" style="text-align: center;">Loading...</td></tr>';
+        
+        // First load from localStorage as backup
+        const localRequests = JSON.parse(localStorage.getItem("holidayRequests")) || [];
+        
+        // Then get from Firebase
+        getFirebaseData('holidayRequests', (firebaseRequests) => {
+          let requests = firebaseRequests || localRequests || [];
+          
+          if (requests.length === 0) {
+            table.innerHTML = '<tr><td colspan="7" style="text-align: center;">No holiday requests found</td></tr>';
+            return;
+          }
+          
+          table.innerHTML = "";
+          
+          requests.sort((a, b) => {
+            if (a.status === "pending" && b.status !== "pending") return -1;
+            if (a.status !== "pending" && b.status === "pending") return 1;
+            return new Date(b.startDate) - new Date(a.startDate);
+          });
+          
+          requests.forEach((request, index) => {
+            const row = document.createElement("tr");
+            row.innerHTML = `
                     <td>${request.employee}</td>
                     <td>${request.startDate}</td>
                     <td>${request.endDate}</td>
                     <td>${request.days}</td>
                     <td>${request.reason}</td>
                     <td><span class="status-${request.status || "pending"}">${
-            (request.status || "Pending").charAt(0).toUpperCase() +
-            (request.status || "pending").slice(1)
-          }</span></td>
+              (request.status || "Pending").charAt(0).toUpperCase() +
+              (request.status || "pending").slice(1)
+            }</span></td>
                     <td class="action-buttons">
                         ${
                           request.status === "pending"
@@ -150,97 +159,133 @@
                         }
                     </td>
                 `;
-          table.appendChild(row);
+            table.appendChild(row);
+          });
         });
       }
+      
       function updateStatus(requestIndex, status) {
-        const requests =
-          JSON.parse(localStorage.getItem("holidayRequests")) || [];
-        if (requests[requestIndex]) {
-          requests[requestIndex].status = status;
-          localStorage.setItem("holidayRequests", JSON.stringify(requests));
-          const row = document.getElementById("holidayRequestsTable").children[
-            requestIndex
-          ];
-          if (row) {
-            const statusCell = row.children[5];
-            statusCell.innerHTML = `<span class="status-${status}">${
-              status.charAt(0).toUpperCase() + status.slice(1)
-            }</span>`;
-            const actionsCell = row.children[6];
-            actionsCell.innerHTML = "";
-          }
-          window.dispatchEvent(
-            new CustomEvent(STATUS_UPDATED_EVENT, {
-              detail: {
-                requestId: requests[requestIndex].id,
-                status: status,
-                employee: requests[requestIndex].employee,
-              },
-            })
-          );
-          if (window.opener && !window.opener.closed) {
-            window.opener.dispatchEvent(
-              new CustomEvent(STATUS_UPDATED_EVENT, {
-                detail: {
-                  requestId: requests[requestIndex].id,
-                  status: status,
-                  employee: requests[requestIndex].employee,
-                },
+        // Get holiday requests from Firebase
+        getFirebaseData('holidayRequests', (firebaseRequests) => {
+          let requests = firebaseRequests || JSON.parse(localStorage.getItem("holidayRequests")) || [];
+          
+          if (requests[requestIndex]) {
+            requests[requestIndex].status = status;
+            
+            // Save updated requests to Firebase
+            saveToFirebase('holidayRequests', requests)
+              .then(() => {
+                console.log('Holiday request status updated in Firebase');
+                
+                // Also update localStorage as backup
+                localStorage.setItem("holidayRequests", JSON.stringify(requests));
+                
+                const row = document.getElementById("holidayRequestsTable").children[requestIndex];
+                if (row) {
+                  const statusCell = row.children[5];
+                  statusCell.innerHTML = `<span class="status-${status}">${
+                    status.charAt(0).toUpperCase() + status.slice(1)
+                  }</span>`;
+                  const actionsCell = row.children[6];
+                  actionsCell.innerHTML = "";
+                }
+                
+                window.dispatchEvent(
+                  new CustomEvent(STATUS_UPDATED_EVENT, {
+                    detail: {
+                      requestId: requests[requestIndex].id,
+                      status: status,
+                      employee: requests[requestIndex].employee,
+                    },
+                  })
+                );
+                
+                if (window.opener && !window.opener.closed) {
+                  window.opener.dispatchEvent(
+                    new CustomEvent(STATUS_UPDATED_EVENT, {
+                      detail: {
+                        requestId: requests[requestIndex].id,
+                        status: status,
+                        employee: requests[requestIndex].employee,
+                      },
+                    })
+                  );
+                  if (
+                    typeof window.opener.loadEmployeeHolidayRequests === "function"
+                  ) {
+                    window.opener.loadEmployeeHolidayRequests();
+                  }
+                }
+                
+                try {
+                  const holidayWindows = Array.from(
+                    window.opener?.window || []
+                  ).filter(
+                    (win) =>
+                      win &&
+                      !win.closed &&
+                      win.location.href.includes("holiday_request.html")
+                  );
+                  holidayWindows.forEach((win) => {
+                    win.dispatchEvent(
+                      new CustomEvent(STATUS_UPDATED_EVENT, {
+                        detail: {
+                          requestId: requests[requestIndex].id,
+                          status: status,
+                          employee: requests[requestIndex].employee,
+                        },
+                      })
+                    );
+                    if (typeof win.loadRequestHistory === "function") {
+                      win.loadRequestHistory();
+                    }
+                  });
+                } catch (error) {
+                  console.log("No holiday request windows to refresh");
+                }
+                
+                alert(
+                  `Holiday request for ${requests[requestIndex].employee} has been ${status}`
+                );
               })
-            );
-            if (
-              typeof window.opener.loadEmployeeHolidayRequests === "function"
-            ) {
-              window.opener.loadEmployeeHolidayRequests();
-            }
+              .catch(error => {
+                console.error('Error updating holiday request status in Firebase:', error);
+                alert('There was an error updating the request status. Please try again.');
+              });
           }
-          try {
-            const holidayWindows = Array.from(
-              window.opener?.window || []
-            ).filter(
-              (win) =>
-                win &&
-                !win.closed &&
-                win.location.href.includes("holiday_request.html")
-            );
-            holidayWindows.forEach((win) => {
-              win.dispatchEvent(
-                new CustomEvent(STATUS_UPDATED_EVENT, {
-                  detail: {
-                    requestId: requests[requestIndex].id,
-                    status: status,
-                    employee: requests[requestIndex].employee,
-                  },
-                })
-              );
-              if (typeof win.loadRequestHistory === "function") {
-                win.loadRequestHistory();
-              }
-            });
-          } catch (error) {
-            console.log("No holiday request windows to refresh");
-          }
-          alert(
-            `Holiday request for ${requests[requestIndex].employee} has been ${status}`
-          );
-        }
+        });
       }
+      
       function clearHolidayRequests() {
         if (
           confirm(
             "Are you sure you want to clear all holiday request records? This cannot be undone."
           )
         ) {
-          localStorage.removeItem("holidayRequests");
-          document.getElementById("holidayRequestsTable").innerHTML =
-            '<tr><td colspan="7" style="text-align: center;">No holiday requests found</td></tr>';
-          alert("All holiday request records have been cleared.");
+          // Clear from Firebase
+          saveToFirebase('holidayRequests', null)
+            .then(() => {
+              console.log('Holiday requests cleared from Firebase');
+              
+              // Also clear from localStorage
+              localStorage.removeItem("holidayRequests");
+              
+              document.getElementById("holidayRequestsTable").innerHTML =
+                '<tr><td colspan="7" style="text-align: center;">No holiday requests found</td></tr>';
+              
+              alert("All holiday request records have been cleared.");
+            })
+            .catch(error => {
+              console.error('Error clearing holiday requests from Firebase:', error);
+              alert('There was an error clearing the records. Please try again.');
+            });
         }
       }
+      
       window.addEventListener(STATUS_UPDATED_EVENT, function (event) {
         loadHolidayRequests();
       });
+      
       document.addEventListener("DOMContentLoaded", loadHolidayRequests);
     </script>
   </body>
