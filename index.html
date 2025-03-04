@@ -1076,39 +1076,70 @@
             }
             // Load users from Firebase and localStorage when page loads.
             window.addEventListener('load', () => {
-                // First load from localStorage as backup
-                const savedUsers = localStorage.getItem('users');
-                if (savedUsers) {
-                    const parsedUsers = JSON.parse(savedUsers);
-                    Object.keys(parsedUsers).forEach(username => {
-                        if (!users[username]) {
-                            users[username] = parsedUsers[username];
-                            if (username !== 'admin') {
-                                const selectElement = document.getElementById('adminUserSelect');
-                                const option = document.createElement('option');
-                                option.value = username;
-                                option.textContent = username;
-                                selectElement.appendChild(option);
-                            }
-                        }
-                    });
-                }
-                
-                // Then load from Firebase for most up-to-date data
+                // Always load from Firebase first for most up-to-date data
                 getFirebaseData('users', (firebaseUsers) => {
                     if (firebaseUsers) {
+                        // Update the users object with Firebase data
                         Object.keys(firebaseUsers).forEach(username => {
                             users[username] = firebaseUsers[username];
-                            if (username !== 'admin' && !document.querySelector(`#adminUserSelect option[value="${username}"]`)) {
-                                const selectElement = document.getElementById('adminUserSelect');
-                                const option = document.createElement('option');
-                                option.value = username;
-                                option.textContent = username;
-                                selectElement.appendChild(option);
-                            }
                         });
+                        
                         // Update localStorage with the latest data
                         localStorage.setItem('users', JSON.stringify(users));
+                        
+                        // Update the admin dropdown
+                        const selectElement = document.getElementById('adminUserSelect');
+                        if (selectElement) {
+                            // Clear existing options except the first one
+                            while (selectElement.options.length > 1) {
+                                selectElement.remove(1);
+                            }
+                            
+                            // Add all employees to the dropdown
+                            Object.keys(users).forEach(username => {
+                                if (username !== 'admin') {
+                                    const option = document.createElement('option');
+                                    option.value = username;
+                                    option.textContent = username;
+                                    selectElement.appendChild(option);
+                                }
+                            });
+                        }
+                    } else {
+                        // If Firebase has no data, use localStorage as backup
+                        const savedUsers = localStorage.getItem('users');
+                        if (savedUsers) {
+                            const parsedUsers = JSON.parse(savedUsers);
+                            
+                            // Update local users object
+                            Object.keys(parsedUsers).forEach(username => {
+                                if (!users[username]) {
+                                    users[username] = parsedUsers[username];
+                                }
+                            });
+                            
+                            // Upload to Firebase
+                            saveToFirebase('users', users);
+                            
+                            // Update the admin dropdown
+                            const selectElement = document.getElementById('adminUserSelect');
+                            if (selectElement) {
+                                // Clear existing options except the first one
+                                while (selectElement.options.length > 1) {
+                                    selectElement.remove(1);
+                                }
+                                
+                                // Add all employees
+                                Object.keys(users).forEach(username => {
+                                    if (username !== 'admin') {
+                                        const option = document.createElement('option');
+                                        option.value = username;
+                                        option.textContent = username;
+                                        selectElement.appendChild(option);
+                                    }
+                                });
+                            }
+                        }
                     }
                 });
             });
@@ -1137,27 +1168,67 @@
             document.getElementById('loginBtn').addEventListener('click', () => {
                 const username = document.getElementById('userName').value.toLowerCase();
                 const password = document.getElementById('userPassword').value;
-                const user = users[username];
-                if (user && user.password === password) {
-                    localStorage.setItem('loggedInUser', JSON.stringify({
-                        username,
-                        id: user.id,
-                        role: user.role
-                    }));
-                    if (user.role === 'admin') {
-                        showPage('adminPage');
-                        loadAdminData();
+                
+                // First check Firebase for the most up-to-date user data
+                database.ref(`users/${username}`).once('value', (snapshot) => {
+                    const firebaseUser = snapshot.val();
+                    
+                    // Use Firebase data if available, otherwise fallback to local data
+                    const user = firebaseUser || users[username];
+                    
+                    if (user && user.password === password) {
+                        // Store login info in localStorage
+                        localStorage.setItem('loggedInUser', JSON.stringify({
+                            username,
+                            id: user.id,
+                            role: user.role
+                        }));
+                        
+                        // If Firebase didn't have this user, save it there
+                        if (!firebaseUser && users[username]) {
+                            saveToFirebase(`users/${username}`, users[username]);
+                        }
+                        
+                        if (user.role === 'admin') {
+                            showPage('adminPage');
+                            loadAdminData();
+                        } else {
+                            document.getElementById('employeeDetails').textContent = `${username} | ID: ${user.id}`;
+                            showPage('employeePage');
+                            loadAttendanceTable();
+                            updateSummaryValues();
+                            loadEmployeeHolidayRequests();
+                            showSection('attendance');
+                        }
                     } else {
-                        document.getElementById('employeeDetails').textContent = `${username} | ID: ${user.id}`;
-                        showPage('employeePage');
-                        loadAttendanceTable();
-                        updateSummaryValues();
-                        loadEmployeeHolidayRequests();
-                        showSection('attendance');
+                        alert('Invalid username or password');
                     }
-                } else {
-                    alert('Invalid username or password');
-                }
+                }, (error) => {
+                    console.error("Error checking Firebase for user:", error);
+                    
+                    // Fallback to local check if Firebase fails
+                    const user = users[username];
+                    if (user && user.password === password) {
+                        localStorage.setItem('loggedInUser', JSON.stringify({
+                            username,
+                            id: user.id,
+                            role: user.role
+                        }));
+                        if (user.role === 'admin') {
+                            showPage('adminPage');
+                            loadAdminData();
+                        } else {
+                            document.getElementById('employeeDetails').textContent = `${username} | ID: ${user.id}`;
+                            showPage('employeePage');
+                            loadAttendanceTable();
+                            updateSummaryValues();
+                            loadEmployeeHolidayRequests();
+                            showSection('attendance');
+                        }
+                    } else {
+                        alert('Invalid username or password');
+                    }
+                });
             });
             function showPage(pageId) {
                 ['loginPage', 'employeePage', 'adminPage'].forEach(id => {

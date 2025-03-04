@@ -79,11 +79,52 @@ function getData(key, callback) {
   });
 }
 
-// Setup initial data listeners
+// Setup initial data listeners and sync
 function setupDataListeners() {
-  // Listen for changes to important data
+  // Get initial data from Firebase and update localStorage
+  const dataKeys = [
+    'users', 
+    'attendanceRecords', 
+    'lateCheckIns', 
+    'missedCheckIns',
+    'holidayRequests', 
+    'progressReports', 
+    'timeTables',
+    'employeeTasks',
+    'notifications'
+  ];
+  
+  // First load all data from Firebase
+  dataKeys.forEach(key => {
+    getFirebaseData(key, (firebaseData) => {
+      if (firebaseData) {
+        // Update localStorage with firebase data
+        localStorage.setItem(key, JSON.stringify(firebaseData));
+        
+        // Update global variables if needed
+        if (key === 'users' && typeof window.users !== 'undefined') {
+          window.users = Object.assign({}, window.users, firebaseData);
+        }
+      } else {
+        // If no Firebase data, check if we have local data to upload
+        const localData = JSON.parse(localStorage.getItem(key));
+        if (localData) {
+          // Upload local data to Firebase
+          saveToFirebase(key, localData);
+        }
+      }
+    });
+  });
+  
+  // Then set up listeners for real-time updates
   listenForChanges('users', (users) => {
-    if (users) localStorage.setItem('users', JSON.stringify(users));
+    if (users) {
+      localStorage.setItem('users', JSON.stringify(users));
+      // Update global variable
+      if (typeof window.users !== 'undefined') {
+        window.users = Object.assign({}, window.users, users);
+      }
+    }
   });
   
   listenForChanges('attendanceRecords', (records) => {
