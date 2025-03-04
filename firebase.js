@@ -26,7 +26,26 @@ function updateFirebaseData(path, data) {
 
 function getFirebaseData(path, callback) {
   database.ref(path).once('value', (snapshot) => {
-    callback(snapshot.val());
+    const data = snapshot.val();
+    // Keep localStorage in sync with latest Firebase data
+    if (data) {
+      try {
+        localStorage.setItem(path, JSON.stringify(data));
+      } catch (e) {
+        console.error(`Error updating localStorage for ${path}:`, e);
+      }
+    }
+    callback(data);
+  }, (error) => {
+    console.error(`Error fetching data from Firebase (${path}):`, error);
+    // Fallback to localStorage on Firebase error
+    try {
+      const localData = JSON.parse(localStorage.getItem(path));
+      callback(localData);
+    } catch (e) {
+      console.error(`Error fetching from localStorage (${path}):`, e);
+      callback(null);
+    }
   });
 }
 
