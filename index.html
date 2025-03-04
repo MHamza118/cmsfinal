@@ -885,8 +885,7 @@
             //Responsiveness/Hamburgur Menu Functionalities for MOBILE PHONES.
             //Admin Page.
             function toggleAdminMobileMenu() {
-                const sidebar = document.querySelector('#adminPage .left-sidebar');
-                const hamburger = document.querySelector('#adminPage .hamburger-menu');
+                const sidebar = document.querySelector('#adminPage .left-sidebar');                const hamburger = document.querySelector('#adminPage .hamburger-menu');
                 const overlay = document.querySelector('#adminPage .sidebar-overlay');
                 sidebar.classList.toggle('active');
                 hamburger.classList.toggle('active');
@@ -1902,7 +1901,7 @@
                         const dateComparison = new Date(b.date) - new Date(a.date);
                         if (dateComparison !== 0) return dateComparison;
                         const aCheckInTime = a.checkIn ? new Date(`${a.date} ${a.checkIn}`) : null;
-                        const bCheckInTime = b.checkIn ? new Date(`${a.date} ${b.checkIn}`) : null;
+                        const bCheckInTime = b.checkIn ? new Date(`${b.date} ${b.checkIn}`) : null;
                         if (aCheckInTime && bCheckInTime) return bCheckInTime - aCheckInTime;
                         return 0;
                     })
@@ -1947,43 +1946,45 @@
                 const date = now.toLocaleDateString();
                 const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
                 const time = now.toLocaleTimeString();
-                //Get existing records
-                let attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
-                //Find if there's an existing record for today
-                const recordIndex = attendanceRecords.findIndex(record =>
-                    record.employee === employee && record.date === date
-                );
-                if (recordIndex === -1) {
-                    //If no record exists for today, create one
-                    const newRecord = {
-                        employee: employee,
-                        date: date,
-                        day: day
-                    };
-                    if (type === 'checkIn') {
-                        newRecord.checkIn = time;
-                    } else if (type === 'checkOut') {
-                        newRecord.checkOut = time;
-                    }
-                    attendanceRecords.push(newRecord);
-                } else {
-                    //update existing record.
-                    if (type === 'checkIn') {
-                        attendanceRecords[recordIndex].checkIn = time;
-                    } else if (type === 'checkOut') {
-                        //handle multiple checkouts.
-                        if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
-                            attendanceRecords[recordIndex].checkOut.push(time);
-                        } else if (attendanceRecords[recordIndex].checkOut) {
-                            attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
-                        } else {
-                            attendanceRecords[recordIndex].checkOut = time;
+                // Get existing records from Firebase
+                getFirebaseData('attendanceRecords', (firebaseRecords) => {
+                    let attendanceRecords = firebaseRecords || [];
+                    // Find if there's an existing record for today
+                    const recordIndex = attendanceRecords.findIndex(record =>
+                        record.employee === employee && record.date === date
+                    );
+                    if (recordIndex === -1) {
+                        // If no record exists for today, create one
+                        const newRecord = {
+                            employee: employee,
+                            date: date,
+                            day: day
+                        };
+                        if (type === 'checkIn') {
+                            newRecord.checkIn = time;
+                        } else if (type === 'checkOut') {
+                            newRecord.checkOut = time;
+                        }
+                        attendanceRecords.push(newRecord);
+                    } else {
+                        // Update existing record
+                        if (type === 'checkIn') {
+                            attendanceRecords[recordIndex].checkIn = time;
+                        } else if (type === 'checkOut') {
+                            // Handle multiple checkouts
+                            if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
+                                attendanceRecords[recordIndex].checkOut.push(time);
+                            } else if (attendanceRecords[recordIndex].checkOut) {
+                                attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
+                            } else {
+                                attendanceRecords[recordIndex].checkOut = time;
+                            }
                         }
                     }
-                }
-                //Save updated records.
-                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
-                updateSummaryValues();
+                    // Save updated records to Firebase
+                    saveToFirebase('attendanceRecords', attendanceRecords);
+                    updateSummaryValues();
+                });
             }
             function formatTimeToAMPM(time) {
                 if (!time) return '-';
@@ -2376,7 +2377,7 @@
                 const taskIndex = tasks.findIndex(t => t.id === taskId);
                 if (taskIndex !== -1) {
                     tasks[taskIndex].status = status;
-                    tasks[taskIndex].lastModified = new Date().toISOString();
+                    tasks[taskIndex].lastModified = newDate().toISOString();
                     localStorage.setItem('employeeTasks', JSON.stringify(tasks));
                     if (status === 'Not Achieved' && !tasks[taskIndex].comment) {
                         alert('Please add Reason explaining why the task was not achieved.');
@@ -2482,39 +2483,45 @@
                 const date = now.toLocaleDateString();
                 const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
                 const time = now.toLocaleTimeString();
-                // Get existing records
-                let attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
-                // Find if there's an existing record for today
-                const recordIndex = attendanceRecords.findIndex(record =>
-                    record.employee === employee && record.date === date
-                );
-                if (recordIndex === -1) {
-                    const newRecord = {
-                        employee: employee,
-                        date: date,
-                        day: day
-                    };
-                    if (type === 'checkIn') {
-                        newRecord.checkIn = time;
-                    } else if (type === 'checkOut') {
-                        newRecord.checkOut = time;
-                    }
-                    attendanceRecords.push(newRecord);
-                } else {
-                    if (type === 'checkIn') {
-                        attendanceRecords[recordIndex].checkIn = time;
-                    } else if (type === 'checkOut') {
-                        if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
-                            attendanceRecords[recordIndex].checkOut.push(time);
-                        } else if (attendanceRecords[recordIndex].checkOut) {
-                            attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
-                        } else {
-                            attendanceRecords[recordIndex].checkOut = time;
+                // Get existing records from Firebase
+                getFirebaseData('attendanceRecords', (firebaseRecords) => {
+                    let attendanceRecords = firebaseRecords || [];
+                    // Find if there's an existing record for today
+                    const recordIndex = attendanceRecords.findIndex(record =>
+                        record.employee === employee && record.date === date
+                    );
+                    if (recordIndex === -1) {
+                        // If no record exists for today, create one
+                        const newRecord = {
+                            employee: employee,
+                            date: date,
+                            day: day
+                        };
+                        if (type === 'checkIn') {
+                            newRecord.checkIn = time;
+                        } else if (type === 'checkOut') {
+                            newRecord.checkOut = time;
+                        }
+                        attendanceRecords.push(newRecord);
+                    } else {
+                        // Update existing record
+                        if (type === 'checkIn') {
+                            attendanceRecords[recordIndex].checkIn = time;
+                        } else if (type === 'checkOut') {
+                            // Handle multiple checkouts
+                            if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
+                                attendanceRecords[recordIndex].checkOut.push(time);
+                            } else if (attendanceRecords[recordIndex].checkOut) {
+                                attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
+                            } else {
+                                attendanceRecords[recordIndex].checkOut = time;
+                            }
                         }
                     }
-                }
-                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
-                updateSummaryValues();
+                    // Save updated records to Firebase
+                    saveToFirebase('attendanceRecords', attendanceRecords);
+                    updateSummaryValues();
+                });
             }
             function recordMissedCheckIn() {
                 const now = new Date();

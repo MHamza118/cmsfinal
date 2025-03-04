@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -143,7 +142,6 @@
     </div>
     <script>
       const STATUS_UPDATED_EVENT = "holidayRequestStatusUpdated";
-      
       function getLoggedInEmployee() {
         const urlParams = new URLSearchParams(window.location.search);
         const employee = urlParams.get("employee");
@@ -153,7 +151,6 @@
         }
         return decodeURIComponent(employee);
       }
-      
       function loadRequestHistory() {
         const currentEmployee = getLoggedInEmployee();
         if (!currentEmployee) {
@@ -162,51 +159,42 @@
             '<tr><td colspan="5" class="no-requests">Error: Could not determine employee name</td></tr>';
           return;
         }
-        
-        // First load from localStorage as backup
-        const localRequests = JSON.parse(localStorage.getItem("holidayRequests")) || [];
-        
-        // Then get from Firebase
-        getFirebaseData('holidayRequests', (firebaseRequests) => {
-          let requests = firebaseRequests || localRequests || [];
+        // Get holiday requests from Firebase
+        getFirebaseData("holidayRequests", (requests) => {
+          if (!requests) requests = [];
           
           const tableBody = document.getElementById("requestHistoryTable");
           tableBody.innerHTML = "";
-          
           const userRequests = requests.filter(
             (request) => request.employee === currentEmployee
           );
-          
-          if (userRequests.length === 0) {
-            const row = document.createElement("tr");
-            row.innerHTML =
-              '<td colspan="5" class="no-requests">No holiday requests found</td>';
-            tableBody.appendChild(row);
-            return;
-          }
-          
-          userRequests.sort(
-            (a, b) => new Date(b.startDate) - new Date(a.startDate)
-          );
-          
-          userRequests.forEach((request) => {
-            const row = document.createElement("tr");
-            const statusClass = request.status || "pending";
-            const statusText =
-              (request.status || "Pending").charAt(0).toUpperCase() +
-              (request.status || "pending").slice(1);
-            row.innerHTML = `
-                      <td>${request.startDate}</td>
-                      <td>${request.endDate}</td>
-                      <td>${request.days}</td>
-                      <td>${request.reason}</td>
-                      <td><span class="status-${statusClass}">${statusText}</span></td>
-                  `;
-            tableBody.appendChild(row);
-          });
+        if (userRequests.length === 0) {
+          const row = document.createElement("tr");
+          row.innerHTML =
+            '<td colspan="5" class="no-requests">No holiday requests found</td>';
+          tableBody.appendChild(row);
+          return;
+        }
+        userRequests.sort(
+          (a, b) => new Date(b.startDate) - new Date(a.startDate)
+        );
+        userRequests.forEach((request) => {
+          const row = document.createElement("tr");
+          const statusClass = request.status || "pending";
+          const statusText =
+            (request.status || "Pending").charAt(0).toUpperCase() +
+            (request.status || "pending").slice(1);
+          row.innerHTML = `
+                    <td>${request.startDate}</td>
+                    <td>${request.endDate}</td>
+                    <td>${request.days}</td>
+                    <td>${request.reason}</td>
+                    <td><span class="status-${statusClass}">${statusText}</span></td>
+                `;
+          tableBody.appendChild(row);
+        });
         });
       }
-      
       document
         .getElementById("holidayRequestForm")
         .addEventListener("submit", function (e) {
@@ -221,16 +209,13 @@
           const startDate = document.getElementById("startDate").value;
           const endDate = document.getElementById("endDate").value;
           const reason = document.getElementById("reason").value;
-          
           if (new Date(endDate) < new Date(startDate)) {
             alert("End date cannot be before start date");
             return;
           }
-          
           const start = new Date(startDate);
           const end = new Date(endDate);
           const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-          
           const holidayRequest = {
             id: Date.now(),
             employee: currentEmployee,
@@ -242,59 +227,46 @@
             submittedDate: new Date().toISOString(),
           };
           
-          // Get existing requests from Firebase
-          getFirebaseData('holidayRequests', (firebaseRequests) => {
-            let holidayRequests = firebaseRequests || [];
+          // Get existing holiday requests from Firebase
+          getFirebaseData("holidayRequests", (holidayRequests) => {
+            if (!holidayRequests) holidayRequests = [];
+            
+            // Add new holiday request
             holidayRequests.push(holidayRequest);
             
             // Save to Firebase
-            saveToFirebase('holidayRequests', holidayRequests)
-              .then(() => {
-                console.log('Holiday request saved to Firebase');
-                
-                // Also update localStorage as backup
-                localStorage.setItem("holidayRequests", JSON.stringify(holidayRequests));
-                
-                window.dispatchEvent(
-                  new CustomEvent(STATUS_UPDATED_EVENT, {
-                    detail: {
-                      requestId: holidayRequest.id,
-                      status: "pending",
-                      employee: currentEmployee,
-                    },
-                  })
-                );
-                
-                if (window.opener && !window.opener.closed) {
-                  window.opener.dispatchEvent(
-                    new CustomEvent(STATUS_UPDATED_EVENT, {
-                      detail: {
-                        requestId: holidayRequest.id,
-                        status: "pending",
-                        employee: currentEmployee,
-                      },
-                    })
-                  );
-                }
-                
-                alert("Holiday request submitted successfully!");
-                document.getElementById("holidayRequestForm").reset();
-                loadRequestHistory();
-              })
-              .catch(error => {
-                console.error('Error saving holiday request to Firebase:', error);
-                alert('There was an error submitting your request. Please try again.');
-              });
+            saveToFirebase("holidayRequests", holidayRequests);
           });
+          window.dispatchEvent(
+            new CustomEvent(STATUS_UPDATED_EVENT, {
+              detail: {
+                requestId: holidayRequest.id,
+                status: "pending",
+                employee: currentEmployee,
+              },
+            })
+          );
+          if (window.opener && !window.opener.closed) {
+            window.opener.dispatchEvent(
+              new CustomEvent(STATUS_UPDATED_EVENT, {
+                detail: {
+                  requestId: holidayRequest.id,
+                  status: "pending",
+                  employee: currentEmployee,
+                },
+              })
+            );
+          }
+          alert("Holiday request submitted successfully!");
+          document.getElementById("holidayRequestForm").reset();
+          loadRequestHistory();
         });
-      
       window.addEventListener(STATUS_UPDATED_EVENT, function (event) {
         const currentEmployee = getLoggedInEmployee();
         if (currentEmployee && event.detail.employee === currentEmployee) {
           loadRequestHistory();
         }
       });
-      
       window.onload = loadRequestHistory;
     </script>
   </body>
