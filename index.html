@@ -885,7 +885,8 @@
             //Responsiveness/Hamburgur Menu Functionalities for MOBILE PHONES.
             //Admin Page.
             function toggleAdminMobileMenu() {
-                const sidebar = document.querySelector('#adminPage .left-sidebar');                const hamburger = document.querySelector('#adminPage .hamburger-menu');
+                const sidebar = document.querySelector('#adminPage .left-sidebar');
+                const hamburger = document.querySelector('#adminPage .hamburger-menu');
                 const overlay = document.querySelector('#adminPage .sidebar-overlay');
                 sidebar.classList.toggle('active');
                 hamburger.classList.toggle('active');
@@ -988,7 +989,7 @@
                     // Delete from local object
                     delete users[username];
                     localStorage.setItem('users', JSON.stringify(users));
-
+                    
                     // Delete from Firebase
                     database.ref(`users/${username}`).remove()
                         .then(() => {
@@ -997,7 +998,7 @@
                         .catch(error => {
                             console.error('Error removing employee from Firebase:', error);
                         });
-
+                    
                     //Remove the employee from admin select dropdown
                     const adminUserSelect = document.getElementById('adminUserSelect');
                     const optionToRemove = Array.from(adminUserSelect.options).find(option => option.value === username);
@@ -1036,7 +1037,7 @@
                     phone: phone,
                     email: email
                 };
-
+                
                 // Save to Firebase
                 saveToFirebase(`users/${username}`, {
                     password: password,
@@ -1049,7 +1050,7 @@
                 }).catch(error => {
                     console.error('Error adding employee to Firebase:', error);
                 });
-
+                
                 //Update the select dropdown in the Admin Page.
                 const selectElement = document.getElementById('adminUserSelect');
                 const option = document.createElement('option');
@@ -1092,7 +1093,7 @@
                         }
                     });
                 }
-
+                
                 // Then load from Firebase for most up-to-date data
                 getFirebaseData('users', (firebaseUsers) => {
                     if (firebaseUsers) {
@@ -1946,45 +1947,43 @@
                 const date = now.toLocaleDateString();
                 const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
                 const time = now.toLocaleTimeString();
-                // Get existing records from Firebase
-                getFirebaseData('attendanceRecords', (firebaseRecords) => {
-                    let attendanceRecords = firebaseRecords || [];
-                    // Find if there's an existing record for today
-                    const recordIndex = attendanceRecords.findIndex(record =>
-                        record.employee === employee && record.date === date
-                    );
-                    if (recordIndex === -1) {
-                        // If no record exists for today, create one
-                        const newRecord = {
-                            employee: employee,
-                            date: date,
-                            day: day
-                        };
-                        if (type === 'checkIn') {
-                            newRecord.checkIn = time;
-                        } else if (type === 'checkOut') {
-                            newRecord.checkOut = time;
-                        }
-                        attendanceRecords.push(newRecord);
-                    } else {
-                        // Update existing record
-                        if (type === 'checkIn') {
-                            attendanceRecords[recordIndex].checkIn = time;
-                        } else if (type === 'checkOut') {
-                            // Handle multiple checkouts
-                            if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
-                                attendanceRecords[recordIndex].checkOut.push(time);
-                            } else if (attendanceRecords[recordIndex].checkOut) {
-                                attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
-                            } else {
-                                attendanceRecords[recordIndex].checkOut = time;
-                            }
+                //Get existing records
+                let attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                //Find if there's an existing record for today
+                const recordIndex = attendanceRecords.findIndex(record =>
+                    record.employee === employee && record.date === date
+                );
+                if (recordIndex === -1) {
+                    //If no record exists for today, create one
+                    const newRecord = {
+                        employee: employee,
+                        date: date,
+                        day: day
+                    };
+                    if (type === 'checkIn') {
+                        newRecord.checkIn = time;
+                    } else if (type === 'checkOut') {
+                        newRecord.checkOut = time;
+                    }
+                    attendanceRecords.push(newRecord);
+                } else {
+                    //update existing record.
+                    if (type === 'checkIn') {
+                        attendanceRecords[recordIndex].checkIn = time;
+                    } else if (type === 'checkOut') {
+                        //handle multiple checkouts.
+                        if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
+                            attendanceRecords[recordIndex].checkOut.push(time);
+                        } else if (attendanceRecords[recordIndex].checkOut) {
+                            attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
+                        } else {
+                            attendanceRecords[recordIndex].checkOut = time;
                         }
                     }
-                    // Save updated records to Firebase
-                    saveToFirebase('attendanceRecords', attendanceRecords);
-                    updateSummaryValues();
-                });
+                }
+                //Save updated records.
+                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                updateSummaryValues();
             }
             function formatTimeToAMPM(time) {
                 if (!time) return '-';
@@ -2377,7 +2376,7 @@
                 const taskIndex = tasks.findIndex(t => t.id === taskId);
                 if (taskIndex !== -1) {
                     tasks[taskIndex].status = status;
-                    tasks[taskIndex].lastModified = newDate().toISOString();
+                    tasks[taskIndex].lastModified = new Date().toISOString();
                     localStorage.setItem('employeeTasks', JSON.stringify(tasks));
                     if (status === 'Not Achieved' && !tasks[taskIndex].comment) {
                         alert('Please add Reason explaining why the task was not achieved.');
@@ -2483,45 +2482,39 @@
                 const date = now.toLocaleDateString();
                 const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
                 const time = now.toLocaleTimeString();
-                // Get existing records from Firebase
-                getFirebaseData('attendanceRecords', (firebaseRecords) => {
-                    let attendanceRecords = firebaseRecords || [];
-                    // Find if there's an existing record for today
-                    const recordIndex = attendanceRecords.findIndex(record =>
-                        record.employee === employee && record.date === date
-                    );
-                    if (recordIndex === -1) {
-                        // If no record exists for today, create one
-                        const newRecord = {
-                            employee: employee,
-                            date: date,
-                            day: day
-                        };
-                        if (type === 'checkIn') {
-                            newRecord.checkIn = time;
-                        } else if (type === 'checkOut') {
-                            newRecord.checkOut = time;
-                        }
-                        attendanceRecords.push(newRecord);
-                    } else {
-                        // Update existing record
-                        if (type === 'checkIn') {
-                            attendanceRecords[recordIndex].checkIn = time;
-                        } else if (type === 'checkOut') {
-                            // Handle multiple checkouts
-                            if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
-                                attendanceRecords[recordIndex].checkOut.push(time);
-                            } else if (attendanceRecords[recordIndex].checkOut) {
-                                attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
-                            } else {
-                                attendanceRecords[recordIndex].checkOut = time;
-                            }
+                // Get existing records
+                let attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                // Find if there's an existing record for today
+                const recordIndex = attendanceRecords.findIndex(record =>
+                    record.employee === employee && record.date === date
+                );
+                if (recordIndex === -1) {
+                    const newRecord = {
+                        employee: employee,
+                        date: date,
+                        day: day
+                    };
+                    if (type === 'checkIn') {
+                        newRecord.checkIn = time;
+                    } else if (type === 'checkOut') {
+                        newRecord.checkOut = time;
+                    }
+                    attendanceRecords.push(newRecord);
+                } else {
+                    if (type === 'checkIn') {
+                        attendanceRecords[recordIndex].checkIn = time;
+                    } else if (type === 'checkOut') {
+                        if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
+                            attendanceRecords[recordIndex].checkOut.push(time);
+                        } else if (attendanceRecords[recordIndex].checkOut) {
+                            attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
+                        } else {
+                            attendanceRecords[recordIndex].checkOut = time;
                         }
                     }
-                    // Save updated records to Firebase
-                    saveToFirebase('attendanceRecords', attendanceRecords);
-                    updateSummaryValues();
-                });
+                }
+                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                updateSummaryValues();
             }
             function recordMissedCheckIn() {
                 const now = new Date();

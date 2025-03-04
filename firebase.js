@@ -36,103 +36,88 @@ function listenForChanges(path, callback) {
   });
 }
 
-// Firebase localStorage replacement functions
-function firebaseSetItem(key, value) {
-  return saveToFirebase(key, value);
-}
-
-function firebaseGetItem(key, callback) {
-  getFirebaseData(key, callback);
-}
-
-// Helper function to synchronize localStorage with Firebase for backward compatibility
-function syncToFirebase() {
-  // Users
-  const savedUsers = localStorage.getItem('users');
-  if (savedUsers) {
-    saveToFirebase('users', JSON.parse(savedUsers));
-  }
+// Data helpers that replace localStorage functionality
+function saveData(key, data) {
+  // Save to Firebase
+  saveToFirebase(key, data);
   
-  // Attendance Records
-  const attendanceRecords = localStorage.getItem('attendanceRecords');
-  if (attendanceRecords) {
-    saveToFirebase('attendanceRecords', JSON.parse(attendanceRecords));
-  }
-  
-  // Late Check-ins
-  const lateCheckIns = localStorage.getItem('lateCheckIns');
-  if (lateCheckIns) {
-    saveToFirebase('lateCheckIns', JSON.parse(lateCheckIns));
-  }
-  
-  // Progress Reports
-  const progressReports = localStorage.getItem('progressReports');
-  if (progressReports) {
-    saveToFirebase('progressReports', JSON.parse(progressReports));
-  }
-  
-  // Holiday Requests
-  const holidayRequests = localStorage.getItem('holidayRequests');
-  if (holidayRequests) {
-    saveToFirebase('holidayRequests', JSON.parse(holidayRequests));
-  }
-  
-  // Time Tables
-  const timeTables = localStorage.getItem('timeTables');
-  if (timeTables) {
-    saveToFirebase('timeTables', JSON.parse(timeTables));
-  }
-  
-  // Missed Check-ins
-  const missedCheckIns = localStorage.getItem('missedCheckIns');
-  if (missedCheckIns) {
-    saveToFirebase('missedCheckIns', JSON.parse(missedCheckIns));
-  }
-  
-  // Notifications
-  const notifications = localStorage.getItem('notifications');
-  if (notifications) {
-    saveToFirebase('notifications', JSON.parse(notifications));
-  }
-  
-  // Employee Tasks
-  const employeeTasks = localStorage.getItem('employeeTasks');
-  if (employeeTasks) {
-    saveToFirebase('employeeTasks', JSON.parse(employeeTasks));
+  // Still save to localStorage as backup
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.error('Error saving to localStorage:', e);
   }
 }
 
-// Replace localStorage functions
-const fbStorage = {
-  setItem: function(key, value) {
-    // Store in Firebase
-    saveToFirebase(key, typeof value === 'string' ? value : JSON.parse(value));
-    // Keep localStorage as backup
-    localStorage.setItem(key, value);
-  },
-  
-  getItem: function(key, callback) {
-    getFirebaseData(key, (data) => {
-      if (callback) {
-        callback(data);
+function getData(key, callback) {
+  // Try to get from Firebase first
+  getFirebaseData(key, (firebaseData) => {
+    if (firebaseData) {
+      callback(firebaseData);
+      
+      // Update localStorage with the latest data
+      try {
+        localStorage.setItem(key, JSON.stringify(firebaseData));
+      } catch (e) {
+        console.error('Error updating localStorage:', e);
       }
-      // Keep localStorage updated
-      if (data !== null) {
-        localStorage.setItem(key, JSON.stringify(data));
+    } else {
+      // Fallback to localStorage if Firebase data not available
+      try {
+        const localData = JSON.parse(localStorage.getItem(key)) || null;
+        callback(localData);
+        
+        // If we have local data but not Firebase data, update Firebase
+        if (localData) {
+          saveToFirebase(key, localData);
+        }
+      } catch (e) {
+        console.error('Error fetching from localStorage:', e);
+        callback(null);
       }
-      return data;
-    });
-    // Return from localStorage as fallback
-    return localStorage.getItem(key);
-  },
-  
-  removeItem: function(key) {
-    database.ref(key).remove();
-    localStorage.removeItem(key);
-  }
-};
+    }
+  });
+}
 
-// Run sync on page load
-window.addEventListener('load', () => {
-  syncToFirebase();
-});
+// Setup initial data listeners
+function setupDataListeners() {
+  // Listen for changes to important data
+  listenForChanges('users', (users) => {
+    if (users) localStorage.setItem('users', JSON.stringify(users));
+  });
+  
+  listenForChanges('attendanceRecords', (records) => {
+    if (records) localStorage.setItem('attendanceRecords', JSON.stringify(records));
+  });
+  
+  listenForChanges('lateCheckIns', (records) => {
+    if (records) localStorage.setItem('lateCheckIns', JSON.stringify(records));
+  });
+  
+  listenForChanges('missedCheckIns', (records) => {
+    if (records) localStorage.setItem('missedCheckIns', JSON.stringify(records));
+  });
+  
+  listenForChanges('holidayRequests', (requests) => {
+    if (requests) localStorage.setItem('holidayRequests', JSON.stringify(requests));
+  });
+  
+  listenForChanges('progressReports', (reports) => {
+    if (reports) localStorage.setItem('progressReports', JSON.stringify(reports));
+  });
+  
+  listenForChanges('timeTables', (tables) => {
+    if (tables) localStorage.setItem('timeTables', JSON.stringify(tables));
+  });
+  
+  listenForChanges('employeeTasks', (tasks) => {
+    if (tasks) localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+  });
+  
+  listenForChanges('notifications', (notifications) => {
+    if (notifications) localStorage.setItem('notifications', JSON.stringify(notifications));
+  });
+}
+
+// Call this on application start
+window.addEventListener('load', setupDataListeners);

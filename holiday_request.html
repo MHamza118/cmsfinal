@@ -159,15 +159,13 @@
             '<tr><td colspan="5" class="no-requests">Error: Could not determine employee name</td></tr>';
           return;
         }
-        // Get holiday requests from Firebase
-        getFirebaseData("holidayRequests", (requests) => {
-          if (!requests) requests = [];
-          
-          const tableBody = document.getElementById("requestHistoryTable");
-          tableBody.innerHTML = "";
-          const userRequests = requests.filter(
-            (request) => request.employee === currentEmployee
-          );
+        const requests =
+          JSON.parse(localStorage.getItem("holidayRequests")) || [];
+        const tableBody = document.getElementById("requestHistoryTable");
+        tableBody.innerHTML = "";
+        const userRequests = requests.filter(
+          (request) => request.employee === currentEmployee
+        );
         if (userRequests.length === 0) {
           const row = document.createElement("tr");
           row.innerHTML =
@@ -192,7 +190,6 @@
                     <td><span class="status-${statusClass}">${statusText}</span></td>
                 `;
           tableBody.appendChild(row);
-        });
         });
       }
       document
@@ -227,15 +224,60 @@
             submittedDate: new Date().toISOString(),
           };
           
-          // Get existing holiday requests from Firebase
-          getFirebaseData("holidayRequests", (holidayRequests) => {
-            if (!holidayRequests) holidayRequests = [];
+          // Get current holiday requests from Firebase
+          getFirebaseData("holidayRequests", (firebaseRequests) => {
+            let holidayRequests = firebaseRequests || JSON.parse(
+              localStorage.getItem("holidayRequests") || "[]"
+            );
             
-            // Add new holiday request
             holidayRequests.push(holidayRequest);
             
             // Save to Firebase
-            saveToFirebase("holidayRequests", holidayRequests);
+            saveToFirebase("holidayRequests", holidayRequests)
+              .then(() => {
+                // Also save to localStorage as backup
+                localStorage.setItem(
+                  "holidayRequests",
+                  JSON.stringify(holidayRequests)
+                );
+                
+                window.dispatchEvent(
+                  new CustomEvent(STATUS_UPDATED_EVENT, {
+                    detail: {
+                      requestId: holidayRequest.id,
+                      status: "pending",
+                      employee: currentEmployee,
+                    },
+                  })
+                );
+                
+                if (window.opener && !window.opener.closed) {
+                  window.opener.dispatchEvent(
+                    new CustomEvent(STATUS_UPDATED_EVENT, {
+                      detail: {
+                        requestId: holidayRequest.id,
+                        status: "pending",
+                        employee: currentEmployee,
+                      },
+                    })
+                  );
+                }
+                
+                alert("Holiday request submitted successfully!");
+                document.getElementById("holidayRequestForm").reset();
+                loadRequestHistory();
+              })
+              .catch(error => {
+                console.error('Error saving holiday request to Firebase:', error);
+                // Still save to localStorage as backup
+                localStorage.setItem(
+                  "holidayRequests",
+                  JSON.stringify(holidayRequests)
+                );
+                alert("Holiday request submitted successfully (saved locally)!");
+                document.getElementById("holidayRequestForm").reset();
+                loadRequestHistory();
+              });
           });
           window.dispatchEvent(
             new CustomEvent(STATUS_UPDATED_EVENT, {

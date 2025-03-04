@@ -113,16 +113,15 @@
       function loadHolidayRequests() {
         const table = document.getElementById("holidayRequestsTable");
         table.innerHTML = "";
-        
-        // Get holiday requests from Firebase
-        getFirebaseData("holidayRequests", (requests) => {
-          if (!requests || requests.length === 0) {
-            const row = document.createElement("tr");
-            row.innerHTML =
-              '<td colspan="7" style="text-align: center;">No holiday requests found</td>';
-            table.appendChild(row);
-            return;
-          }
+        const requests =
+          JSON.parse(localStorage.getItem("holidayRequests")) || [];
+        if (requests.length === 0) {
+          const row = document.createElement("tr");
+          row.innerHTML =
+            '<td colspan="7" style="text-align: center;">No holiday requests found</td>';
+          table.appendChild(row);
+          return;
+        }
         requests.sort((a, b) => {
           if (a.status === "pending" && b.status !== "pending") return -1;
           if (a.status !== "pending" && b.status === "pending") return 1;
@@ -153,26 +152,33 @@
                 `;
           table.appendChild(row);
         });
-        });
       }
       function updateStatus(requestIndex, status) {
-        getFirebaseData("holidayRequests", (requests) => {
-          if (!requests) requests = [];
-          
+        // Get current holiday requests from Firebase
+        getFirebaseData("holidayRequests", (firebaseRequests) => {
+          const requests = firebaseRequests || 
+            JSON.parse(localStorage.getItem("holidayRequests")) || [];
+            
           if (requests[requestIndex]) {
             requests[requestIndex].status = status;
-            saveToFirebase("holidayRequests", requests);
-          const row = document.getElementById("holidayRequestsTable").children[
-            requestIndex
-          ];
-          if (row) {
-            const statusCell = row.children[5];
-            statusCell.innerHTML = `<span class="status-${status}">${
-              status.charAt(0).toUpperCase() + status.slice(1)
-            }</span>`;
-            const actionsCell = row.children[6];
-            actionsCell.innerHTML = "";
-          }
+            
+            // Save to Firebase
+            saveToFirebase("holidayRequests", requests)
+              .then(() => {
+                // Also save to localStorage as backup
+                localStorage.setItem("holidayRequests", JSON.stringify(requests));
+                
+                const row = document.getElementById("holidayRequestsTable").children[
+                  requestIndex
+                ];
+                if (row) {
+                  const statusCell = row.children[5];
+                  statusCell.innerHTML = `<span class="status-${status}">${
+                    status.charAt(0).toUpperCase() + status.slice(1)
+                  }</span>`;
+                  const actionsCell = row.children[6];
+                  actionsCell.innerHTML = "";
+                }
           window.dispatchEvent(
             new CustomEvent(STATUS_UPDATED_EVENT, {
               detail: {
@@ -228,7 +234,6 @@
             `Holiday request for ${requests[requestIndex].employee} has been ${status}`
           );
         }
-        });
       }
       function clearHolidayRequests() {
         if (
@@ -236,15 +241,22 @@
             "Are you sure you want to clear all holiday request records? This cannot be undone."
           )
         ) {
-          database.ref("holidayRequests").remove()
+          // Clear from Firebase
+          saveToFirebase("holidayRequests", null)
             .then(() => {
+              // Also clear from localStorage
+              localStorage.removeItem("holidayRequests");
               document.getElementById("holidayRequestsTable").innerHTML =
                 '<tr><td colspan="7" style="text-align: center;">No holiday requests found</td></tr>';
               alert("All holiday request records have been cleared.");
             })
             .catch(error => {
-              console.error("Error clearing holiday requests:", error);
-              alert("Error clearing holiday requests. Please try again.");
+              console.error('Error clearing holiday requests from Firebase:', error);
+              // Still clear from localStorage
+              localStorage.removeItem("holidayRequests");
+              document.getElementById("holidayRequestsTable").innerHTML =
+                '<tr><td colspan="7" style="text-align: center;">No holiday requests found</td></tr>';
+              alert("All holiday request records have been cleared locally. There was an error clearing from the cloud.");
             });
         }
       }
