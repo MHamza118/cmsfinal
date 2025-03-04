@@ -1674,37 +1674,87 @@
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
                 const now = new Date();
                 const progressReport = {
+                    id: Date.now(), // Unique ID for the progress report
                     employee: employee,
                     date: now.toLocaleDateString(),
                     time: now.toLocaleTimeString(),
                     details: progressMessage,
                     fileName: fileName,
                     fileData: fileData,
-                    status: 'Pending'
+                    status: 'Pending',
+                    timestamp: now.getTime() // For proper sorting
                 };
-                //Get existing progress reports and add a new one.
-                let progressReports = JSON.parse(localStorage.getItem('progressReports')) || [];
-                progressReports.push(progressReport);
-                //Save the progree report to localStorage.
-                localStorage.setItem('progressReports', JSON.stringify(progressReports));
-                document.getElementById('progressMessage').value = '';
-                document.getElementById('progressFile').value = '';
-                document.getElementById('fileName').textContent = '';
-                //Alert for successful submission for the progress report
-                alert('Progress report submitted successfully!');
-                loadEmployeeProgress();
+                
+                // First get existing progress reports from Firebase
+                getFirebaseData('progressReports', (firebaseReports) => {
+                    let progressReports = firebaseReports || [];
+                    
+                    // Convert to array if it's an object from Firebase
+                    if (!Array.isArray(progressReports)) {
+                        progressReports = Object.values(progressReports);
+                    }
+                    
+                    // Add new report
+                    progressReports.push(progressReport);
+                    
+                    // Save to Firebase
+                    saveToFirebase('progressReports', progressReports)
+                        .then(() => {
+                            // Also save to localStorage as backup
+                            localStorage.setItem('progressReports', JSON.stringify(progressReports));
+                            
+                            document.getElementById('progressMessage').value = '';
+                            document.getElementById('progressFile').value = '';
+                            document.getElementById('fileName').textContent = '';
+                            document.getElementById('fileUploadedIcon').style.display = 'none';
+                            
+                            alert('Progress report submitted successfully!');
+                            loadEmployeeProgress();
+                        })
+                        .catch(error => {
+                            console.error('Error saving progress report to Firebase:', error);
+                            alert('There was an issue saving your progress report. Please try again.');
+                        });
+                });
             }
             function loadEmployeeProgress() {
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
-                const progressReports = JSON.parse(localStorage.getItem('progressReports')) || [];
                 const tableBody = document.getElementById('employeeProgressTable');
-                if (!tableBody) return; //Return/come out of the function if not on progress page.
-                tableBody.innerHTML = '';
-                // Filter and sort progress reports for current employee
-                progressReports
-                    .filter(report => report.employee === employee)
-                    .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
-                    .forEach(report => {
+                if (!tableBody) return; // Return if not on progress page
+                
+                // Add loading indicator
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Loading progress reports...</td></tr>';
+                
+                // Get progress reports from Firebase
+                getFirebaseData('progressReports', (firebaseReports) => {
+                    // Clear loading indicator
+                    tableBody.innerHTML = '';
+                    
+                    let progressReports = firebaseReports || [];
+                    
+                    // Convert to array if it's an object from Firebase
+                    if (!Array.isArray(progressReports)) {
+                        progressReports = Object.values(progressReports);
+                    }
+                    
+                    // Filter and sort progress reports for current employee
+                    const employeeReports = progressReports
+                        .filter(report => report.employee === employee)
+                        .sort((a, b) => {
+                            // First try to sort by timestamp if available
+                            if (a.timestamp && b.timestamp) {
+                                return b.timestamp - a.timestamp;
+                            }
+                            // Fallback to date+time string comparison
+                            return new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time);
+                        });
+                    
+                    if (employeeReports.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No progress reports found</td></tr>';
+                        return;
+                    }
+                    
+                    employeeReports.forEach(report => {
                         const statusClass = report.status.toLowerCase();
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -1716,43 +1766,69 @@
                         `;
                         tableBody.appendChild(row);
                     });
+                });
             }
             function loadAdminProgressReports(selectedUser = '') {
-                const progressReports = JSON.parse(localStorage.getItem('progressReports')) || [];
                 const tableBody = document.getElementById('adminProgressTable');
                 if (!tableBody) return;
-                tableBody.innerHTML = '';
-                const filteredReports = progressReports.filter(report => !selectedUser || report.employee === selectedUser);
-                if (selectedUser && filteredReports.length === 0) {
-                    const row = document.createElement('tr');
-                    row.innerHTML = '<td colspan="7" style="text-align: center;">No progress reports found for this employee</td>';
-                    tableBody.appendChild(row);
-                    return;
-                }
-                //Filter and sort progress reports Admin Page.
-                filteredReports.sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + b.time))
-                    .forEach(report => {
-                        const fileDownloadButton = report.fileData ?
-                            `<button onclick="downloadFile('${report.fileName}', '${report.fileData}')" class="download-btn">Download</button>` :
-                            'No file';
+                
+                // Add loading indicator
+                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading progress reports...</td></tr>';
+                
+                // Get progress reports from Firebase
+                getFirebaseData('progressReports', (firebaseReports) => {
+                    // Clear loading indicator
+                    tableBody.innerHTML = '';
+                    
+                    let progressReports = firebaseReports || [];
+                    
+                    // Convert to array if it's an object from Firebase
+                    if (!Array.isArray(progressReports)) {
+                        progressReports = Object.values(progressReports);
+                    }
+                    
+                    // Filter by selected user if specified
+                    const filteredReports = selectedUser 
+                        ? progressReports.filter(report => report.employee === selectedUser)
+                        : progressReports;
+                    
+                    if (selectedUser && filteredReports.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No progress reports found for this employee</td></tr>';
+                        return;
+                    }
+                    
+                    // Sort reports by date/time (newest first)
+                    filteredReports.sort((a, b) => {
+                        // First try to sort by timestamp if available
+                        if (a.timestamp && b.timestamp) {
+                            return b.timestamp - a.timestamp;
+                        }
+                        // Fallback to date+time string comparison
+                        return new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time);
+                    }).forEach(report => {
+                        const fileDownloadButton = report.fileData 
+                            ? `<button onclick="downloadFile('${report.fileName}', '${report.fileData}')" class="download-btn">Download</button>` 
+                            : 'No file';
+                        
                         const row = document.createElement('tr');
                         row.innerHTML = `
-                        <td>${report.employee}</td>
-                        <td>${report.date}</td>
-                        <td>${report.time}</td>
-                        <td>${report.details}</td>
-                        <td>${report.fileName ? report.fileName : 'No file'}</td>
-                        <td>${fileDownloadButton}</td>
-                        <td>
-                            <select onchange="updateProgressStatus('${report.date} ${report.time}', this.value)">
-                                <option value="Pending" ${report.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                                <option value="Approved" ${report.status === 'Approved' ? 'selected' : ''}>Approved</option>
-                                <option value="Rejected" ${report.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
-                            </select>
-                        </td>
-                    `;
+                            <td>${report.employee}</td>
+                            <td>${report.date}</td>
+                            <td>${report.time}</td>
+                            <td>${report.details}</td>
+                            <td>${report.fileName ? report.fileName : 'No file'}</td>
+                            <td>${fileDownloadButton}</td>
+                            <td>
+                                <select onchange="updateProgressStatus('${report.id}', this.value)">
+                                    <option value="Pending" ${report.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                                    <option value="Approved" ${report.status === 'Approved' ? 'selected' : ''}>Approved</option>
+                                    <option value="Rejected" ${report.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
+                                </select>
+                            </td>
+                        `;
                         tableBody.appendChild(row);
                     });
+                });
             }
             function downloadFile(fileName, fileData) {
                 if (!fileData) {
@@ -1766,19 +1842,48 @@
                 link.click();
                 document.body.removeChild(link);
             }
-            function updateProgressStatus(datetime, newStatus) {
-                const progressReports = JSON.parse(localStorage.getItem('progressReports')) || [];
-                const [date, time] = datetime.split(' ');
-                const reportIndex = progressReports.findIndex(report =>
-                    report.date === date && report.time === time
-                );
-                if (reportIndex !== -1) {
-                    progressReports[reportIndex].status = newStatus;
-                    localStorage.setItem('progressReports', JSON.stringify(progressReports));
-                    // Refresh both admin and employee views
-                    loadAdminProgressReports(document.getElementById('adminUserSelect').value);
-                    loadEmployeeProgress();
-                }
+            function updateProgressStatus(reportId, newStatus) {
+                // Get progress reports from Firebase
+                getFirebaseData('progressReports', (firebaseReports) => {
+                    let progressReports = firebaseReports || [];
+                    
+                    // Convert to array if it's an object from Firebase
+                    if (!Array.isArray(progressReports)) {
+                        progressReports = Object.values(progressReports);
+                    }
+                    
+                    // Find the report by ID
+                    const reportIndex = progressReports.findIndex(report => report.id == reportId);
+                    
+                    if (reportIndex !== -1) {
+                        // Update status
+                        progressReports[reportIndex].status = newStatus;
+                        
+                        // Save to Firebase
+                        saveToFirebase('progressReports', progressReports)
+                            .then(() => {
+                                // Also update localStorage
+                                localStorage.setItem('progressReports', JSON.stringify(progressReports));
+                                
+                                console.log('Progress report status updated successfully');
+                                
+                                // Refresh both admin and employee views
+                                const selectedUser = document.getElementById('adminUserSelect').value;
+                                loadAdminProgressReports(selectedUser);
+                                
+                                // Only try to load employee progress if on employee page
+                                if (document.getElementById('employeePage').style.display !== 'none') {
+                                    loadEmployeeProgress();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error updating progress report status in Firebase:', error);
+                                alert('There was an issue updating the progress report status. Please try again.');
+                            });
+                    } else {
+                        console.error('Progress report not found with ID:', reportId);
+                    }
+                });
             }
             function showAdminSection(sectionName) {
                 const sections = ['adminAttendance', 'adminProgress', 'adminHolidays', 'adminTimeTable'];
