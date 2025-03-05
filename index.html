@@ -2434,26 +2434,46 @@
                 }
                 const reader = new FileReader();
                 reader.onload = function (e) {
-                    let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                    const newTask = {
-                        id: Date.now(),
-                        employee: selectedUser,
-                        date: taskDate,
-                        day: taskDay,
-                        description: taskDescription,
-                        fileName: taskFile ? taskFile.name : '',
-                        fileData: taskFile ? e.target.result : '',
-                        status: 'Pending',
-                        comment: '',
-                        saved: true
-                    };
-                    tasks.push(newTask);
-                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                    loadAdminTasks(selectedUser);
-                    document.getElementById('taskDate').value = '';
-                    document.getElementById('taskDay').value = '';
-                    document.getElementById('taskDescription').value = '';
-                    taskFileInput.value = '';
+                    // Get current tasks from Firebase first
+                    getFirebaseData('employeeTasks', (firebaseTasks) => {
+                        let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                        const newTask = {
+                            id: Date.now(),
+                            employee: selectedUser,
+                            date: taskDate,
+                            day: taskDay,
+                            description: taskDescription,
+                            fileName: taskFile ? taskFile.name : '',
+                            fileData: taskFile ? e.target.result : '',
+                            status: 'Pending',
+                            comment: '',
+                            saved: true
+                        };
+                        tasks.push(newTask);
+                        
+                        // Save to Firebase first
+                        saveToFirebase('employeeTasks', tasks)
+                            .then(() => {
+                                // Then update localStorage
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                                loadAdminTasks(selectedUser);
+                                document.getElementById('taskDate').value = '';
+                                document.getElementById('taskDay').value = '';
+                                document.getElementById('taskDescription').value = '';
+                                taskFileInput.value = '';
+                            })
+                            .catch(error => {
+                                console.error('Error saving new task to Firebase:', error);
+                                // Still save to localStorage as backup
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                                loadAdminTasks(selectedUser);
+                                document.getElementById('taskDate').value = '';
+                                document.getElementById('taskDay').value = '';
+                                document.getElementById('taskDescription').value = '';
+                                taskFileInput.value = '';
+                                alert('Task added to local storage. There was an issue syncing with the cloud.');
+                            });
+                    });
                 };
                 if (taskFile) {
                     reader.readAsDataURL(taskFile);
@@ -2489,11 +2509,28 @@
             }
             function deleteTask(taskId) {
                 if (confirm('Are you sure you want to delete this task?')) {
-                    let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                    tasks = tasks.filter(t => t.id !== taskId);
-                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                    const selectedUser = document.getElementById('adminUserSelect').value;
-                    loadAdminTasks(selectedUser);
+                    // Get current tasks from Firebase first
+                    getFirebaseData('employeeTasks', (firebaseTasks) => {
+                        let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                        tasks = tasks.filter(t => t.id !== taskId);
+                        
+                        // Save to Firebase first
+                        saveToFirebase('employeeTasks', tasks)
+                            .then(() => {
+                                // Then update localStorage
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                                const selectedUser = document.getElementById('adminUserSelect').value;
+                                loadAdminTasks(selectedUser);
+                            })
+                            .catch(error => {
+                                console.error('Error deleting task from Firebase:', error);
+                                // Still save to localStorage as backup
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                                const selectedUser = document.getElementById('adminUserSelect').value;
+                                loadAdminTasks(selectedUser);
+                                alert('Task deleted from local storage. There was an issue syncing with the cloud.');
+                            });
+                    });
                 }
             }
             function saveTask(taskId) {
@@ -2579,41 +2616,89 @@
                 });
             }
             function updateEmployeeTaskStatus(taskId, status) {
-                let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                const taskIndex = tasks.findIndex(t => t.id === taskId);
-                if (taskIndex !== -1) {
-                    tasks[taskIndex].status = status;
-                    tasks[taskIndex].lastModified = new Date().toISOString();
-                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                    if (status === 'Not Achieved' && !tasks[taskIndex].comment) {
-                        alert('Please add Reason explaining why the task was not achieved.');
+                // Get current tasks from Firebase first
+                getFirebaseData('employeeTasks', (firebaseTasks) => {
+                    let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                    const taskIndex = tasks.findIndex(t => t.id === taskId);
+                    if (taskIndex !== -1) {
+                        tasks[taskIndex].status = status;
+                        tasks[taskIndex].lastModified = new Date().toISOString();
+                        
+                        // Save to Firebase first
+                        saveToFirebase('employeeTasks', tasks)
+                            .then(() => {
+                                // Then update localStorage
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                                if (status === 'Not Achieved' && !tasks[taskIndex].comment) {
+                                    alert('Please add Reason explaining why the task was not achieved.');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error saving task status to Firebase:', error);
+                                // Still save to localStorage as backup
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                            });
                     }
-                    saveEmployeeTaskChanges(taskId);
-                }
+                });
             }
             function updateEmployeeTaskComment(taskId, comment) {
-                let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                const taskIndex = tasks.findIndex(t => t.id === taskId);
-                if (taskIndex !== -1) {
-                    tasks[taskIndex].comment = comment;
-                    tasks[taskIndex].lastModified = new Date().toISOString();
-                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                }
+                // Get current tasks from Firebase first
+                getFirebaseData('employeeTasks', (firebaseTasks) => {
+                    let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                    const taskIndex = tasks.findIndex(t => t.id === taskId);
+                    if (taskIndex !== -1) {
+                        tasks[taskIndex].comment = comment;
+                        tasks[taskIndex].lastModified = new Date().toISOString();
+                        
+                        // Save to Firebase first
+                        saveToFirebase('employeeTasks', tasks)
+                            .then(() => {
+                                // Then update localStorage
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                            })
+                            .catch(error => {
+                                console.error('Error saving task comment to Firebase:', error);
+                                // Still save to localStorage as backup
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                            });
+                    }
+                });
             }
             function saveEmployeeTaskChanges(taskId) {
-                let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                const taskIndex = tasks.findIndex(t => t.id === taskId);
-                if (taskIndex !== -1) {
-                    tasks[taskIndex].lastModified = new Date().toISOString();
-                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                    alert('Changes saved successfully!');
-                    loadEmployeeTasks();
-                    // Refresh admin panel if it's open
-                    if (document.getElementById('adminPage').style.display !== 'none') {
-                        const selectedUser = document.getElementById('adminUserSelect').value;
-                        loadAdminTasks(selectedUser);
+                // Get current tasks from Firebase first
+                getFirebaseData('employeeTasks', (firebaseTasks) => {
+                    let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                    const taskIndex = tasks.findIndex(t => t.id === taskId);
+                    if (taskIndex !== -1) {
+                        tasks[taskIndex].lastModified = new Date().toISOString();
+                        
+                        // Save to Firebase first
+                        saveToFirebase('employeeTasks', tasks)
+                            .then(() => {
+                                // Then update localStorage
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                                alert('Changes saved successfully!');
+                                loadEmployeeTasks();
+                                // Refresh admin panel if it's open
+                                if (document.getElementById('adminPage').style.display !== 'none') {
+                                    const selectedUser = document.getElementById('adminUserSelect').value;
+                                    loadAdminTasks(selectedUser);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error saving task changes to Firebase:', error);
+                                // Still save to localStorage as backup
+                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                                alert('Changes saved to local storage. There was an issue syncing with the cloud.');
+                                loadEmployeeTasks();
+                                // Refresh admin panel if it's open
+                                if (document.getElementById('adminPage').style.display !== 'none') {
+                                    const selectedUser = document.getElementById('adminUserSelect').value;
+                                    loadAdminTasks(selectedUser);
+                                }
+                            });
                     }
-                }
+                });
             }
             function downloadTaskFile(fileName, fileData) {
                 const link = document.createElement('a');
