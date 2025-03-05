@@ -1344,11 +1344,26 @@
                     day: day,
                     time: time,
                 });
-                localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
-                alert('Late check-in recorded successfully!');
-                loadAttendanceTable();
-                updateSummaryValues();
-                sendNotification(employee);
+                
+                // Save to Firebase first
+                saveToFirebase('lateCheckIns', lateCheckIns)
+                    .then(() => {
+                        // Then update localStorage
+                        localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
+                        alert('Late check-in recorded successfully!');
+                        loadAttendanceTable();
+                        updateSummaryValues();
+                        sendNotification(employee);
+                    })
+                    .catch(error => {
+                        console.error('Error saving late check-in to Firebase:', error);
+                        // Still save to localStorage as backup
+                        localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
+                        alert('Late check-in recorded in local storage. There was an issue syncing with the cloud.');
+                        loadAttendanceTable();
+                        updateSummaryValues();
+                        sendNotification(employee);
+                    });
             }
             //Function to send notification to the employee for missed checkins and update the notification count.
             function sendNotification(employee) {
@@ -2018,43 +2033,60 @@
                 const date = now.toLocaleDateString();
                 const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
                 const time = now.toLocaleTimeString();
-                //Get existing records
-                let attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
-                //Find if there's an existing record for today
-                const recordIndex = attendanceRecords.findIndex(record =>
-                    record.employee === employee && record.date === date
-                );
-                if (recordIndex === -1) {
-                    //If no record exists for today, create one
-                    const newRecord = {
-                        employee: employee,
-                        date: date,
-                        day: day
-                    };
-                    if (type === 'checkIn') {
-                        newRecord.checkIn = time;
-                    } else if (type === 'checkOut') {
-                        newRecord.checkOut = time;
-                    }
-                    attendanceRecords.push(newRecord);
-                } else {
-                    //update existing record.
-                    if (type === 'checkIn') {
-                        attendanceRecords[recordIndex].checkIn = time;
-                    } else if (type === 'checkOut') {
-                        //handle multiple checkouts.
-                        if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
-                            attendanceRecords[recordIndex].checkOut.push(time);
-                        } else if (attendanceRecords[recordIndex].checkOut) {
-                            attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
-                        } else {
-                            attendanceRecords[recordIndex].checkOut = time;
+                
+                // Get current records from Firebase first
+                getFirebaseData('attendanceRecords', (firebaseRecords) => {
+                    //Get existing records
+                    let attendanceRecords = firebaseRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                    
+                    //Find if there's an existing record for today
+                    const recordIndex = attendanceRecords.findIndex(record =>
+                        record.employee === employee && record.date === date
+                    );
+                    
+                    if (recordIndex === -1) {
+                        //If no record exists for today, create one
+                        const newRecord = {
+                            employee: employee,
+                            date: date,
+                            day: day
+                        };
+                        if (type === 'checkIn') {
+                            newRecord.checkIn = time;
+                        } else if (type === 'checkOut') {
+                            newRecord.checkOut = time;
+                        }
+                        attendanceRecords.push(newRecord);
+                    } else {
+                        //update existing record.
+                        if (type === 'checkIn') {
+                            attendanceRecords[recordIndex].checkIn = time;
+                        } else if (type === 'checkOut') {
+                            //handle multiple checkouts.
+                            if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
+                                attendanceRecords[recordIndex].checkOut.push(time);
+                            } else if (attendanceRecords[recordIndex].checkOut) {
+                                attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
+                            } else {
+                                attendanceRecords[recordIndex].checkOut = time;
+                            }
                         }
                     }
-                }
-                //Save updated records.
-                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
-                updateSummaryValues();
+                    
+                    // Save to Firebase
+                    saveToFirebase('attendanceRecords', attendanceRecords)
+                        .then(() => {
+                            // Save to localStorage as backup
+                            localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                            updateSummaryValues();
+                        })
+                        .catch(error => {
+                            console.error('Error saving attendance record to Firebase:', error);
+                            // Still save to localStorage as backup
+                            localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                            updateSummaryValues();
+                        });
+                });
             }
             function formatTimeToAMPM(time) {
                 if (!time) return '-';
@@ -2492,6 +2524,10 @@
                 addAttendanceRecord('checkOut');
                 alert('Check-out successful! Time recorded: ' + now.toLocaleTimeString());
                 loadAttendanceTable();
+                
+                // Get current records and save to Firebase to sync across devices
+                const attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                saveToFirebase('attendanceRecords', attendanceRecords);
             }
             function loadAttendanceTable() {
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
