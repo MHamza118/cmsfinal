@@ -1975,14 +1975,32 @@
                         checkOut: document.getElementById('saturdayCheckOut').value
                     }
                 };
-                //existing time tables
-                let timeTables = JSON.parse(localStorage.getItem('timeTables')) || [];
-                //Remove existing time table for this employee if it exists
-                timeTables = timeTables.filter(t => t.employee !== employee);
-                timeTables.push(timeTable);
-                localStorage.setItem('timeTables', JSON.stringify(timeTables));
-                closeTimeTableModal();
-                alert('Time table saved successfully!');
+                
+                // Get current data from Firebase first
+                getFirebaseData('timeTables', (firebaseTimeTables) => {
+                    // Use Firebase data or fallback to localStorage
+                    let timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem('timeTables')) || [];
+                    
+                    // Remove existing time table for this employee if it exists
+                    timeTables = timeTables.filter(t => t.employee !== employee);
+                    timeTables.push(timeTable);
+                    
+                    // Save to Firebase first
+                    saveToFirebase('timeTables', timeTables)
+                        .then(() => {
+                            // Then update localStorage
+                            localStorage.setItem('timeTables', JSON.stringify(timeTables));
+                            closeTimeTableModal();
+                            alert('Time table saved successfully!');
+                        })
+                        .catch(error => {
+                            console.error('Error saving time table to Firebase:', error);
+                            // Still save to localStorage as backup
+                            localStorage.setItem('timeTables', JSON.stringify(timeTables));
+                            closeTimeTableModal();
+                            alert('Time table saved to local storage. There was an issue syncing with the cloud.');
+                        });
+                });
             }
             //Admin Time Table Section.
             function loadAdminTimeTable(selectedUser = '') {
