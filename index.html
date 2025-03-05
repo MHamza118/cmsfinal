@@ -1296,51 +1296,39 @@
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
                 const dateString = now.toLocaleDateString();
                 const timeString = now.toLocaleTimeString();
-                
-                // Get employee timetable from Firebase
-                getFirebaseData('timeTables', (firebaseTables) => {
-                    const timeTables = firebaseTables || [];
-                    const employeeTimeTable = Array.isArray(timeTables) ? 
-                        timeTables.find(t => t.employee === employee) : 
-                        Object.values(timeTables).find(t => t.employee === employee);
-                        
-                    if (!employeeTimeTable) {
-                        alert('Time table not set. Please set your time table first.');
-                        return;
-                    }
-                    
-                    // Get today's scheduled check-in time
-                    const dayOfWeek = now.toLocaleString('en-us', { weekday: 'long' }).toLowerCase();
-                    const scheduledCheckIn = employeeTimeTable[dayOfWeek]?.checkIn;
-                    
-                    if (!scheduledCheckIn) {
-                        alert('No scheduled check-in time for today.');
-                        return;
-                    }
-                    
-                    const scheduledTime = new Date();
-                    const [scheduledHours, scheduledMinutes] = scheduledCheckIn.split(':').map(Number);
-                    scheduledTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
-                    
-                    // Time difference in minutes
-                    const diffMinutes = (now - scheduledTime) / (1000 * 60);
-                    
-                    if (diffMinutes > 60) {
-                        // More than 1 hour late, Only allow "Late Check-In"
-                        alert('You are more than 1 hour late! Use Late Check In.');
-                        document.getElementById('lateCheckInBtn').style.display = 'inline-block';
-                        return;
-                    } else if (diffMinutes > 0) {
-                        // Less than 1 hour late, Warn but allow check-in
-                        alert('You are late but Less than 01 hour, check in.');
-                        document.getElementById('lateCheckInBtn').style.display = 'inline-block';
-                    }
-                    
-                    addAttendanceRecord('checkIn');
-                    alert('Check-in successful at ' + timeString);
-                    clearNotifications();
-                    loadAttendanceTable();
-                });
+                //Retrieve the employee's scheduled checkin time
+                const timeTables = JSON.parse(localStorage.getItem('timeTables')) || [];
+                const employeeTimeTable = timeTables.find(t => t.employee === employee);
+                if (!employeeTimeTable) {
+                    alert('Time table not set. Please set your time table first.');
+                    return;
+                }
+                //Get today's scheduled checkin time
+                const dayOfWeek = now.toLocaleString('en-us', { weekday: 'long' }).toLowerCase();
+                const scheduledCheckIn = employeeTimeTable[dayOfWeek]?.checkIn;
+                if (!scheduledCheckIn) {
+                    alert('No scheduled check-in time for today.');
+                    return;
+                }
+                const scheduledTime = new Date();
+                const [scheduledHours, scheduledMinutes] = scheduledCheckIn.split(':').map(Number);
+                scheduledTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+                //time difference in minutes
+                const diffMinutes = (now - scheduledTime) / (1000 * 60);
+                if (diffMinutes > 60) {
+                    //More than 1 hour late, Only allow "Late Check-In"
+                    alert('You are more than 1 hour late! Use Late Check In.');
+                    document.getElementById('lateCheckInBtn').style.display = 'inline-block';
+                    return;
+                } else if (diffMinutes > 0) {
+                    //Less than 1 hour late, Warn but allow check-in
+                    alert('You are late but Less than 01 hour, check in.');
+                    document.getElementById('lateCheckInBtn').style.display = 'inline-block';
+                }
+                addAttendanceRecord('checkIn');
+                alert('Check-in successful at ' + timeString);
+                clearNotifications();
+                loadAttendanceTable();
             }
             function handleLateCheckIn() {
                 const now = new Date();
@@ -1348,41 +1336,19 @@
                 const date = now.toLocaleDateString();
                 const day = now.toLocaleString('en-us', { weekday: 'long' });
                 const time = now.toLocaleTimeString();
-                
-                // First get current late check-ins from Firebase
-                getFirebaseData('lateCheckIns', (firebaseCheckIns) => {
-                    let lateCheckIns = firebaseCheckIns || [];
-                    
-                    // Convert to array if it's an object from Firebase
-                    if (!Array.isArray(lateCheckIns)) {
-                        lateCheckIns = Object.values(lateCheckIns);
-                    }
-                    
-                    // Create new late check-in record
-                    const newLateCheckIn = {
-                        employee: employee,
-                        date: date,
-                        day: day,
-                        time: time,
-                    };
-                    
-                    // Add to array
-                    lateCheckIns.push(newLateCheckIn);
-                    
-                    // Save to Firebase
-                    saveToFirebase('lateCheckIns', lateCheckIns)
-                        .then(() => {
-                            console.log('Late check-in saved to Firebase');
-                            alert('Late check-in recorded successfully!');
-                            loadAttendanceTable();
-                            updateSummaryValues();
-                            sendNotification(employee);
-                        })
-                        .catch(error => {
-                            console.error('Error saving late check-in to Firebase:', error);
-                            alert('Error recording late check-in. Please try again.');
-                        });
+                let lateCheckIns = JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+                // Record the late check-in
+                lateCheckIns.push({
+                    employee: employee,
+                    date: date,
+                    day: day,
+                    time: time,
                 });
+                localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
+                alert('Late check-in recorded successfully!');
+                loadAttendanceTable();
+                updateSummaryValues();
+                sendNotification(employee);
             }
             //Function to send notification to the employee for missed checkins and update the notification count.
             function sendNotification(employee) {
@@ -1435,166 +1401,91 @@
                 loadAdminHolidayRequests(selectedUser);
             }
             function loadAdminData(selectedUser = '') {
+                const attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
                 const tableBody = document.getElementById('adminAttendanceTable');
                 if (!tableBody) return;
-                
-                // Add loading indicator
-                tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Loading attendance data...</td></tr>';
-                
-                // Get attendance records from Firebase
-                getFirebaseData('attendanceRecords', (firebaseAttendanceRecords) => {
-                    // Get late check-ins from Firebase
-                    getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
-                        // Clear loading indicator
-                        tableBody.innerHTML = '';
-                        
-                        // Process attendance records
-                        let attendanceRecords = firebaseAttendanceRecords || [];
-                        let lateCheckIns = firebaseLateCheckIns || [];
-                        
-                        // Convert to arrays if they're objects from Firebase
-                        if (!Array.isArray(attendanceRecords)) {
-                            attendanceRecords = Object.values(attendanceRecords);
+                tableBody.innerHTML = '';
+                const filteredRecords = attendanceRecords.filter(record => !selectedUser || record.employee === selectedUser);
+                if (selectedUser && filteredRecords.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="7" style="text-align: center;">No attendance records found for this employee</td>';
+                    tableBody.appendChild(row);
+                    return;
+                }
+                filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(record => {
+                    const todayDate = record.date.split('/').reverse().join('-');
+                    const checkOutTimes = Array.isArray(record.checkOut) ? record.checkOut :
+                        (record.checkOut ? [record.checkOut] : []);
+                    const lateCheckIns = JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+                    const lateCheckInTimes = lateCheckIns.filter(late => late.employee === record.employee && late.date === record.date).map(late => late.time);
+                    let totalWorkingMs = 0;
+                    let lastCheckIn = record.checkIn;
+                    if (lateCheckInTimes.length > 0) {
+                        lastCheckIn = lateCheckInTimes[lateCheckInTimes.length - 1];
+                    }
+                    let lastCheckInTime = lastCheckIn ? new Date(`${todayDate}T${lastCheckIn}`) : null;
+                    checkOutTimes.forEach(checkOut => {
+                        let checkOutTime = new Date(`${todayDate}T${checkOut}`);
+                        if (lastCheckInTime && checkOutTime > lastCheckInTime) {
+                            totalWorkingMs += (checkOutTime - lastCheckInTime);
                         }
-                        
-                        if (!Array.isArray(lateCheckIns)) {
-                            lateCheckIns = Object.values(lateCheckIns);
-                        }
-                        
-                        const filteredRecords = attendanceRecords.filter(record => !selectedUser || record.employee === selectedUser);
-                        
-                        if (selectedUser && filteredRecords.length === 0) {
-                            const row = document.createElement('tr');
-                            row.innerHTML = '<td colspan="7" style="text-align: center;">No attendance records found for this employee</td>';
-                            tableBody.appendChild(row);
-                        } else {
-                            filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(record => {
-                                // Format date for time calculations
-                                let todayDate;
-                                if (record.date.includes('/')) {
-                                    // Handle US date format like MM/DD/YYYY
-                                    const dateParts = record.date.split('/');
-                                    todayDate = `${dateParts[2]}-${dateParts[0].padStart(2, '0')}-${dateParts[1].padStart(2, '0')}`;
-                                } else {
-                                    // Try to handle other formats or keep as is
-                                    todayDate = record.date;
-                                }
-                                
-                                const checkOutTimes = Array.isArray(record.checkOut) ? record.checkOut :
-                                    (record.checkOut ? [record.checkOut] : []);
-                                    
-                                const lateCheckInTimes = lateCheckIns
-                                    .filter(late => late.employee === record.employee && late.date === record.date)
-                                    .map(late => late.time);
-                                    
-                                // Calculate working hours
-                                let totalWorkingMs = 0;
-                                let lastCheckIn = record.checkIn;
-                                
-                                if (lateCheckInTimes.length > 0) {
-                                    lastCheckIn = lateCheckInTimes[lateCheckInTimes.length - 1];
-                                }
-                                
-                                let lastCheckInTime = lastCheckIn ? new Date(`${todayDate}T${lastCheckIn}`) : null;
-                                
-                                // Check if the date is valid
-                                if (lastCheckInTime && !isNaN(lastCheckInTime.getTime())) {
-                                    checkOutTimes.forEach(checkOut => {
-                                        let checkOutTime = new Date(`${todayDate}T${checkOut}`);
-                                        
-                                        if (!isNaN(checkOutTime.getTime()) && lastCheckInTime && checkOutTime > lastCheckInTime) {
-                                            totalWorkingMs += (checkOutTime - lastCheckInTime);
-                                        }
-                                        
-                                        lastCheckInTime = checkOutTime; // Update last check-in after every check-out
-                                    });
-                                }
-                                
-                                let workingHours = "Incomplete";
-                                
-                                if (totalWorkingMs > 0) {
-                                    const hours = Math.floor(totalWorkingMs / (1000 * 60 * 60));
-                                    const minutes = Math.floor((totalWorkingMs % (1000 * 60 * 60)) / (1000 * 60));
-                                    workingHours = `${hours}h ${minutes}m`;
-                                }
-                                
-                                const checkOutDropdown = checkOutTimes.length > 1 ?
-                                    `<select>${checkOutTimes.map(time => `<option>${time}</option>`).join('')}</select>` :
-                                    (checkOutTimes[0] || '-');
-                                    
-                                const lateCheckInDropdown = lateCheckInTimes.length > 1 ?
-                                    `<select>${lateCheckInTimes.map(late => `<option>${late}</option>`).join('')}</select>` :
-                                    (lateCheckInTimes[0] || '-');
-
-                                const row = document.createElement('tr');
-                                row.innerHTML = `
-                                    <td>${record.employee}</td>
-                                    <td>${record.date}</td>
-                                    <td>${record.day}</td>
-                                    <td>${record.checkIn || '-'}</td>
-                                    <td>${checkOutDropdown}</td>
-                                    <td>${lateCheckInDropdown}</td>
-                                    <td>${workingHours}</td> <!-- Display Computed Working Hours -->
-                                `;
-                                tableBody.appendChild(row);
-                            });
-                        }
-                        
-                        // Load missed check-ins and update summary
-                        loadMissedCheckIns(selectedUser);
-                        updateMissedCheckInsSummary();
+                        lastCheckInTime = checkOutTime; // Update last check-in after every check-out
                     });
+                    let workingHours = "Incomplete";
+                    if (totalWorkingMs > 0) {
+                        const hours = Math.floor(totalWorkingMs / (1000 * 60 * 60));
+                        const minutes = Math.floor((totalWorkingMs % (1000 * 60 * 60)) / (1000 * 60));
+                        workingHours = `${hours}h ${minutes}m`;
+                    }
+                    const checkOutDropdown = checkOutTimes.length > 1 ?
+                        `<select>${checkOutTimes.map(time => `<option>${time}</option>`).join('')}</select>` :
+                        (checkOutTimes[0] || '-');
+                    const lateCheckInDropdown = lateCheckInTimes.length > 1 ?
+                        `<select>${lateCheckInTimes.map(late => `<option>${late}</option>`).join('')}</select>` :
+                        (lateCheckInTimes[0] || '-');
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+            <td>${record.employee}</td>
+            <td>${record.date}</td>
+            <td>${record.day}</td>
+            <td>${record.checkIn || '-'}</td>
+            <td>${checkOutDropdown}</td>
+            <td>${lateCheckInDropdown}</td>
+            <td>${workingHours}</td> <!-- Display Computed Working Hours -->
+        `;
+                    tableBody.appendChild(row);
                 });
+
+                loadMissedCheckIns(selectedUser);
+                updateMissedCheckInsSummary();
             }
             function loadMissedCheckIns(selectedUser = '') {
+                const missedCheckIns = JSON.parse(localStorage.getItem('missedCheckIns')) || [];
                 const tableBody = document.getElementById('MissedCheckInsTable').getElementsByTagName('tbody')[0];
-                if (!tableBody) return; // Exit if table doesn't exist
-                
-                // Add loading indicator
-                tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">Loading missed check-ins...</td></tr>';
-                
-                // Get missed check-ins from Firebase
-                getFirebaseData('missedCheckIns', (firebaseMissedCheckIns) => {
-                    // Get users to get phone numbers
-                    getFirebaseData('users', (firebaseUsers) => {
-                        // Clear loading indicator
-                        tableBody.innerHTML = '';
-                        
-                        let missedCheckIns = firebaseMissedCheckIns || [];
-                        let users = firebaseUsers || window.users || {};
-                        
-                        // Convert to array if it's an object from Firebase
-                        if (!Array.isArray(missedCheckIns)) {
-                            missedCheckIns = Object.values(missedCheckIns);
-                        }
-                        
-                        const filteredMissedCheckIns = missedCheckIns
-                            .filter(record => !selectedUser || record.employee === selectedUser)
-                            .sort((a, b) => new Date(b.date) - new Date(a.date));
-                            
-                        if (filteredMissedCheckIns.length === 0) {
-                            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No missed check-ins found</td></tr>';
-                            return;
-                        }
-                        
-                        filteredMissedCheckIns.forEach((record) => {
-                            const employee = users[record.employee] || {};
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${record.employee}</td>
-                                <td>${record.notificationSent ? 'Yes' : 'No'}</td>
-                                <td>${record.date}</td>
-                                <td>${record.day}</td>
-                                <td>
-                                    ${!record.notificationSent ?
-                                        `<button onclick="sendWhatsAppMessage('${employee.phone || ''}')">Send WhatsApp Notification</button>` :
-                                        '<span class="status-sent">Notification Sent</span>'}
-                                </td>
-                            `;
-                            tableBody.appendChild(row);
-                        });
+                if (!tableBody) return; //come out of the function if table doesn't exist.
+                tableBody.innerHTML = '';
+                //Show the missed check ins data of the selected user and admin can send a whatsapp notification.
+                //Also filtering by date and show the most recent missed check ins first.
+                missedCheckIns
+                    .filter(record => !selectedUser || record.employee === selectedUser)
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .forEach((record) => {
+                        const employee = users[record.employee];
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                        <td>${record.employee}</td>
+                        <td>${record.notificationSent ? 'Yes' : 'No'}</td>
+                        <td>${record.date}</td>
+                        <td>${record.day}</td>
+                        <td>
+                            ${!record.notificationSent ?
+                                `<button onclick="sendWhatsAppMessage('${employee.phone}')">Send WhatsApp Notification</button>` :
+                                '<span class="status-sent">Notification Sent</span>'}
+                        </td>
+                    `;
+                        tableBody.appendChild(row);
                     });
-                });
             }
             //Updating the missed summary check ins section in the admin panel.
             function updateMissedCheckInsSummary() {
@@ -1674,87 +1565,37 @@
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
                 const now = new Date();
                 const progressReport = {
-                    id: Date.now(), // Unique ID for the progress report
                     employee: employee,
                     date: now.toLocaleDateString(),
                     time: now.toLocaleTimeString(),
                     details: progressMessage,
                     fileName: fileName,
                     fileData: fileData,
-                    status: 'Pending',
-                    timestamp: now.getTime() // For proper sorting
+                    status: 'Pending'
                 };
-                
-                // First get existing progress reports from Firebase
-                getFirebaseData('progressReports', (firebaseReports) => {
-                    let progressReports = firebaseReports || [];
-                    
-                    // Convert to array if it's an object from Firebase
-                    if (!Array.isArray(progressReports)) {
-                        progressReports = Object.values(progressReports);
-                    }
-                    
-                    // Add new report
-                    progressReports.push(progressReport);
-                    
-                    // Save to Firebase
-                    saveToFirebase('progressReports', progressReports)
-                        .then(() => {
-                            // Also save to localStorage as backup
-                            localStorage.setItem('progressReports', JSON.stringify(progressReports));
-                            
-                            document.getElementById('progressMessage').value = '';
-                            document.getElementById('progressFile').value = '';
-                            document.getElementById('fileName').textContent = '';
-                            document.getElementById('fileUploadedIcon').style.display = 'none';
-                            
-                            alert('Progress report submitted successfully!');
-                            loadEmployeeProgress();
-                        })
-                        .catch(error => {
-                            console.error('Error saving progress report to Firebase:', error);
-                            alert('There was an issue saving your progress report. Please try again.');
-                        });
-                });
+                //Get existing progress reports and add a new one.
+                let progressReports = JSON.parse(localStorage.getItem('progressReports')) || [];
+                progressReports.push(progressReport);
+                //Save the progree report to localStorage.
+                localStorage.setItem('progressReports', JSON.stringify(progressReports));
+                document.getElementById('progressMessage').value = '';
+                document.getElementById('progressFile').value = '';
+                document.getElementById('fileName').textContent = '';
+                //Alert for successful submission for the progress report
+                alert('Progress report submitted successfully!');
+                loadEmployeeProgress();
             }
             function loadEmployeeProgress() {
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
+                const progressReports = JSON.parse(localStorage.getItem('progressReports')) || [];
                 const tableBody = document.getElementById('employeeProgressTable');
-                if (!tableBody) return; // Return if not on progress page
-                
-                // Add loading indicator
-                tableBody.innerHTML = '<tr><td colspan="5" class="text-center">Loading progress reports...</td></tr>';
-                
-                // Get progress reports from Firebase
-                getFirebaseData('progressReports', (firebaseReports) => {
-                    // Clear loading indicator
-                    tableBody.innerHTML = '';
-                    
-                    let progressReports = firebaseReports || [];
-                    
-                    // Convert to array if it's an object from Firebase
-                    if (!Array.isArray(progressReports)) {
-                        progressReports = Object.values(progressReports);
-                    }
-                    
-                    // Filter and sort progress reports for current employee
-                    const employeeReports = progressReports
-                        .filter(report => report.employee === employee)
-                        .sort((a, b) => {
-                            // First try to sort by timestamp if available
-                            if (a.timestamp && b.timestamp) {
-                                return b.timestamp - a.timestamp;
-                            }
-                            // Fallback to date+time string comparison
-                            return new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time);
-                        });
-                    
-                    if (employeeReports.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No progress reports found</td></tr>';
-                        return;
-                    }
-                    
-                    employeeReports.forEach(report => {
+                if (!tableBody) return; //Return/come out of the function if not on progress page.
+                tableBody.innerHTML = '';
+                // Filter and sort progress reports for current employee
+                progressReports
+                    .filter(report => report.employee === employee)
+                    .sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time))
+                    .forEach(report => {
                         const statusClass = report.status.toLowerCase();
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -1766,69 +1607,43 @@
                         `;
                         tableBody.appendChild(row);
                     });
-                });
             }
             function loadAdminProgressReports(selectedUser = '') {
+                const progressReports = JSON.parse(localStorage.getItem('progressReports')) || [];
                 const tableBody = document.getElementById('adminProgressTable');
                 if (!tableBody) return;
-                
-                // Add loading indicator
-                tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading progress reports...</td></tr>';
-                
-                // Get progress reports from Firebase
-                getFirebaseData('progressReports', (firebaseReports) => {
-                    // Clear loading indicator
-                    tableBody.innerHTML = '';
-                    
-                    let progressReports = firebaseReports || [];
-                    
-                    // Convert to array if it's an object from Firebase
-                    if (!Array.isArray(progressReports)) {
-                        progressReports = Object.values(progressReports);
-                    }
-                    
-                    // Filter by selected user if specified
-                    const filteredReports = selectedUser 
-                        ? progressReports.filter(report => report.employee === selectedUser)
-                        : progressReports;
-                    
-                    if (selectedUser && filteredReports.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No progress reports found for this employee</td></tr>';
-                        return;
-                    }
-                    
-                    // Sort reports by date/time (newest first)
-                    filteredReports.sort((a, b) => {
-                        // First try to sort by timestamp if available
-                        if (a.timestamp && b.timestamp) {
-                            return b.timestamp - a.timestamp;
-                        }
-                        // Fallback to date+time string comparison
-                        return new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + a.time);
-                    }).forEach(report => {
-                        const fileDownloadButton = report.fileData 
-                            ? `<button onclick="downloadFile('${report.fileName}', '${report.fileData}')" class="download-btn">Download</button>` 
-                            : 'No file';
-                        
+                tableBody.innerHTML = '';
+                const filteredReports = progressReports.filter(report => !selectedUser || report.employee === selectedUser);
+                if (selectedUser && filteredReports.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="7" style="text-align: center;">No progress reports found for this employee</td>';
+                    tableBody.appendChild(row);
+                    return;
+                }
+                //Filter and sort progress reports Admin Page.
+                filteredReports.sort((a, b) => new Date(b.date + ' ' + b.time) - new Date(a.date + ' ' + b.time))
+                    .forEach(report => {
+                        const fileDownloadButton = report.fileData ?
+                            `<button onclick="downloadFile('${report.fileName}', '${report.fileData}')" class="download-btn">Download</button>` :
+                            'No file';
                         const row = document.createElement('tr');
                         row.innerHTML = `
-                            <td>${report.employee}</td>
-                            <td>${report.date}</td>
-                            <td>${report.time}</td>
-                            <td>${report.details}</td>
-                            <td>${report.fileName ? report.fileName : 'No file'}</td>
-                            <td>${fileDownloadButton}</td>
-                            <td>
-                                <select onchange="updateProgressStatus('${report.id}', this.value)">
-                                    <option value="Pending" ${report.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                                    <option value="Approved" ${report.status === 'Approved' ? 'selected' : ''}>Approved</option>
-                                    <option value="Rejected" ${report.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
-                                </select>
-                            </td>
-                        `;
+                        <td>${report.employee}</td>
+                        <td>${report.date}</td>
+                        <td>${report.time}</td>
+                        <td>${report.details}</td>
+                        <td>${report.fileName ? report.fileName : 'No file'}</td>
+                        <td>${fileDownloadButton}</td>
+                        <td>
+                            <select onchange="updateProgressStatus('${report.date} ${report.time}', this.value)">
+                                <option value="Pending" ${report.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                                <option value="Approved" ${report.status === 'Approved' ? 'selected' : ''}>Approved</option>
+                                <option value="Rejected" ${report.status === 'Rejected' ? 'selected' : ''}>Rejected</option>
+                            </select>
+                        </td>
+                    `;
                         tableBody.appendChild(row);
                     });
-                });
             }
             function downloadFile(fileName, fileData) {
                 if (!fileData) {
@@ -1842,48 +1657,19 @@
                 link.click();
                 document.body.removeChild(link);
             }
-            function updateProgressStatus(reportId, newStatus) {
-                // Get progress reports from Firebase
-                getFirebaseData('progressReports', (firebaseReports) => {
-                    let progressReports = firebaseReports || [];
-                    
-                    // Convert to array if it's an object from Firebase
-                    if (!Array.isArray(progressReports)) {
-                        progressReports = Object.values(progressReports);
-                    }
-                    
-                    // Find the report by ID
-                    const reportIndex = progressReports.findIndex(report => report.id == reportId);
-                    
-                    if (reportIndex !== -1) {
-                        // Update status
-                        progressReports[reportIndex].status = newStatus;
-                        
-                        // Save to Firebase
-                        saveToFirebase('progressReports', progressReports)
-                            .then(() => {
-                                // Also update localStorage
-                                localStorage.setItem('progressReports', JSON.stringify(progressReports));
-                                
-                                console.log('Progress report status updated successfully');
-                                
-                                // Refresh both admin and employee views
-                                const selectedUser = document.getElementById('adminUserSelect').value;
-                                loadAdminProgressReports(selectedUser);
-                                
-                                // Only try to load employee progress if on employee page
-                                if (document.getElementById('employeePage').style.display !== 'none') {
-                                    loadEmployeeProgress();
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error updating progress report status in Firebase:', error);
-                                alert('There was an issue updating the progress report status. Please try again.');
-                            });
-                    } else {
-                        console.error('Progress report not found with ID:', reportId);
-                    }
-                });
+            function updateProgressStatus(datetime, newStatus) {
+                const progressReports = JSON.parse(localStorage.getItem('progressReports')) || [];
+                const [date, time] = datetime.split(' ');
+                const reportIndex = progressReports.findIndex(report =>
+                    report.date === date && report.time === time
+                );
+                if (reportIndex !== -1) {
+                    progressReports[reportIndex].status = newStatus;
+                    localStorage.setItem('progressReports', JSON.stringify(progressReports));
+                    // Refresh both admin and employee views
+                    loadAdminProgressReports(document.getElementById('adminUserSelect').value);
+                    loadEmployeeProgress();
+                }
             }
             function showAdminSection(sectionName) {
                 const sections = ['adminAttendance', 'adminProgress', 'adminHolidays', 'adminTimeTable'];
@@ -2232,65 +2018,43 @@
                 const date = now.toLocaleDateString();
                 const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
                 const time = now.toLocaleTimeString();
-                
-                // Get existing records from Firebase
-                getFirebaseData('attendanceRecords', (firebaseRecords) => {
-                    let attendanceRecords = firebaseRecords || [];
-                    
-                    // Convert to array if it's an object from Firebase
-                    if (!Array.isArray(attendanceRecords)) {
-                        attendanceRecords = Object.values(attendanceRecords);
+                //Get existing records
+                let attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                //Find if there's an existing record for today
+                const recordIndex = attendanceRecords.findIndex(record =>
+                    record.employee === employee && record.date === date
+                );
+                if (recordIndex === -1) {
+                    //If no record exists for today, create one
+                    const newRecord = {
+                        employee: employee,
+                        date: date,
+                        day: day
+                    };
+                    if (type === 'checkIn') {
+                        newRecord.checkIn = time;
+                    } else if (type === 'checkOut') {
+                        newRecord.checkOut = time;
                     }
-                    
-                    // Find if there's an existing record for today
-                    const recordIndex = attendanceRecords.findIndex(record =>
-                        record.employee === employee && record.date === date
-                    );
-                    
-                    if (recordIndex === -1) {
-                        // If no record exists for today, create one
-                        const newRecord = {
-                            employee: employee,
-                            date: date,
-                            day: day
-                        };
-                        
-                        if (type === 'checkIn') {
-                            newRecord.checkIn = time;
-                        } else if (type === 'checkOut') {
-                            newRecord.checkOut = time;
-                        }
-                        
-                        attendanceRecords.push(newRecord);
-                    } else {
-                        // Update existing record
-                        if (type === 'checkIn') {
-                            attendanceRecords[recordIndex].checkIn = time;
-                        } else if (type === 'checkOut') {
-                            // Handle multiple checkouts
-                            if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
-                                attendanceRecords[recordIndex].checkOut.push(time);
-                            } else if (attendanceRecords[recordIndex].checkOut) {
-                                attendanceRecords[recordIndex].checkOut = [
-                                    attendanceRecords[recordIndex].checkOut, 
-                                    time
-                                ];
-                            } else {
-                                attendanceRecords[recordIndex].checkOut = time;
-                            }
+                    attendanceRecords.push(newRecord);
+                } else {
+                    //update existing record.
+                    if (type === 'checkIn') {
+                        attendanceRecords[recordIndex].checkIn = time;
+                    } else if (type === 'checkOut') {
+                        //handle multiple checkouts.
+                        if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
+                            attendanceRecords[recordIndex].checkOut.push(time);
+                        } else if (attendanceRecords[recordIndex].checkOut) {
+                            attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
+                        } else {
+                            attendanceRecords[recordIndex].checkOut = time;
                         }
                     }
-                    
-                    // Save updated records to Firebase
-                    saveToFirebase('attendanceRecords', attendanceRecords)
-                        .then(() => {
-                            console.log('Attendance record saved to Firebase');
-                            updateSummaryValues();
-                        })
-                        .catch(error => {
-                            console.error('Error saving attendance record to Firebase:', error);
-                        });
-                });
+                }
+                //Save updated records.
+                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                updateSummaryValues();
             }
             function formatTimeToAMPM(time) {
                 if (!time) return '-';
@@ -2731,98 +2495,56 @@
             }
             function loadAttendanceTable() {
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
+                const attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                const lateCheckIns = JSON.parse(localStorage.getItem('lateCheckIns')) || [];
                 const tableBody = document.getElementById('attendanceTable');
                 if (!tableBody) return;
                 tableBody.innerHTML = '';
-                
-                // Add loading indicator
-                const loadingRow = document.createElement('tr');
-                loadingRow.innerHTML = '<td colspan="5" class="text-center">Loading attendance data...</td>';
-                tableBody.appendChild(loadingRow);
-                
-                // Get attendance records from Firebase
-                getFirebaseData('attendanceRecords', (firebaseAttendanceRecords) => {
-                    // Get late check-ins from Firebase
-                    getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
-                        // Clear loading indicator
-                        tableBody.innerHTML = '';
-                        
-                        // Process attendance records
-                        let attendanceRecords = firebaseAttendanceRecords || [];
-                        let lateCheckIns = firebaseLateCheckIns || [];
-                        
-                        // Convert to arrays if they're objects from Firebase
-                        if (!Array.isArray(attendanceRecords)) {
-                            attendanceRecords = Object.values(attendanceRecords);
-                        }
-                        
-                        if (!Array.isArray(lateCheckIns)) {
-                            lateCheckIns = Object.values(lateCheckIns);
-                        }
-                        
-                        // Get all unique dates from both attendance records and late check-ins
-                        const allDates = new Set();
-                        
-                        // Add dates from attendance records
-                        attendanceRecords
-                            .filter(record => record.employee === employee)
-                            .forEach(record => allDates.add(record.date));
-                            
-                        lateCheckIns
-                            .filter(late => late.employee === employee)
-                            .forEach(late => allDates.add(late.date));
-                            
-                        const sortedDates = Array.from(allDates).sort((a, b) => new Date(b) - new Date(a));
-                        
-                        if (sortedDates.length === 0) {
-                            const noDataRow = document.createElement('tr');
-                            noDataRow.innerHTML = '<td colspan="5" style="text-align: center;">No attendance records found</td>';
-                            tableBody.appendChild(noDataRow);
-                            return;
-                        }
-                        
-                        sortedDates.forEach(date => {
-                            const record = attendanceRecords.find(r => r.employee === employee && r.date === date);
-                            const lateCheckInsForDate = lateCheckIns
-                                .filter(late => late.employee === employee && late.date === date)
-                                .sort((a, b) => new Date(b.time) - new Date(a.time));
-                                
-                            const checkOutTimes = record && record.checkOut ?
-                                (Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut]) : [];
-                                
-                            const row = document.createElement('tr');
-                            const day = record ? record.day :
-                                (lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].day : '');
-                                
-                            row.innerHTML = `
-                                <td>${date}</td>
-                                <td>${day}</td>
-                                <td>${record && record.checkIn ? record.checkIn : '-'}</td>
-                                <td>${checkOutTimes.length > 0 ? checkOutTimes[0] : '-'}</td>
-                                <td>${lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].time : '-'}</td>
-                            `;
-                            tableBody.appendChild(row);
-                            
-                            // Calculate how many additional rows we need
-                            const maxAdditionalEntries = Math.max(
-                                checkOutTimes.length > 1 ? checkOutTimes.length - 1 : 0,
-                                lateCheckInsForDate.length > 1 ? lateCheckInsForDate.length - 1 : 0
-                            );
-                            
-                            // Add additional rows if needed
-                            for (let i = 0; i < maxAdditionalEntries; i++) {
-                                const additionalRow = document.createElement('tr');
-                                additionalRow.innerHTML = `
-                                    <td>${date}</td>
-                                    <td>${day}</td>
-                                    <td>-</td>
-                                    <td>${i + 1 < checkOutTimes.length ? checkOutTimes[i + 1] : '-'}</td>
-                                    <td>${i + 1 < lateCheckInsForDate.length ? lateCheckInsForDate[i + 1].time : '-'}</td>
-                                `;
-                                tableBody.appendChild(additionalRow);
-                            }
-                        });
-                    });
+                // Get all unique dates from both attendance records and late check-ins
+                const allDates = new Set();
+                // Add dates from attendance records
+                attendanceRecords
+                    .filter(record => record.employee === employee)
+                    .forEach(record => allDates.add(record.date));
+                lateCheckIns
+                    .filter(late => late.employee === employee)
+                    .forEach(late => allDates.add(late.date));
+                const sortedDates = Array.from(allDates).sort((a, b) => new Date(b) - new Date(a));
+                sortedDates.forEach(date => {
+                    const record = attendanceRecords.find(r => r.employee === employee && r.date === date);
+                    const lateCheckInsForDate = lateCheckIns
+                        .filter(late => late.employee === employee && late.date === date)
+                        .sort((a, b) => new Date(b.time) - new Date(a.time));
+                    const checkOutTimes = record && record.checkOut ?
+                        (Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut]) : [];
+                    const row = document.createElement('tr');
+                    const day = record ? record.day :
+                        (lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].day : '');
+                    row.innerHTML = `
+                    <td>${date}</td>
+                    <td>${day}</td>
+                    <td>${record && record.checkIn ? record.checkIn : '-'}</td>
+                    <td>${checkOutTimes.length > 0 ? checkOutTimes[0] : '-'}</td>
+                    <td>${lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].time : '-'}</td>
+                `;
+                    tableBody.appendChild(row);
+                    // Calculate how many additional rows we need
+                    const maxAdditionalEntries = Math.max(
+                        checkOutTimes.length > 1 ? checkOutTimes.length - 1 : 0,
+                        lateCheckInsForDate.length > 1 ? lateCheckInsForDate.length - 1 : 0
+                    );
+                    // Add additional rows if needed
+                    for (let i = 0; i < maxAdditionalEntries; i++) {
+                        const additionalRow = document.createElement('tr');
+                        additionalRow.innerHTML = `
+                        <td>${date}</td>
+                        <td>${day}</td>
+                        <td>-</td>
+                        <td>${i + 1 < checkOutTimes.length ? checkOutTimes[i + 1] : '-'}</td>
+                        <td>${i + 1 < lateCheckInsForDate.length ? lateCheckInsForDate[i + 1].time : '-'}</td>
+                    `;
+                        tableBody.appendChild(additionalRow);
+                    }
                 });
             }
             function addAttendanceRecord(type) {
