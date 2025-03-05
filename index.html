@@ -1336,34 +1336,39 @@
                 const date = now.toLocaleDateString();
                 const day = now.toLocaleString('en-us', { weekday: 'long' });
                 const time = now.toLocaleTimeString();
-                let lateCheckIns = JSON.parse(localStorage.getItem('lateCheckIns')) || [];
-                // Record the late check-in
-                lateCheckIns.push({
-                    employee: employee,
-                    date: date,
-                    day: day,
-                    time: time,
-                });
                 
-                // Save to Firebase first
-                saveToFirebase('lateCheckIns', lateCheckIns)
-                    .then(() => {
-                        // Then update localStorage
-                        localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
-                        alert('Late check-in recorded successfully!');
-                        loadAttendanceTable();
-                        updateSummaryValues();
-                        sendNotification(employee);
-                    })
-                    .catch(error => {
-                        console.error('Error saving late check-in to Firebase:', error);
-                        // Still save to localStorage as backup
-                        localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
-                        alert('Late check-in recorded in local storage. There was an issue syncing with the cloud.');
-                        loadAttendanceTable();
-                        updateSummaryValues();
-                        sendNotification(employee);
+                // Get current data from Firebase first
+                getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
+                    let lateCheckIns = firebaseLateCheckIns || JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+                    
+                    // Record the late check-in
+                    lateCheckIns.push({
+                        employee: employee,
+                        date: date,
+                        day: day,
+                        time: time,
                     });
+                    
+                    // Save to Firebase first
+                    saveToFirebase('lateCheckIns', lateCheckIns)
+                        .then(() => {
+                            // Then update localStorage
+                            localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
+                            alert('Late check-in recorded successfully!');
+                            loadAttendanceTable();
+                            updateSummaryValues();
+                            sendNotification(employee);
+                        })
+                        .catch(error => {
+                            console.error('Error saving late check-in to Firebase:', error);
+                            // Still save to localStorage as backup
+                            localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
+                            alert('Late check-in recorded in local storage. There was an issue syncing with the cloud.');
+                            loadAttendanceTable();
+                            updateSummaryValues();
+                            sendNotification(employee);
+                        });
+                });
             }
             //Function to send notification to the employee for missed checkins and update the notification count.
             function sendNotification(employee) {
@@ -2521,66 +2526,135 @@
             }
             function handleCheckOut() {
                 const now = new Date();
-                addAttendanceRecord('checkOut');
-                alert('Check-out successful! Time recorded: ' + now.toLocaleTimeString());
-                loadAttendanceTable();
                 
-                // Get current records and save to Firebase to sync across devices
-                const attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
-                saveToFirebase('attendanceRecords', attendanceRecords);
+                // Get current records from Firebase first
+                getFirebaseData('attendanceRecords', (firebaseRecords) => {
+                    let attendanceRecords = firebaseRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                    
+                    const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
+                    const date = now.toLocaleDateString();
+                    const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
+                    const time = now.toLocaleTimeString();
+                    
+                    // Find if there's an existing record for today
+                    const recordIndex = attendanceRecords.findIndex(record =>
+                        record.employee === employee && record.date === date
+                    );
+                    
+                    if (recordIndex === -1) {
+                        // If no record exists for today, create one
+                        const newRecord = {
+                            employee: employee,
+                            date: date,
+                            day: day,
+                            checkOut: time
+                        };
+                        attendanceRecords.push(newRecord);
+                    } else {
+                        // Update existing record
+                        if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
+                            attendanceRecords[recordIndex].checkOut.push(time);
+                        } else if (attendanceRecords[recordIndex].checkOut) {
+                            attendanceRecords[recordIndex].checkOut = [attendanceRecords[recordIndex].checkOut, time];
+                        } else {
+                            attendanceRecords[recordIndex].checkOut = time;
+                        }
+                    }
+                    
+                    // Save to Firebase
+                    saveToFirebase('attendanceRecords', attendanceRecords)
+                        .then(() => {
+                            // Save to localStorage as backup
+                            localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                            alert('Check-out successful! Time recorded: ' + time);
+                            loadAttendanceTable();
+                            updateSummaryValues();
+                        })
+                        .catch(error => {
+                            console.error('Error saving attendance record to Firebase:', error);
+                            localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                            alert('Check-out successful! Time recorded: ' + time);
+                            loadAttendanceTable();
+                            updateSummaryValues();
+                        });
+                });
             }
             function loadAttendanceTable() {
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
-                const attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
-                const lateCheckIns = JSON.parse(localStorage.getItem('lateCheckIns')) || [];
-                const tableBody = document.getElementById('attendanceTable');
-                if (!tableBody) return;
-                tableBody.innerHTML = '';
-                // Get all unique dates from both attendance records and late check-ins
-                const allDates = new Set();
-                // Add dates from attendance records
-                attendanceRecords
-                    .filter(record => record.employee === employee)
-                    .forEach(record => allDates.add(record.date));
-                lateCheckIns
-                    .filter(late => late.employee === employee)
-                    .forEach(late => allDates.add(late.date));
-                const sortedDates = Array.from(allDates).sort((a, b) => new Date(b) - new Date(a));
-                sortedDates.forEach(date => {
-                    const record = attendanceRecords.find(r => r.employee === employee && r.date === date);
-                    const lateCheckInsForDate = lateCheckIns
-                        .filter(late => late.employee === employee && late.date === date)
-                        .sort((a, b) => new Date(b.time) - new Date(a.time));
-                    const checkOutTimes = record && record.checkOut ?
-                        (Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut]) : [];
-                    const row = document.createElement('tr');
-                    const day = record ? record.day :
-                        (lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].day : '');
-                    row.innerHTML = `
-                    <td>${date}</td>
-                    <td>${day}</td>
-                    <td>${record && record.checkIn ? record.checkIn : '-'}</td>
-                    <td>${checkOutTimes.length > 0 ? checkOutTimes[0] : '-'}</td>
-                    <td>${lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].time : '-'}</td>
-                `;
-                    tableBody.appendChild(row);
-                    // Calculate how many additional rows we need
-                    const maxAdditionalEntries = Math.max(
-                        checkOutTimes.length > 1 ? checkOutTimes.length - 1 : 0,
-                        lateCheckInsForDate.length > 1 ? lateCheckInsForDate.length - 1 : 0
-                    );
-                    // Add additional rows if needed
-                    for (let i = 0; i < maxAdditionalEntries; i++) {
-                        const additionalRow = document.createElement('tr');
-                        additionalRow.innerHTML = `
-                        <td>${date}</td>
-                        <td>${day}</td>
-                        <td>-</td>
-                        <td>${i + 1 < checkOutTimes.length ? checkOutTimes[i + 1] : '-'}</td>
-                        <td>${i + 1 < lateCheckInsForDate.length ? lateCheckInsForDate[i + 1].time : '-'}</td>
-                    `;
-                        tableBody.appendChild(additionalRow);
-                    }
+                
+                // Get attendance data from Firebase first
+                getFirebaseData('attendanceRecords', (firebaseAttendanceRecords) => {
+                    getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
+                        // Use Firebase data or fallback to localStorage
+                        const attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                        const lateCheckIns = firebaseLateCheckIns || JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+                        
+                        // Update localStorage with the latest data from Firebase
+                        if (firebaseAttendanceRecords) {
+                            localStorage.setItem('attendanceRecords', JSON.stringify(firebaseAttendanceRecords));
+                        }
+                        if (firebaseLateCheckIns) {
+                            localStorage.setItem('lateCheckIns', JSON.stringify(firebaseLateCheckIns));
+                        }
+                        
+                        const tableBody = document.getElementById('attendanceTable');
+                        if (!tableBody) return;
+                        tableBody.innerHTML = '';
+                        
+                        // Get all unique dates from both attendance records and late check-ins
+                        const allDates = new Set();
+                        // Add dates from attendance records
+                        attendanceRecords
+                            .filter(record => record.employee === employee)
+                            .forEach(record => allDates.add(record.date));
+                        lateCheckIns
+                            .filter(late => late.employee === employee)
+                            .forEach(late => allDates.add(late.date));
+                            
+                        const sortedDates = Array.from(allDates).sort((a, b) => new Date(b) - new Date(a));
+                        
+                        sortedDates.forEach(date => {
+                            const record = attendanceRecords.find(r => r.employee === employee && r.date === date);
+                            const lateCheckInsForDate = lateCheckIns
+                                .filter(late => late.employee === employee && late.date === date)
+                                .sort((a, b) => new Date(b.time) - new Date(a.time));
+                                
+                            const checkOutTimes = record && record.checkOut ?
+                                (Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut]) : [];
+                                
+                            const row = document.createElement('tr');
+                            const day = record ? record.day :
+                                (lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].day : '');
+                                
+                            row.innerHTML = `
+                            <td>${date}</td>
+                            <td>${day}</td>
+                            <td>${record && record.checkIn ? record.checkIn : '-'}</td>
+                            <td>${checkOutTimes.length > 0 ? checkOutTimes[0] : '-'}</td>
+                            <td>${lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].time : '-'}</td>
+                        `;
+                            tableBody.appendChild(row);
+                            
+                            // Calculate how many additional rows we need
+                            const maxAdditionalEntries = Math.max(
+                                checkOutTimes.length > 1 ? checkOutTimes.length - 1 : 0,
+                                lateCheckInsForDate.length > 1 ? lateCheckInsForDate.length - 1 : 0
+                            );
+                            
+                            // Add additional rows if needed
+                            for (let i = 0; i < maxAdditionalEntries; i++) {
+                                const additionalRow = document.createElement('tr');
+                                additionalRow.innerHTML = `
+                                <td>${date}</td>
+                                <td>${day}</td>
+                                <td>-</td>
+                                <td>${i + 1 < checkOutTimes.length ? checkOutTimes[i + 1] : '-'}</td>
+                                <td>${i + 1 < lateCheckInsForDate.length ? lateCheckInsForDate[i + 1].time : '-'}</td>
+                            `;
+                                tableBody.appendChild(additionalRow);
+                            }
+                        });
+                    });
                 });
             }
             function addAttendanceRecord(type) {
