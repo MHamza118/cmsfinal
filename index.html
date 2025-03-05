@@ -2388,47 +2388,33 @@
             }
             // Task Management Functions
             function loadAdminTasks(selectedUser = '') {
+                const tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
                 const tableBody = document.getElementById('adminTasksTable');
                 if (!tableBody) return;
                 tableBody.innerHTML = '';
-
                 if (!selectedUser) {
                     tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Please select an employee first</td></tr>';
                     return;
                 }
-
-                // Get data from Firebase first
-                getFirebaseData('employeeTasks', (firebaseTasks) => {
-                    // Use Firebase data or fallback to localStorage
-                    const tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
-
-                    // Update localStorage with Firebase data if available
-                    if (firebaseTasks) {
-                        localStorage.setItem('employeeTasks', JSON.stringify(firebaseTasks));
-                    }
-
-                    const filteredTasks = tasks.filter(task => task.employee === selectedUser);
-
-                    if (filteredTasks.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No tasks assigned yet</td></tr>';
-                        return;
-                    }
-
-                    filteredTasks.forEach(task => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                <td>${task.date}</td>
-                <td>${task.day}</td>
-                <td>${task.description}</td>
-                <td>${task.fileName ? `<span class="file-icon">📎</span> ${task.fileName}` : 'No file'}</td>
-                <td>${task.status}</td>
-                <td>${task.comment}</td>
-                <td>
-                    <button onclick="deleteTask(${task.id})">Delete</button>
-                </td>
-            `;
-                        tableBody.appendChild(row);
-                    });
+                const filteredTasks = tasks.filter(task => task.employee === selectedUser);
+                if (filteredTasks.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No tasks assigned yet</td></tr>';
+                    return;
+                }
+                filteredTasks.forEach(task => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+            <td>${task.date}</td>
+            <td>${task.day}</td>
+            <td>${task.description}</td>
+            <td>${task.fileName ? `<span class="file-icon">📎</span> ${task.fileName}` : 'No file'}</td>
+            <td>${task.status}</td>
+            <td>${task.comment}</td>
+            <td>
+                <button onclick="deleteTask(${task.id})">Delete</button>
+            </td>
+        `;
+                    tableBody.appendChild(row);
                 });
             }
             function addNewTask() {
@@ -2448,46 +2434,26 @@
                 }
                 const reader = new FileReader();
                 reader.onload = function (e) {
-                    // Get latest tasks from Firebase first
-                    getFirebaseData('employeeTasks', (firebaseTasks) => {
-                        let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                        const newTask = {
-                            id: Date.now(),
-                            employee: selectedUser,
-                            date: taskDate,
-                            day: taskDay,
-                            description: taskDescription,
-                            fileName: taskFile ? taskFile.name : '',
-                            fileData: taskFile ? e.target.result : '',
-                            status: 'Pending',
-                            comment: '',
-                            saved: true
-                        };
-                        tasks.push(newTask);
-
-                        // Save to Firebase first
-                        saveToFirebase('employeeTasks', tasks)
-                            .then(() => {
-                                // Then save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                                loadAdminTasks(selectedUser);
-                                document.getElementById('taskDate').value = '';
-                                document.getElementById('taskDay').value = '';
-                                document.getElementById('taskDescription').value = '';
-                                taskFileInput.value = '';
-                            })
-                            .catch(error => {
-                                console.error('Error adding new task to Firebase:', error);
-                                // Still save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                                loadAdminTasks(selectedUser);
-                                document.getElementById('taskDate').value = '';
-                                document.getElementById('taskDay').value = '';
-                                document.getElementById('taskDescription').value = '';
-                                taskFileInput.value = '';
-                                alert('Task added but there was an issue syncing with the cloud.');
-                            });
-                    });
+                    let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                    const newTask = {
+                        id: Date.now(),
+                        employee: selectedUser,
+                        date: taskDate,
+                        day: taskDay,
+                        description: taskDescription,
+                        fileName: taskFile ? taskFile.name : '',
+                        fileData: taskFile ? e.target.result : '',
+                        status: 'Pending',
+                        comment: '',
+                        saved: true
+                    };
+                    tasks.push(newTask);
+                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                    loadAdminTasks(selectedUser);
+                    document.getElementById('taskDate').value = '';
+                    document.getElementById('taskDay').value = '';
+                    document.getElementById('taskDescription').value = '';
+                    taskFileInput.value = '';
                 };
                 if (taskFile) {
                     reader.readAsDataURL(taskFile);
@@ -2523,27 +2489,11 @@
             }
             function deleteTask(taskId) {
                 if (confirm('Are you sure you want to delete this task?')) {
-                    // First get latest tasks from Firebase
-                    getFirebaseData('employeeTasks', (firebaseTasks) => {
-                        let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                        tasks = tasks.filter(t => t.id !== taskId);
-
-                        // Save to Firebase first
-                        saveToFirebase('employeeTasks', tasks)
-                            .then(() => {
-                                // Then save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                                const selectedUser = document.getElementById('adminUserSelect').value;
-                                loadAdminTasks(selectedUser);
-                            })
-                            .catch(error => {
-                                console.error('Error deleting task from Firebase:', error);
-                                // Still save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                                const selectedUser = document.getElementById('adminUserSelect').value;
-                                loadAdminTasks(selectedUser);
-                            });
-                    });
+                    let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                    tasks = tasks.filter(t => t.id !== taskId);
+                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                    const selectedUser = document.getElementById('adminUserSelect').value;
+                    loadAdminTasks(selectedUser);
                 }
             }
             function saveTask(taskId) {
@@ -2589,145 +2539,81 @@
             // Employee Task Management Functions
             function loadEmployeeTasks() {
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
+                const tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
                 const tableBody = document.getElementById('employeeTasksTable');
                 if (!tableBody) return;
                 tableBody.innerHTML = '';
-
-                // Get data from Firebase first
-                getFirebaseData('employeeTasks', (firebaseTasks) => {
-                    // Use Firebase data or fallback to localStorage
-                    const tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
-
-                    // Update localStorage with Firebase data if available
-                    if (firebaseTasks) {
-                        localStorage.setItem('employeeTasks', JSON.stringify(firebaseTasks));
-                    }
-
-                    const employeeTasks = tasks.filter(task =>
-                        task.employee.trim() === employee.trim() && task.saved
-                    ).sort((a, b) => new Date(b.date) - new Date(a.date));
-
-                    if (employeeTasks.length === 0) {
-                        tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No tasks assigned</td></tr>';
-                        return;
-                    }
-
-                    employeeTasks.forEach(task => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                <td>${new Date(task.date).toLocaleDateString()}</td>
-                <td>${new Date(task.date).toLocaleString('en-US', { weekday: 'long' })}</td>
-                <td>${task.description}</td>
-                <td>${task.fileName ?
-                                `<button onclick="downloadTaskFile('${task.fileName}', '${task.fileData}')">Download</button>` :
-                                'No file'}</td>
-                <td>
-                    <select onchange="updateEmployeeTaskStatus(${task.id}, this.value)">
-                        <option value="Pending" ${task.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                        <option value="Completed" ${task.status === 'Completed' ? 'selected' : ''}>Completed</option>
-                        <option value="Not Achieved" ${task.status === 'Not Achieved' ? 'selected' : ''}>Not Achieved</option>
-                    </select>
-                </td>
-                <td>
-                    <input type="text" value="${task.comment || ''}" 
-                        onchange="updateEmployeeTaskComment(${task.id}, this.value)" 
-                        placeholder="Add comment here">
-                </td>
-                <td>
-                    <button onclick="saveEmployeeTaskChanges(${task.id})">Save Changes</button>
-                </td>
-            `;
-                        tableBody.appendChild(row);
-                    });
+                const employeeTasks = tasks.filter(task =>
+                    task.employee.trim() === employee.trim() && task.saved
+                ).sort((a, b) => new Date(b.date) - new Date(a.date));
+                if (employeeTasks.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No tasks assigned</td></tr>';
+                    return;
+                }
+                employeeTasks.forEach(task => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+            <td>${new Date(task.date).toLocaleDateString()}</td>
+            <td>${new Date(task.date).toLocaleString('en-US', { weekday: 'long' })}</td>
+            <td>${task.description}</td>
+            <td>${task.fileName ?
+                            `<button onclick="downloadTaskFile('${task.fileName}', '${task.fileData}')">Download</button>` :
+                            'No file'}</td>
+            <td>
+                <select onchange="updateEmployeeTaskStatus(${task.id}, this.value)">
+                    <option value="Pending" ${task.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                    <option value="Completed" ${task.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                    <option value="Not Achieved" ${task.status === 'Not Achieved' ? 'selected' : ''}>Not Achieved</option>
+                </select>
+            </td>
+            <td>
+                <input type="text" value="${task.comment || ''}" 
+                    onchange="updateEmployeeTaskComment(${task.id}, this.value)" 
+                    placeholder="Add comment here">
+            </td>
+            <td>
+                <button onclick="saveEmployeeTaskChanges(${task.id})">Save Changes</button>
+            </td>
+        `;
+                    tableBody.appendChild(row);
                 });
             }
             function updateEmployeeTaskStatus(taskId, status) {
-                // First get latest tasks from Firebase
-                getFirebaseData('employeeTasks', (firebaseTasks) => {
-                    let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                    const taskIndex = tasks.findIndex(t => t.id === taskId);
-                    if (taskIndex !== -1) {
-                        tasks[taskIndex].status = status;
-                        tasks[taskIndex].lastModified = new Date().toISOString();
-
-                        // Save to Firebase first
-                        saveToFirebase('employeeTasks', tasks)
-                            .then(() => {
-                                // Then save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-
-                                if (status === 'Not Achieved' && !tasks[taskIndex].comment) {
-                                    alert('Please add Reason explaining why the task was not achieved.');
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error saving task status to Firebase:', error);
-                                // Still save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                            });
+                let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                const taskIndex = tasks.findIndex(t => t.id === taskId);
+                if (taskIndex !== -1) {
+                    tasks[taskIndex].status = status;
+                    tasks[taskIndex].lastModified = new Date().toISOString();
+                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                    if (status === 'Not Achieved' && !tasks[taskIndex].comment) {
+                        alert('Please add Reason explaining why the task was not achieved.');
                     }
-                });
+                    saveEmployeeTaskChanges(taskId);
+                }
             }
             function updateEmployeeTaskComment(taskId, comment) {
-                // First get latest tasks from Firebase
-                getFirebaseData('employeeTasks', (firebaseTasks) => {
-                    let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                    const taskIndex = tasks.findIndex(t => t.id === taskId);
-                    if (taskIndex !== -1) {
-                        tasks[taskIndex].comment = comment;
-                        tasks[taskIndex].lastModified = new Date().toISOString();
-
-                        // Save to Firebase first
-                        saveToFirebase('employeeTasks', tasks)
-                            .then(() => {
-                                // Then save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                            })
-                            .catch(error => {
-                                console.error('Error saving task comment to Firebase:', error);
-                                // Still save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                            });
-                    }
-                });
+                let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                const taskIndex = tasks.findIndex(t => t.id === taskId);
+                if (taskIndex !== -1) {
+                    tasks[taskIndex].comment = comment;
+                    tasks[taskIndex].lastModified = new Date().toISOString();
+                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                }
             }
             function saveEmployeeTaskChanges(taskId) {
-                // First get latest tasks from Firebase
-                getFirebaseData('employeeTasks', (firebaseTasks) => {
-                    let tasks = firebaseTasks || JSON.parse(localStorage.getItem('employeeTasks')) || [];
-                    const taskIndex = tasks.findIndex(t => t.id === taskId);
-                    if (taskIndex !== -1) {
-                        tasks[taskIndex].lastModified = new Date().toISOString();
-
-                        // Save to Firebase first
-                        saveToFirebase('employeeTasks', tasks)
-                            .then(() => {
-                                // Then save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                                alert('Changes saved successfully!');
-                                loadEmployeeTasks();
-
-                                // Refresh admin panel if it's open
-                                if (document.getElementById('adminPage').style.display !== 'none') {
-                                    const selectedUser = document.getElementById('adminUserSelect').value;
-                                    loadAdminTasks(selectedUser);
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error saving task changes to Firebase:', error);
-                                // Still save to localStorage as backup
-                                localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-                                alert('Changes saved to local storage. There was an issue syncing with the cloud.');
-                                loadEmployeeTasks();
-
-                                // Refresh admin panel if it's open
-                                if (document.getElementById('adminPage').style.display !== 'none') {
-                                    const selectedUser = document.getElementById('adminUserSelect').value;
-                                    loadAdminTasks(selectedUser);
-                                }
-                            });
+                let tasks = JSON.parse(localStorage.getItem('employeeTasks')) || [];
+                const taskIndex = tasks.findIndex(t => t.id === taskId);
+                if (taskIndex !== -1) {
+                    tasks[taskIndex].lastModified = new Date().toISOString();
+                    localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+                    alert('Changes saved successfully!');
+                    loadEmployeeTasks();
+                    // Refresh admin panel if it's open
+                    if (document.getElementById('adminPage').style.display !== 'none') {
+                        const selectedUser = document.getElementById('adminUserSelect').value;
+                        loadAdminTasks(selectedUser);
                     }
-                });
+                }
             }
             function downloadTaskFile(fileName, fileData) {
                 const link = document.createElement('a');
@@ -2965,6 +2851,107 @@
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
                 return diffDays;
             }
+            // Setup initial data listeners and sync
+            function setupDataListeners() {
+                // Get initial data from Firebase and update localStorage
+                const dataKeys = [
+                    'users',
+                    'attendanceRecords',
+                    'lateCheckIns',
+                    'missedCheckIns',
+                    'holidayRequests',
+                    'progressReports',
+                    'timeTables',
+                    'employeeTasks',
+                    'notifications'
+                ];
+                dataKeys.forEach(key => {
+                    getFirebaseData(key, (data) => {
+                        if (data) {
+                            localStorage.setItem(key, JSON.stringify(data));
+                        }
+                    });
+                });
+                //Listen for changes in the Firebase Database in real time
+                listenForChanges('users', (users) => {
+                    if (users) {
+                        localStorage.setItem('users', JSON.stringify(users));
+                        //Update the select dropdown in the Admin page
+                        const selectElement = document.getElementById('adminUserSelect');
+                        if (selectElement) {
+                            while (selectElement.options.length > 1) {
+                                selectElement.remove(1);
+                            }
+                            Object.keys(users).forEach(username => {
+                                if (username !== 'admin') {
+                                    const option = document.createElement('option');
+                                    option.value = username;
+                                    option.textContent = username;
+                                    selectElement.appendChild(option);
+                                }
+                            });
+                        }
+                    }
+                });
+                listenForChanges('attendanceRecords', (attendanceRecords) => {
+                    if (attendanceRecords) {
+                        localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                        loadAttendanceTable();
+                        updateSummaryValues();
+                    }
+                });
+                listenForChanges('lateCheckIns', (lateCheckIns) => {
+                    if (lateCheckIns) {
+                        localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
+                        loadAttendanceTable();
+                        updateSummaryValues();
+                    }
+                });
+                listenForChanges('missedCheckIns', (missedCheckIns) => {
+                    if (missedCheckIns) localStorage.setItem('missedCheckIns', JSON.stringify(missedCheckIns));
+                });
+                listenForChanges('holidayRequests', (holidayRequests) => {
+                    if (holidayRequests) {
+                        localStorage.setItem('holidayRequests', JSON.stringify(holidayRequests));
+                        loadEmployeeHolidayRequests();
+                        loadAdminHolidayRequests();
+                    }
+                });
+                listenForChanges('progressReports', (progressReports) => {
+                    if (progressReports) {
+                        localStorage.setItem('progressReports', JSON.stringify(progressReports));
+                        loadEmployeeProgress();
+                        loadAdminProgressReports();
+                    }
+                });
+                listenForChanges('timeTables', (timeTables) => {
+                    if (timeTables) localStorage.setItem('timeTables', JSON.stringify(timeTables));
+                });
+                listenForChanges('notifications', (notifications) => {
+                    if (notifications) localStorage.setItem('notifications', JSON.stringify(notifications));
+                });
+
+                listenForChanges('employeeTasks', (tasks) => {
+                    if (tasks) {
+                        localStorage.setItem('employeeTasks', JSON.stringify(tasks));
+
+                        // Refresh tasks view if currently visible
+                        if (document.getElementById('employeePage').style.display !== 'none' &&
+                            document.getElementById('employeeTasks-section').style.display === 'block') {
+                            loadEmployeeTasks();
+                        }
+
+                        // Refresh admin tasks view if currently visible
+                        if (document.getElementById('adminPage').style.display !== 'none' &&
+                            document.getElementById('adminTargets').style.display === 'block') {
+                            const selectedUser = document.getElementById('adminUserSelect').value;
+                            if (selectedUser) loadAdminTasks(selectedUser);
+                        }
+                    }
+                });
+            }
+            window.addEventListener('load', setupDataListeners);
         </script>
 </body>
+
 </html>
