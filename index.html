@@ -350,6 +350,25 @@
             overflow-y: auto;
             max-height: 600px;
         }
+        .password-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .password-container input {
+            width: 100%;
+            padding-right: 40px; 
+        }
+        .password-container i {
+            position: absolute;
+            right: 8px;
+            cursor: pointer;
+            color: #666;
+        }
+        .password-container i:hover {
+            color: #333;
+        }
+
     </style>
 </head>
 <body>
@@ -358,7 +377,10 @@
         <div class="login-container">
             <h1>FSPro Login</h1>
             <input type="text" id="userName" placeholder="Username">
-            <input type="password" id="userPassword" placeholder="Password">
+            <div class="password-container">
+                <input type="password" id="userPassword" placeholder="Password">
+                <i class="fa fa-eye" id="togglePassword"></i>
+            </div>
             <button id="loginBtn">Login</button>
         </div>
     </div>
@@ -435,48 +457,79 @@
             <div class="modal-content" id="timeTableContent">
                 <span class="close" onclick="closeTimeTableModal()"><i class="fa-solid fa-xmark"></i></span>
                 <h2>Set Your Time Table </h2>
-                <table id="timeTableSettings">
-                    <thead>
-                        <tr>
-                            <th>Day</th>
-                            <th>Check In</th>
-                            <th>Check Out</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Monday</td>
-                            <td><input type="time" id="mondayCheckIn"></td>
-                            <td><input type="time" id="mondayCheckOut"></td>
-                        </tr>
-                        <tr>
-                            <td>Tuesday</td>
-                            <td><input type="time" id="tuesdayCheckIn"></td>
-                            <td><input type="time" id="tuesdayCheckOut"></td>
-                        </tr>
-                        <tr>
-                            <td>Wednesday</td>
-                            <td><input type="time" id="wednesdayCheckIn"></td>
-                            <td><input type="time" id="wednesdayCheckOut"></td>
-                        </tr>
-                        <tr>
-                            <td>Thursday</td>
-                            <td><input type="time" id="thursdayCheckIn"></td>
-                            <td><input type="time" id="thursdayCheckOut"></td>
-                        </tr>
-                        <tr>
-                            <td>Friday</td>
-                            <td><input type="time" id="fridayCheckIn"></td>
-                            <td><input type="time" id="fridayCheckOut"></td>
-                        </tr>
-                        <tr>
-                            <td>Saturday</td>
-                            <td><input type="time" id="saturdayCheckIn"></td>
-                            <td><input type="time" id="saturdayCheckOut"></td>
-                        </tr>
-                    </tbody>
-                </table>
-                <button onclick="saveTimeTable()">Save</button>
+                <div class="time-table-days">
+                    <div class="day-container" id="mondayContainer">
+                        <h3>Monday</h3>
+                        <div class="time-slots" id="mondaySlots">
+                            <div class="time-slot">
+                                <input type="time" class="check-in-time" data-day="monday">
+                                <input type="time" class="check-out-time" data-day="monday">
+                                <button class="remove-slot" onclick="removeTimeSlot(this)" style="display:none;">×</button>
+                            </div>
+                        </div>
+                        <button class="add-slot" onclick="addTimeSlot('monday')">+ Add Time Slot</button>
+                    </div>
+                    
+                    <div class="day-container" id="tuesdayContainer">
+                        <h3>Tuesday</h3>
+                        <div class="time-slots" id="tuesdaySlots">
+                            <div class="time-slot">
+                                <input type="time" class="check-in-time" data-day="tuesday">
+                                <input type="time" class="check-out-time" data-day="tuesday">
+                                <button class="remove-slot" onclick="removeTimeSlot(this)" style="display:none;">×</button>
+                            </div>
+                        </div>
+                        <button class="add-slot" onclick="addTimeSlot('tuesday')">+ Add Time Slot</button>
+                    </div>
+                    
+                    <div class="day-container" id="wednesdayContainer">
+                        <h3>Wednesday</h3>
+                        <div class="time-slots" id="wednesdaySlots">
+                            <div class="time-slot">
+                                <input type="time" class="check-in-time" data-day="wednesday">
+                                <input type="time" class="check-out-time" data-day="wednesday">
+                                <button class="remove-slot" onclick="removeTimeSlot(this)" style="display:none;">×</button>
+                            </div>
+                        </div>
+                        <button class="add-slot" onclick="addTimeSlot('wednesday')">+ Add Time Slot</button>
+                    </div>
+                    
+                    <div class="day-container" id="thursdayContainer">
+                        <h3>Thursday</h3>
+                        <div class="time-slots" id="thursdaySlots">
+                            <div class="time-slot">
+                                <input type="time" class="check-in-time" data-day="thursday">
+                                <input type="time" class="check-out-time" data-day="thursday">
+                                <button class="remove-slot" onclick="removeTimeSlot(this)" style="display:none;">×</button>
+                            </div>
+                        </div>
+                        <button class="add-slot" onclick="addTimeSlot('thursday')">+ Add Time Slot</button>
+                    </div>
+                    <div class="day-container" id="fridayContainer">
+                        <h3>Friday</h3>
+                        <div class="time-slots" id="fridaySlots">
+                            <div class="time-slot">
+                                <input type="time" class="check-in-time" data-day="friday">
+                                <input type="time" class="check-out-time" data-day="friday">
+                                <button class="remove-slot" onclick="removeTimeSlot(this)" style="display:none;">X</button>
+                            </div>
+                        </div>
+                        <button class="add-slot" onclick="addTimeSlot('friday')">+ Add Time Slot</button>
+                    </div>
+                    
+                    <div class="day-container" id="saturdayContainer">
+                        <h3>Saturday</h3>
+                        <div class="time-slots" id="saturdaySlots">
+                            <div class="time-slot">
+                                <input type="time" class="check-in-time" data-day="saturday">
+                                <input type="time" class="check-out-time" data-day="saturday">
+                                <button class="remove-slot" onclick="removeTimeSlot(this)" style="display:none;">×</button>
+                            </div>
+                        </div>
+                        <button class="add-slot" onclick="addTimeSlot('saturday')">+ Add Time Slot</button>
+                    </div>
+                </div>
+                <button onclick="saveTimeTable()" class="save-timetable">Save</button>
             </div>
             <div class="main-content">
                 <div class="employee-header" id="employeeHeader">
@@ -1168,14 +1221,11 @@
             document.getElementById('loginBtn').addEventListener('click', () => {
                 const username = document.getElementById('userName').value.toLowerCase();
                 const password = document.getElementById('userPassword').value;
-
                 // First check Firebase for the most up-to-date user data
                 database.ref(`users/${username}`).once('value', (snapshot) => {
                     const firebaseUser = snapshot.val();
-
                     // Use Firebase data if available, otherwise fallback to local data
                     const user = firebaseUser || users[username];
-
                     if (user && user.password === password) {
                         // Store login info in localStorage
                         localStorage.setItem('loggedInUser', JSON.stringify({
@@ -1183,12 +1233,10 @@
                             id: user.id,
                             role: user.role
                         }));
-
                         // If Firebase didn't have this user, save it there
                         if (!firebaseUser && users[username]) {
                             saveToFirebase(`users/${username}`, users[username]);
                         }
-
                         if (user.role === 'admin') {
                             showPage('adminPage');
                             loadAdminData();
@@ -1205,7 +1253,6 @@
                     }
                 }, (error) => {
                     console.error("Error checking Firebase for user:", error);
-
                     // Fallback to local check if Firebase fails
                     const user = users[username];
                     if (user && user.password === password) {
@@ -1230,6 +1277,14 @@
                     }
                 });
             });
+            //Toggle Password Functionality(Login PAge input Field)
+            document.getElementById('togglePassword').addEventListener('click', function () {
+            const passwordField = document.getElementById('userPassword');
+            const type = passwordField.type === 'password' ? 'text' : 'password';
+            passwordField.type = type;
+            this.classList.toggle('fa-eye-slash');
+            });
+
             function showPage(pageId) {
                 ['loginPage', 'employeePage', 'adminPage'].forEach(id => {
                     document.getElementById(id).style.display = id === pageId ? 'block' : 'none';
@@ -1918,67 +1973,133 @@
                 alert('Holiday request submitted successfully!');
             }
             //Employee Time Table Section.
+            function addTimeSlot(day) {
+                const daySlots = document.getElementById(`${day}Slots`);
+                const timeSlotDiv = document.createElement('div');
+                timeSlotDiv.className = 'time-slot';
+                timeSlotDiv.innerHTML = `
+                    <input type="time" class="check-in-time" data-day="${day}">
+                    <input type="time" class="check-out-time" data-day="${day}">
+                    <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
+                `;
+                daySlots.appendChild(timeSlotDiv);
+                
+                // Show remove buttons now that we have multiple slots
+                const removeButtons = daySlots.querySelectorAll('.remove-slot');
+                removeButtons.forEach(btn => btn.style.display = 'inline-block');
+            }
+            
+            function removeTimeSlot(button) {
+                const timeSlot = button.parentElement;
+                const daySlots = timeSlot.parentElement;
+                daySlots.removeChild(timeSlot);
+                
+                // If only one slot remains, hide its remove button
+                const remainingSlots = daySlots.querySelectorAll('.time-slot');
+                if (remainingSlots.length === 1) {
+                    remainingSlots[0].querySelector('.remove-slot').style.display = 'none';
+                }
+            }
+            
             function openTimeTableModal() {
                 const modal = document.getElementById('timeTableContent');
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
                 const timeTables = JSON.parse(localStorage.getItem('timeTables')) || [];
                 const timeTable = timeTables.find(t => t.employee === employee) || {};
-                if (timeTable.monday) {
-                    document.getElementById('mondayCheckIn').value = timeTable.monday.checkIn;
-                    document.getElementById('mondayCheckOut').value = timeTable.monday.checkOut;
-                }
-                if (timeTable.tuesday) {
-                    document.getElementById('tuesdayCheckIn').value = timeTable.tuesday.checkIn;
-                    document.getElementById('tuesdayCheckOut').value = timeTable.tuesday.checkOut;
-                }
-                if (timeTable.wednesday) {
-                    document.getElementById('wednesdayCheckIn').value = timeTable.wednesday.checkIn;
-                    document.getElementById('wednesdayCheckOut').value = timeTable.wednesday.checkOut;
-                }
-                if (timeTable.thursday) {
-                    document.getElementById('thursdayCheckIn').value = timeTable.thursday.checkIn;
-                    document.getElementById('thursdayCheckOut').value = timeTable.thursday.checkOut;
-                }
-                if (timeTable.friday) {
-                    document.getElementById('fridayCheckIn').value = timeTable.friday.checkIn;
-                    document.getElementById('fridayCheckOut').value = timeTable.friday.checkOut;
-                }
-                if (timeTable.saturday) {
-                    document.getElementById('saturdayCheckIn').value = timeTable.saturday.checkIn;
-                    document.getElementById('saturdayCheckOut').value = timeTable.saturday.checkOut;
-                }
+                
+                // Clear existing slots first (except the first one)
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                days.forEach(day => {
+                    const daySlots = document.getElementById(`${day}Slots`);
+                    // Keep only the first slot
+                    while (daySlots.children.length > 1) {
+                        daySlots.removeChild(daySlots.lastChild);
+                    }
+                    
+                    // Reset the first slot's inputs
+                    const firstSlot = daySlots.querySelector('.time-slot');
+                    const checkInInput = firstSlot.querySelector('.check-in-time');
+                    const checkOutInput = firstSlot.querySelector('.check-out-time');
+                    checkInInput.value = '';
+                    checkOutInput.value = '';
+                    
+                    // Hide the remove button for the first slot
+                    firstSlot.querySelector('.remove-slot').style.display = 'none';
+                });
+                
+                // Load time table data
+                days.forEach(day => {
+                    if (timeTable[day]) {
+                        const daySlots = document.getElementById(`${day}Slots`);
+                        const timeSlots = timeTable[day];
+                        
+                        // Handle both old format (single entry) and new format (array of entries)
+                        let timeSlotsArray = [];
+                        if (Array.isArray(timeSlots)) {
+                            timeSlotsArray = timeSlots;
+                        } else if (timeSlots.checkIn || timeSlots.checkOut) {
+                            timeSlotsArray = [{
+                                checkIn: timeSlots.checkIn || '',
+                                checkOut: timeSlots.checkOut || ''
+                            }];
+                        }
+                        
+                        // Fill in the first slot
+                        if (timeSlotsArray.length > 0) {
+                            const firstSlot = daySlots.querySelector('.time-slot');
+                            const checkInInput = firstSlot.querySelector('.check-in-time');
+                            const checkOutInput = firstSlot.querySelector('.check-out-time');
+                            checkInInput.value = timeSlotsArray[0].checkIn || '';
+                            checkOutInput.value = timeSlotsArray[0].checkOut || '';
+                        }
+                        
+                        // Add additional slots as needed
+                        for (let i = 1; i < timeSlotsArray.length; i++) {
+                            const timeSlotDiv = document.createElement('div');
+                            timeSlotDiv.className = 'time-slot';
+                            timeSlotDiv.innerHTML = `
+                                <input type="time" class="check-in-time" data-day="${day}" value="${timeSlotsArray[i].checkIn || ''}">
+                                <input type="time" class="check-out-time" data-day="${day}" value="${timeSlotsArray[i].checkOut || ''}">
+                                <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
+                            `;
+                            daySlots.appendChild(timeSlotDiv);
+                        }
+                        
+                        // Show remove buttons if multiple slots exist
+                        const slotCount = daySlots.querySelectorAll('.time-slot').length;
+                        if (slotCount > 1) {
+                            const removeButtons = daySlots.querySelectorAll('.remove-slot');
+                            removeButtons.forEach(btn => btn.style.display = 'inline-block');
+                        }
+                    }
+                });
+                
                 modal.style.display = 'block';
                 document.getElementById('modalOverlay').style.display = 'block';
             }
+            
             function saveTimeTable() {
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
-                const timeTable = {
-                    employee: employee,
-                    monday: {
-                        checkIn: document.getElementById('mondayCheckIn').value,
-                        checkOut: document.getElementById('mondayCheckOut').value
-                    },
-                    tuesday: {
-                        checkIn: document.getElementById('tuesdayCheckIn').value,
-                        checkOut: document.getElementById('tuesdayCheckOut').value
-                    },
-                    wednesday: {
-                        checkIn: document.getElementById('wednesdayCheckIn').value,
-                        checkOut: document.getElementById('wednesdayCheckOut').value
-                    },
-                    thursday: {
-                        checkIn: document.getElementById('thursdayCheckIn').value,
-                        checkOut: document.getElementById('thursdayCheckOut').value
-                    },
-                    friday: {
-                        checkIn: document.getElementById('fridayCheckIn').value,
-                        checkOut: document.getElementById('fridayCheckOut').value
-                    },
-                    saturday: {
-                        checkIn: document.getElementById('saturdayCheckIn').value,
-                        checkOut: document.getElementById('saturdayCheckOut').value
-                    }
-                };
+                const timeTable = { employee: employee };
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                
+                days.forEach(day => {
+                    const daySlots = document.getElementById(`${day}Slots`);
+                    const timeSlots = daySlots.querySelectorAll('.time-slot');
+                    
+                    timeTable[day] = [];
+                    timeSlots.forEach(slot => {
+                        const checkIn = slot.querySelector('.check-in-time').value;
+                        const checkOut = slot.querySelector('.check-out-time').value;
+                        
+                        if (checkIn || checkOut) {
+                            timeTable[day].push({
+                                checkIn: checkIn,
+                                checkOut: checkOut
+                            });
+                        }
+                    });
+                });
 
                 // Get current data from Firebase first
                 getFirebaseData('timeTables', (firebaseTimeTables) => {
@@ -2011,6 +2132,8 @@
                 const timeTables = JSON.parse(localStorage.getItem('timeTables')) || [];
                 const tableBody = document.getElementById('adminTimeTableBody');
                 if (!tableBody) return;
+                tableBody.innerHTML = '';
+                
                 //If no user is selected
                 if (!selectedUser) {
                     const row = document.createElement('tr');
@@ -2018,25 +2141,56 @@
                     tableBody.appendChild(row);
                     return;
                 }
+                
                 //Find the time table for the selected user
                 const timeTable = timeTables.find(t => t.employee === selectedUser);
                 if (!timeTable) {
                     const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="4" style="text-align: center;">No time table found for this user</td>';
                     tableBody.appendChild(row);
                     return;
                 }
-                tableBody.innerHTML = '';
+                
                 //Populate the time table
                 const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                 days.forEach(day => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-            <td>${day.charAt(0).toUpperCase() + day.slice(1)}</td>
-            <td>${formatTimeToAMPM(timeTable[day].checkIn)}</td>
-            <td>${formatTimeToAMPM(timeTable[day].checkOut)}</td>
-            <td>${calculateWorkingHours(timeTable[day].checkIn, timeTable[day].checkOut)}</td>
-        `;
-                    tableBody.appendChild(row);
+                    const dayName = day.charAt(0).toUpperCase() + day.slice(1);
+                    const timeSlots = timeTable[day];
+                    
+                    // Handle both old format (single entry) and new format (array of entries)
+                    let timeSlotsArray = [];
+                    if (Array.isArray(timeSlots)) {
+                        timeSlotsArray = timeSlots;
+                    } else if (timeSlots && (timeSlots.checkIn || timeSlots.checkOut)) {
+                        timeSlotsArray = [{
+                            checkIn: timeSlots.checkIn || '',
+                            checkOut: timeSlots.checkOut || ''
+                        }];
+                    }
+                    
+                    if (timeSlotsArray.length === 0) {
+                        // No time slots for this day
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${dayName}</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                        `;
+                        tableBody.appendChild(row);
+                    } else {
+                        // Add a row for each time slot
+                        timeSlotsArray.forEach((slot, index) => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${index === 0 ? dayName : ''}</td>
+                                <td>${formatTimeToAMPM(slot.checkIn) || '-'}</td>
+                                <td>${formatTimeToAMPM(slot.checkOut) || '-'}</td>
+                                <td>${calculateWorkingHours(slot.checkIn, slot.checkOut)}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+                    }
                 });
             }
             function closeTimeTableModal() {
