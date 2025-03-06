@@ -1017,11 +1017,8 @@
                         sendBtn.textContent = `Send Credentials to ${user.email}`;
                     }
                     
-                    // Try alternative method - opening email client
-                    const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-                    window.open(mailtoLink);
-                    
-                    alert('The system attempted to send the email through your default email client as a fallback. Please check if it opened correctly.');
+                    // Don't use mailto as fallback, just inform the user about the error
+                    alert('Failed to send email. Please try again later or contact your system administrator.');
                 });
             }
             function deleteEmployee() {
