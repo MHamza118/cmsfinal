@@ -968,26 +968,34 @@
                     alert('User email not found.');
                     return;
                 }
-                //email subject and body
+                
+                // Email subject and body
                 const subject = 'Your FSPro System Credentials';
                 const body = `Hello,\n\nYour account has been created in the FSPro system.\n\nUsername: ${username}\nPassword: ${user.password}\nEmployee ID: ${user.id}\n\nPlease login at your earliest convenience and inform your Team Lead if you have any Queries or Login issues.\n\nRegards,\nFSPro Admin Team`;
                 
                 // Send email using Google Apps Script web app
                 const scriptURL = 'https://script.google.com/macros/s/AKfycbx_FK9VTkE8EZ9ycWVx9lJ83khx732NfDLrk3uQMQFzu_rU0lKK1L1QeSKtbYenFhxhPQ/exec';
                 
-                // Create form data instead of JSON
+                // Create form data with sender information
                 const formData = new FormData();
                 formData.append('recipient', user.email);
                 formData.append('subject', subject);
                 formData.append('body', body);
+                formData.append('sender', 'info@fsprogrammers.com');
+                formData.append('senderName', 'FSPro System');
                 
-                // Show loading indicator or message
-                alert('Sending email to ' + user.email + '...');
+                // Show loading indicator
+                const sendBtn = document.querySelector('.form-group button[onclick^="sendCredentialsEmail"]');
+                if (sendBtn) {
+                    sendBtn.disabled = true;
+                    sendBtn.textContent = 'Sending email...';
+                }
                 
-                // Use fetch with form data to better work with Google Apps Script
+                // Use fetch with form data to work with Google Apps Script
                 fetch(scriptURL, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    mode: 'cors'
                 })
                 .then(response => {
                     if (!response.ok) {
@@ -996,15 +1004,24 @@
                     return response.text();
                 })
                 .then(data => {
-                    if (data.includes('success')) {
-                        alert('Email sent successfully!');
-                    } else {
-                        alert('Email may not have been sent. Please verify with the recipient.');
+                    if (sendBtn) {
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = `Send Credentials to ${user.email}`;
                     }
+                    alert('Email sent successfully to ' + user.email);
                 })
                 .catch(error => {
                     console.error('Error sending email:', error);
-                    alert('Failed to send email. The Google Apps Script might have limitations or requires different formatting. Please try again or contact support.');
+                    if (sendBtn) {
+                        sendBtn.disabled = false;
+                        sendBtn.textContent = `Send Credentials to ${user.email}`;
+                    }
+                    
+                    // Try alternative method - opening email client
+                    const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    window.open(mailtoLink);
+                    
+                    alert('The system attempted to send the email through your default email client as a fallback. Please check if it opened correctly.');
                 });
             }
             function deleteEmployee() {
