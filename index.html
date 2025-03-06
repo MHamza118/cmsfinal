@@ -971,9 +971,33 @@
                 //email subject and body
                 const subject = 'Your FSPro System Credentials';
                 const body = `Hello,\n\nYour account has been created in the FSPro system.\n\nUsername: ${username}\nPassword: ${user.password}\nEmployee ID: ${user.id}\n\nPlease login at your earliest convenience and inform your Team Lead if you have any Queries or Login issues.\n\nRegards,\nFSPro Admin Team`;
-                //create a mailto link to open the user's email.
-                const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-                window.open(mailtoLink, '_blank');
+                
+                // Send email using Google Apps Script web app
+                const scriptURL = 'https://script.google.com/macros/s/AKfycbx_FK9VTkE8EZ9ycWVx9lJ83khx732NfDLrk3uQMQFzu_rU0lKK1L1QeSKtbYenFhxhPQ/exec';
+                const emailData = {
+                    recipient: user.email,
+                    subject: subject,
+                    body: body
+                };
+                
+                // Show loading indicator or message
+                alert('Sending email to ' + user.email + '...');
+                
+                fetch(scriptURL, {
+                    method: 'POST',
+                    body: JSON.stringify(emailData),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert('Email sent successfully!');
+                })
+                .catch(error => {
+                    console.error('Error sending email:', error);
+                    alert('Failed to send email. Please try again or contact support.');
+                });
             }
             function deleteEmployee() {
                 const username = document.getElementById('deleteEmployeeSelect').value;
