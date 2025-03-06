@@ -968,89 +968,12 @@
                     alert('User email not found.');
                     return;
                 }
-                
-                // Email subject and body
+                //email subject and body
                 const subject = 'Your FSPro System Credentials';
                 const body = `Hello,\n\nYour account has been created in the FSPro system.\n\nUsername: ${username}\nPassword: ${user.password}\nEmployee ID: ${user.id}\n\nPlease login at your earliest convenience and inform your Team Lead if you have any Queries or Login issues.\n\nRegards,\nFSPro Admin Team`;
-                
-                // Send email using Google Apps Script web app
-                const scriptURL = 'https://script.google.com/macros/s/AKfycbx_FK9VTkE8EZ9ycWVx9lJ83khx732NfDLrk3uQMQFzu_rU0lKK1L1QeSKtbYenFhxhPQ/exec';
-                
-                // Create form data with sender information
-                const formData = new FormData();
-                formData.append('recipient', user.email);
-                formData.append('subject', subject);
-                formData.append('body', body);
-                formData.append('sender', 'info@fsprogrammers.com');
-                formData.append('senderName', 'FSPro System');
-                
-                // Show loading indicator
-                const sendBtn = document.querySelector('.form-group button[onclick^="sendCredentialsEmail"]');
-                if (sendBtn) {
-                    sendBtn.disabled = true;
-                    sendBtn.textContent = 'Sending email...';
-                }
-                
-                // Use fetch with form data to work with Google Apps Script
-                fetch(scriptURL, {
-                    method: 'POST',
-                    body: formData,
-                    mode: 'cors'
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.text();
-                })
-                .then(data => {
-                    if (sendBtn) {
-                        sendBtn.disabled = false;
-                        sendBtn.textContent = `Send Credentials to ${user.email}`;
-                    }
-                    alert('Email sent successfully to ' + user.email);
-                })
-                .catch(error => {
-                    console.error('Error sending email:', error);
-                    if (sendBtn) {
-                        sendBtn.disabled = false;
-                        sendBtn.textContent = `Send Credentials to ${user.email}`;
-                    }
-                    
-                    // No fallback to mailto - just try the API again
-                    alert('Failed to send email. Please try again later.');
-                    
-                    // Retry with different method that doesn't use FormData
-                    const emailData = {
-                        recipient: user.email,
-                        subject: subject,
-                        body: body,
-                        sender: 'info@fsprogrammers.com',
-                        senderName: 'FSPro System'
-                    };
-                    
-                    // Try with a different approach using URLSearchParams
-                    const params = new URLSearchParams();
-                    for (const key in emailData) {
-                        params.append(key, emailData[key]);
-                    }
-                    
-                    fetch(scriptURL, {
-                        method: 'POST',
-                        body: params,
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
-                        }
-                    })
-                    .then(response => response.text())
-                    .then(data => {
-                        alert('Email sent successfully to ' + user.email);
-                    })
-                    .catch(err => {
-                        console.error('Second attempt failed:', err);
-                        alert('Failed to send email after multiple attempts. Please check your connection and try again later.');
-                    });
-                });
+                //create a mailto link to open the user's email.
+                const mailtoLink = `mailto:${user.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                window.open(mailtoLink, '_blank');
             }
             function deleteEmployee() {
                 const username = document.getElementById('deleteEmployeeSelect').value;
