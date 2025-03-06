@@ -1017,8 +1017,39 @@
                         sendBtn.textContent = `Send Credentials to ${user.email}`;
                     }
                     
-                    // Don't use mailto as fallback, just inform the user about the error
-                    alert('Failed to send email. Please try again later or contact your system administrator.');
+                    // No fallback to mailto - just try the API again
+                    alert('Failed to send email. Please try again later.');
+                    
+                    // Retry with different method that doesn't use FormData
+                    const emailData = {
+                        recipient: user.email,
+                        subject: subject,
+                        body: body,
+                        sender: 'info@fsprogrammers.com',
+                        senderName: 'FSPro System'
+                    };
+                    
+                    // Try with a different approach using URLSearchParams
+                    const params = new URLSearchParams();
+                    for (const key in emailData) {
+                        params.append(key, emailData[key]);
+                    }
+                    
+                    fetch(scriptURL, {
+                        method: 'POST',
+                        body: params,
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        }
+                    })
+                    .then(response => response.text())
+                    .then(data => {
+                        alert('Email sent successfully to ' + user.email);
+                    })
+                    .catch(err => {
+                        console.error('Second attempt failed:', err);
+                        alert('Failed to send email after multiple attempts. Please check your connection and try again later.');
+                    });
                 });
             }
             function deleteEmployee() {
