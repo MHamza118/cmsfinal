@@ -974,29 +974,37 @@
                 
                 // Send email using Google Apps Script web app
                 const scriptURL = 'https://script.google.com/macros/s/AKfycbx_FK9VTkE8EZ9ycWVx9lJ83khx732NfDLrk3uQMQFzu_rU0lKK1L1QeSKtbYenFhxhPQ/exec';
-                const emailData = {
-                    recipient: user.email,
-                    subject: subject,
-                    body: body
-                };
+                
+                // Create form data instead of JSON
+                const formData = new FormData();
+                formData.append('recipient', user.email);
+                formData.append('subject', subject);
+                formData.append('body', body);
                 
                 // Show loading indicator or message
                 alert('Sending email to ' + user.email + '...');
                 
+                // Use fetch with form data to better work with Google Apps Script
                 fetch(scriptURL, {
                     method: 'POST',
-                    body: JSON.stringify(emailData),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    body: formData
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.text();
+                })
                 .then(data => {
-                    alert('Email sent successfully!');
+                    if (data.includes('success')) {
+                        alert('Email sent successfully!');
+                    } else {
+                        alert('Email may not have been sent. Please verify with the recipient.');
+                    }
                 })
                 .catch(error => {
                     console.error('Error sending email:', error);
-                    alert('Failed to send email. Please try again or contact support.');
+                    alert('Failed to send email. The Google Apps Script might have limitations or requires different formatting. Please try again or contact support.');
                 });
             }
             function deleteEmployee() {
