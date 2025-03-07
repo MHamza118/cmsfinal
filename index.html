@@ -368,6 +368,52 @@
         .password-container i:hover {
             color: #333;
         }
+        
+        /* Weekly Attendance Summary Styles */
+        .weekly-summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .weekly-summary-table th, 
+        .weekly-summary-table td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        
+        .weekly-summary-table th {
+            background: linear-gradient(135deg, #2596be 0%, #1c7593 100%);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .weekly-summary-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .weekly-summary-table tr:hover {
+            background-color: #f1f1f1;
+        }
+        
+        .attendance-dropdown select {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: white;
+        }
+        
+        .attendance-entry {
+            margin-bottom: 5px;
+            padding: 3px;
+            border-bottom: 1px dashed #eee;
+        }
+        
+        .attendance-entry:last-child {
+            border-bottom: none;
+        }
 
     </style>
 </head>
@@ -701,6 +747,7 @@
                 <div class="main-buttons">
                     <button onclick="showAdminSection('adminAttendance'); closeAdminMobileMenu();"
                         class="active">Attendance</button>
+                    <button onclick="showAdminSection('weeklyAttendance'); closeAdminMobileMenu();">Weekly Attendance Summary</button>
                     <button onclick="showAdminSection('adminProgress'); closeAdminMobileMenu();">Progress
                         Reports</button>
                     <button onclick="showAdminSection('adminHolidays'); closeAdminMobileMenu();">Holiday
@@ -920,6 +967,32 @@
                     </table>
                 </div>
                 <!-- Admin Tasks/Targets Section -->
+                <!-- Weekly Attendance Summary Section -->
+                <div id="weeklyAttendance" style="display: none;">
+                    <h1 style="color: white; background-color: #1c7593; padding: 15px; text-align: center;">
+                        Weekly Attendance Summary
+                    </h1>
+                    <div style="margin: 15px 0;">
+                        <button onclick="downloadWeeklySummary()" class="download-btn" style="padding: 8px 15px;">
+                            <i class="fas fa-download"></i> Download Summary
+                        </button>
+                    </div>
+                    <table id="weeklyAttendanceTable" class="weekly-summary-table">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Monday</th>
+                                <th>Tuesday</th>
+                                <th>Wednesday</th>
+                                <th>Thursday</th>
+                                <th>Friday</th>
+                                <th>Saturday</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
                 <div id="adminTargets" style="display: none;">
                     <h1 style="color: white; background-color: #1c7593; padding: 15px; text-align: center;">Tasks
                         Management</h1>
@@ -1791,55 +1864,122 @@
                             return;
                         }
                         
-                        filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(record => {
-                            const todayDate = record.date.split('/').reverse().join('-');
-                            const checkOutTimes = Array.isArray(record.checkOut) ? record.checkOut :
-                                (record.checkOut ? [record.checkOut] : []);
+                        // Group records by employee and date
+                        const groupedRecords = {};
+                        
+                        // First create groups by date and employee
+                        filteredRecords.forEach(record => {
+                            if (!record.date || !record.employee) return;
                             
-                            const lateCheckInTimes = lateCheckIns
-                                .filter(late => late.employee === record.employee && late.date === record.date)
-                                .map(late => late.time);
-                                
-                            let totalWorkingMs = 0;
-                            let lastCheckIn = record.checkIn;
-                            if (lateCheckInTimes.length > 0) {
-                                lastCheckIn = lateCheckInTimes[lateCheckInTimes.length - 1];
+                            const key = `${record.date}_${record.employee}`;
+                            if (!groupedRecords[key]) {
+                                groupedRecords[key] = {
+                                    date: record.date,
+                                    employee: record.employee,
+                                    day: record.day,
+                                    checkIns: [],
+                                    checkOuts: [],
+                                    lateCheckIns: []
+                                };
                             }
                             
-                            let lastCheckInTime = lastCheckIn ? new Date(`${todayDate}T${lastCheckIn}`) : null;
-                            checkOutTimes.forEach(checkOut => {
-                                try {
-                                    let checkOutTime = new Date(`${todayDate}T${checkOut}`);
-                                    if (lastCheckInTime && checkOutTime > lastCheckInTime) {
-                                        totalWorkingMs += (checkOutTime - lastCheckInTime);
-                                    }
-                                    lastCheckInTime = checkOutTime; // Update last check-in after every check-out
-                                } catch (error) {
-                                    console.error('Error processing check-out time:', error);
+                            // Add check-in if it exists
+                            if (record.checkIn) {
+                                groupedRecords[key].checkIns.push(record.checkIn);
+                            }
+                            
+                            // Add check-outs if they exist
+                            if (record.checkOut) {
+                                if (Array.isArray(record.checkOut)) {
+                                    groupedRecords[key].checkOuts = [...groupedRecords[key].checkOuts, ...record.checkOut];
+                                } else {
+                                    groupedRecords[key].checkOuts.push(record.checkOut);
                                 }
-                            });
+                            }
+                        });
+                        
+                        // Add late check-ins to the groups
+                        lateCheckIns.forEach(late => {
+                            if (!late.date || !late.employee) return;
                             
-                            let workingHours = "Incomplete";
-                            if (totalWorkingMs > 0) {
-                                const hours = Math.floor(totalWorkingMs / (1000 * 60 * 60));
-                                const minutes = Math.floor((totalWorkingMs % (1000 * 60 * 60)) / (1000 * 60));
-                                workingHours = `${hours}h ${minutes}m`;
+                            const key = `${late.date}_${late.employee}`;
+                            if (!groupedRecords[key]) {
+                                groupedRecords[key] = {
+                                    date: late.date,
+                                    employee: late.employee,
+                                    day: late.day,
+                                    checkIns: [],
+                                    checkOuts: [],
+                                    lateCheckIns: []
+                                };
                             }
                             
-                            const checkOutDropdown = checkOutTimes.length > 1 ?
-                                `<select>${checkOutTimes.map(time => `<option>${time}</option>`).join('')}</select>` :
-                                (checkOutTimes[0] || '-');
+                            groupedRecords[key].lateCheckIns.push(late.time);
+                        });
+                        
+                        // Convert the grouped records object to an array and sort
+                        const sortedGroups = Object.values(groupedRecords).sort((a, b) => {
+                            // First group by employee name
+                            const employeeComparison = a.employee.localeCompare(b.employee);
+                            if (employeeComparison !== 0) return employeeComparison;
+                            
+                            // Then sort by date (newest first)
+                            return new Date(b.date) - new Date(a.date);
+                        });
+                        
+                        // Render the sorted and grouped records
+                        sortedGroups.forEach(group => {
+                            const todayDate = group.date.split('/').reverse().join('-');
+                            
+                            // Get the first check-in (regular or late)
+                            let firstCheckIn = group.checkIns[0];
+                            if (!firstCheckIn && group.lateCheckIns.length > 0) {
+                                firstCheckIn = group.lateCheckIns[0];
+                            }
+                            
+                            // Get the last check-out if available
+                            let lastCheckOut = null;
+                            if (group.checkOuts.length > 0) {
+                                lastCheckOut = group.checkOuts[group.checkOuts.length - 1];
+                            }
+                            
+                            // Calculate working hours
+                            let totalWorkingMs = 0;
+                            let workingHours = "Incomplete";
+                            
+                            if (firstCheckIn && lastCheckOut) {
+                                try {
+                                    let checkInTime = new Date(`${todayDate}T${firstCheckIn}`);
+                                    let checkOutTime = new Date(`${todayDate}T${lastCheckOut}`);
+                                    
+                                    if (checkOutTime > checkInTime) {
+                                        totalWorkingMs = (checkOutTime - checkInTime);
+                                        
+                                        const hours = Math.floor(totalWorkingMs / (1000 * 60 * 60));
+                                        const minutes = Math.floor((totalWorkingMs % (1000 * 60 * 60)) / (1000 * 60));
+                                        workingHours = `${hours}h ${minutes}m`;
+                                    }
+                                } catch (error) {
+                                    console.error('Error calculating working hours:', error);
+                                }
+                            }
+                            
+                            // Create dropdowns for check-outs and late check-ins if needed
+                            const checkOutDropdown = group.checkOuts.length > 1 ?
+                                `<select>${group.checkOuts.map(time => `<option>${time}</option>`).join('')}</select>` :
+                                (group.checkOuts[0] || '-');
                                 
-                            const lateCheckInDropdown = lateCheckInTimes.length > 1 ?
-                                `<select>${lateCheckInTimes.map(late => `<option>${late}</option>`).join('')}</select>` :
-                                (lateCheckInTimes[0] || '-');
-
+                            const lateCheckInDropdown = group.lateCheckIns.length > 1 ?
+                                `<select>${group.lateCheckIns.map(late => `<option>${late}</option>`).join('')}</select>` :
+                                (group.lateCheckIns[0] || '-');
+                            
+                            // Create the row
                             const row = document.createElement('tr');
                             row.innerHTML = `
-                                <td>${record.employee}</td>
-                                <td>${record.date}</td>
-                                <td>${record.day}</td>
-                                <td>${record.checkIn || '-'}</td>
+                                <td>${group.employee}</td>
+                                <td>${group.date}</td>
+                                <td>${group.day}</td>
+                                <td>${group.checkIns[0] || '-'}</td>
                                 <td>${checkOutDropdown}</td>
                                 <td>${lateCheckInDropdown}</td>
                                 <td>${workingHours}</td> <!-- Display Computed Working Hours -->
@@ -4348,6 +4488,291 @@ function addAttendanceRecord(type) {
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
                 return diffDays;
             }
+            // Weekly Attendance Summary Functions
+            function showAdminSection(sectionName) {
+                const sections = ['adminAttendance', 'adminProgress', 'adminHolidays', 'adminTimeTable', 'adminTargets', 'weeklyAttendance'];
+                sections.forEach(section => {
+                    const element = document.getElementById(section);
+                    if (element) element.style.display = 'none';
+                });
+                const selectedSection = document.getElementById(sectionName);
+                if (selectedSection) {
+                    selectedSection.style.display = 'block';
+                    const selectedUser = document.getElementById('adminUserSelect')?.value || '';
+                    switch (sectionName) {
+                        case 'adminAttendance':
+                            loadAdminData(selectedUser);
+                            break;
+                        case 'adminProgress':
+                            loadAdminProgressReports(selectedUser);
+                            break;
+                        case 'adminHolidays':
+                            loadAdminHolidayRequests(selectedUser);
+                            break;
+                        case 'adminTimeTable':
+                            loadAdminTimeTable(selectedUser);
+                            break;
+                        case 'adminTargets':
+                            loadAdminTasks(selectedUser);
+                            break;
+                        case 'weeklyAttendance':
+                            loadWeeklyAttendanceSummary();
+                            break;
+                    }
+                }
+            }
+            
+            function loadWeeklyAttendanceSummary() {
+                const tableBody = document.getElementById('weeklyAttendanceTable').querySelector('tbody');
+                tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center">Loading weekly attendance data...</td></tr>';
+                
+                // Get current week start (Monday) and end (Saturday) dates
+                const today = new Date();
+                const day = today.getDay();
+                const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+                const monday = new Date(today.setDate(diff));
+                monday.setHours(0, 0, 0, 0);
+                
+                const saturday = new Date(monday);
+                saturday.setDate(monday.getDate() + 5); // Only go up to Saturday (6 days)
+                saturday.setHours(23, 59, 59, 999);
+                
+                // Get data from Firebase
+                Promise.all([
+                    new Promise(resolve => database.ref('attendanceRecords').once('value', snapshot => resolve(snapshot.val()))),
+                    new Promise(resolve => database.ref('lateCheckIns').once('value', snapshot => resolve(snapshot.val()))),
+                    new Promise(resolve => database.ref('users').once('value', snapshot => resolve(snapshot.val())))
+                ]).then(([firebaseAttendanceRecords, firebaseLateCheckIns, firebaseUsers]) => {
+                    // Use Firebase data or fallback to localStorage
+                    const attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                    const lateCheckIns = firebaseLateCheckIns || JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+                    const users = firebaseUsers || JSON.parse(localStorage.getItem('users')) || window.users || {};
+                    
+                    // Get all employees and ensure unique
+                    const employees = Object.keys(users).filter(username => username !== 'admin');
+                    
+                    // Also look for any employees in attendance records or late check-ins that might not be in users object
+                    const allEmployeesSet = new Set(employees);
+                    
+                    // Check all attendance records for employees across all dates (not just current week)
+                    if (Array.isArray(attendanceRecords)) {
+                        attendanceRecords.forEach(record => {
+                            if (record && record.employee && record.employee !== 'admin') {
+                                allEmployeesSet.add(record.employee);
+                            }
+                        });
+                    }
+                    
+                    // Check all late check-ins for employees
+                    if (Array.isArray(lateCheckIns)) {
+                        lateCheckIns.forEach(late => {
+                            if (late && late.employee && late.employee !== 'admin') {
+                                allEmployeesSet.add(late.employee);
+                            }
+                        });
+                    }
+                    
+                    const allEmployees = Array.from(allEmployeesSet).sort();
+                    
+                    // Clear table
+                    tableBody.innerHTML = '';
+                    
+                    if (allEmployees.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center">No employees found</td></tr>';
+                        return;
+                    }
+                    
+                    console.log(`Found ${allEmployees.length} employees for weekly summary`);
+                    
+                    // For each employee, create a row with attendance data for each day of the week
+                    allEmployees.forEach(employee => {
+                        const row = document.createElement('tr');
+                        
+                        // Employee name column
+                        row.innerHTML = `<td>${employee}</td>`;
+                        
+                        // Add a cell for each day of the week (Monday to Saturday, excluding Sunday)
+                        for (let i = 0; i < 6; i++) {
+                            const date = new Date(monday);
+                            date.setDate(monday.getDate() + i);
+                            const dateString = date.toLocaleDateString();
+                            
+                            // Find attendance records for this employee on this date
+                            const dayRecords = Array.isArray(attendanceRecords) 
+                                ? attendanceRecords.filter(record => 
+                                    record && record.employee === employee && record.date === dateString)
+                                : [];
+                            
+                            // Find late check-ins for this employee on this date
+                            const dayLateCheckIns = Array.isArray(lateCheckIns)
+                                ? lateCheckIns.filter(late => 
+                                    late && late.employee === employee && late.date === dateString)
+                                : [];
+                            
+                            const cell = document.createElement('td');
+                            
+                            if (dayRecords.length === 0 && dayLateCheckIns.length === 0) {
+                                // No attendance for this day
+                                cell.textContent = '';
+                            } else {
+                                // Get main check-in for display in the cell
+                                let mainCheckIn = '';
+                                
+                                if (dayRecords.length > 0 && dayRecords[0].checkIn) {
+                                    mainCheckIn = dayRecords[0].checkIn;
+                                } else if (dayLateCheckIns.length > 0) {
+                                    mainCheckIn = dayLateCheckIns[0].time;
+                                }
+                                
+                                // Display only the check-in in the cell, we'll show checkouts in dropdown
+                                cell.innerHTML = `<div>In: ${mainCheckIn || ''}</div>`;
+                                
+                                // Collect all check-outs for dropdown
+                                const checkOuts = [];
+                                
+                                // Add all regular check-outs
+                                dayRecords.forEach(record => {
+                                    if (record.checkOut) {
+                                        if (Array.isArray(record.checkOut)) {
+                                            record.checkOut.forEach(checkOut => {
+                                                checkOuts.push(checkOut);
+                                            });
+                                        } else {
+                                            checkOuts.push(record.checkOut);
+                                        }
+                                    }
+                                });
+                                
+                                // Collect late check-ins for dropdown
+                                const lateCheckInTimes = [];
+                                
+                                // Add late check-ins
+                                dayLateCheckIns.forEach(late => {
+                                    lateCheckInTimes.push(late.time);
+                                });
+                                
+                                // Create check-out dropdown for all check-outs including the first one
+                                if (checkOuts.length > 0) {
+                                    const checkOutDropdown = document.createElement('div');
+                                    checkOutDropdown.className = 'attendance-entry';
+                                    
+                                    const checkOutSelect = document.createElement('select');
+                                    checkOutSelect.innerHTML = '<option>Out</option>';
+                                    
+                                    checkOuts.forEach(time => {
+                                        const option = document.createElement('option');
+                                        option.textContent = time;
+                                        checkOutSelect.appendChild(option);
+                                    });
+                                    
+                                    checkOutDropdown.appendChild(checkOutSelect);
+                                    cell.appendChild(document.createElement('hr'));
+                                    cell.appendChild(checkOutDropdown);
+                                }
+                                
+                                // Create late check-in dropdown even if there's only one late check-in
+                                if (lateCheckInTimes.length > 0) {
+                                    const lateCheckInDropdown = document.createElement('div');
+                                    lateCheckInDropdown.className = 'attendance-entry';
+                                    
+                                    const lateCheckInSelect = document.createElement('select');
+                                    lateCheckInSelect.innerHTML = '<option>Late</option>';
+                                    
+                                    lateCheckInTimes.forEach(time => {
+                                        const option = document.createElement('option');
+                                        option.textContent = time;
+                                        lateCheckInSelect.appendChild(option);
+                                    });
+                                    
+                                    lateCheckInDropdown.appendChild(lateCheckInSelect);
+                                    cell.appendChild(document.createElement('hr'));
+                                    cell.appendChild(lateCheckInDropdown);
+                                }
+                            }
+                            
+                            row.appendChild(cell);
+                        }
+                        
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error("Error loading weekly attendance summary:", error);
+                    tableBody.innerHTML = '<tr><td colspan="7" style="text-align:center">Error loading data. Please try again.</td></tr>';
+                });
+            }
+            
+            function downloadWeeklySummary() {
+                // Get current week dates
+                const today = new Date();
+                const day = today.getDay();
+                const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+                const monday = new Date(today.setDate(diff));
+                monday.setHours(0, 0, 0, 0);
+                
+                const saturday = new Date(monday);
+                saturday.setDate(monday.getDate() + 5); // Only go up to Saturday
+                
+                // Format dates for filename
+                const formatDate = (date) => {
+                    return date.toISOString().split('T')[0];
+                };
+                
+                const filename = `weekly_attendance_${formatDate(monday)}_to_${formatDate(saturday)}.csv`;
+                
+                // Get the table data
+                const table = document.getElementById('weeklyAttendanceTable');
+                let csv = [];
+                
+                // Add header row
+                const headerRow = [];
+                for (let cell of table.querySelectorAll('thead th')) {
+                    headerRow.push(cell.textContent);
+                }
+                csv.push(headerRow.join(','));
+                
+                // Add data rows
+                for (let row of table.querySelectorAll('tbody tr')) {
+                    const dataRow = [];
+                    
+                    // Add employee name
+                    dataRow.push(row.querySelector('td').textContent);
+                    
+                    // Add attendance data for each day
+                    for (let cell of row.querySelectorAll('td:not(:first-child)')) {
+                        // First get the main in/out text if available
+                        let cellText = cell.textContent.trim();
+                        
+                        // Check for dropdown
+                        if (cell.querySelector('select')) {
+                            // For dropdowns, include all options
+                            const options = Array.from(cell.querySelector('select').options)
+                                .map(option => option.textContent)
+                                .join(' | ');
+                            
+                            // Combine with main cell text
+                            dataRow.push(`"${cellText} | ${options}"`);
+                        } else {
+                            dataRow.push(`"${cellText}"`); // Quote all cells for better CSV handling
+                        }
+                    }
+                    
+                    csv.push(dataRow.join(','));
+                }
+                
+                // Download the CSV
+                const csvContent = csv.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.click();
+                
+                URL.revokeObjectURL(url);
+            }
+            
             // Setup initial data listeners and sync
             function setupDataListeners() {
                 // Get initial data from Firebase and update localStorage
