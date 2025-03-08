@@ -2004,56 +2004,108 @@
                             let totalWorkingMs = 0;
                             let workingHours = "Incomplete";
                             
-                            if (firstCheckIn && lastCheckOut) {
+                            // Function to parse time string to Date object
+                            function parseTimeToDate(timeStr, dateStr) {
                                 try {
-                                    // Convert times to 24-hour format if they're not already
-                                    let checkInParts = firstCheckIn.split(' ');
-                                    let checkOutParts = lastCheckOut.split(' ');
+                                    let timeParts = timeStr.split(' ');
+                                    let timeObj;
                                     
-                                    let checkInTime, checkOutTime;
-                                    
-                                    // Create Date objects for check-in and check-out times
-                                    if (checkInParts.length > 1 && (checkInParts[1].toLowerCase() === 'am' || checkInParts[1].toLowerCase() === 'pm')) {
+                                    if (timeParts.length > 1 && (timeParts[1].toLowerCase() === 'am' || timeParts[1].toLowerCase() === 'pm')) {
                                         // 12-hour format with AM/PM
-                                        const checkInHour = parseInt(checkInParts[0].split(':')[0]);
-                                        const checkInMinute = parseInt(checkInParts[0].split(':')[1]);
-                                        const checkInHour24 = checkInParts[1].toLowerCase() === 'pm' && checkInHour < 12 ? checkInHour + 12 : 
-                                                              checkInParts[1].toLowerCase() === 'am' && checkInHour === 12 ? 0 : checkInHour;
-                                        checkInTime = new Date(`${todayDate}T${checkInHour24.toString().padStart(2, '0')}:${checkInMinute.toString().padStart(2, '0')}:00`);
+                                        const hour = parseInt(timeParts[0].split(':')[0]);
+                                        const minute = parseInt(timeParts[0].split(':')[1]);
+                                        const hour24 = timeParts[1].toLowerCase() === 'pm' && hour < 12 ? hour + 12 : 
+                                                      timeParts[1].toLowerCase() === 'am' && hour === 12 ? 0 : hour;
+                                        timeObj = new Date(`${dateStr}T${hour24.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`);
                                     } else {
                                         // 24-hour format
-                                        checkInTime = new Date(`${todayDate}T${firstCheckIn}`);
+                                        timeObj = new Date(`${dateStr}T${timeStr}`);
+                                    }
+                                    return timeObj;
+                                } catch (error) {
+                                    console.error('Error parsing time:', error, {timeStr, dateStr});
+                                    return null;
+                                }
+                            }
+                            
+                            // Multiple check-ins/check-outs case
+                            if (group.checkIns.length > 0 && group.checkOuts.length > 0) {
+                                try {
+                                    // For single check-in and check-out
+                                    if (group.checkIns.length === 1 && group.checkOuts.length === 1) {
+                                        const checkInTime = parseTimeToDate(group.checkIns[0], todayDate);
+                                        const checkOutTime = parseTimeToDate(group.checkOuts[0], todayDate);
+                                        
+                                        if (checkInTime && checkOutTime) {
+                                            let diff;
+                                            if (checkOutTime > checkInTime) {
+                                                diff = checkOutTime - checkInTime;
+                                            } else {
+                                                // If check-out time appears earlier than check-in, assume next day
+                                                const nextDayCheckOut = new Date(checkOutTime);
+                                                nextDayCheckOut.setDate(nextDayCheckOut.getDate() + 1);
+                                                diff = nextDayCheckOut - checkInTime;
+                                            }
+                                            totalWorkingMs += diff;
+                                        }
+                                    } 
+                                    // For multiple check-ins and check-outs
+                                    else if (group.checkIns.length >= 1 && group.checkOuts.length >= 1) {
+                                        // Use primary check-in with first check-out
+                                        const firstCheckInTime = parseTimeToDate(group.checkIns[0], todayDate);
+                                        const firstCheckOutTime = parseTimeToDate(group.checkOuts[0], todayDate);
+                                        
+                                        if (firstCheckInTime && firstCheckOutTime) {
+                                            let diff;
+                                            if (firstCheckOutTime > firstCheckInTime) {
+                                                diff = firstCheckOutTime - firstCheckInTime;
+                                            } else {
+                                                // If check-out time appears earlier than check-in, assume next day
+                                                const nextDayCheckOut = new Date(firstCheckOutTime);
+                                                nextDayCheckOut.setDate(nextDayCheckOut.getDate() + 1);
+                                                diff = nextDayCheckOut - firstCheckInTime;
+                                            }
+                                            totalWorkingMs += diff;
+                                        }
+                                        
+                                        // Handle late check-ins with corresponding check-outs
+                                        const lateCheckIns = [...group.lateCheckIns]; // Make a copy
+                                        // Start from second check-out if available
+                                        const additionalCheckOuts = group.checkOuts.slice(1);
+                                        
+                                        // Match late check-ins with additional check-outs if both exist
+                                        for (let i = 0; i < Math.min(lateCheckIns.length, additionalCheckOuts.length); i++) {
+                                            const lateInTime = parseTimeToDate(lateCheckIns[i], todayDate);
+                                            const additionalOutTime = parseTimeToDate(additionalCheckOuts[i], todayDate);
+                                            
+                                            if (lateInTime && additionalOutTime) {
+                                                let diff;
+                                                if (additionalOutTime > lateInTime) {
+                                                    diff = additionalOutTime - lateInTime;
+                                                } else {
+                                                    // If check-out time appears earlier than check-in, assume next day
+                                                    const nextDayCheckOut = new Date(additionalOutTime);
+                                                    nextDayCheckOut.setDate(nextDayCheckOut.getDate() + 1);
+                                                    diff = nextDayCheckOut - lateInTime;
+                                                }
+                                                totalWorkingMs += diff;
+                                            }
+                                        }
                                     }
                                     
-                                    if (checkOutParts.length > 1 && (checkOutParts[1].toLowerCase() === 'am' || checkOutParts[1].toLowerCase() === 'pm')) {
-                                        // 12-hour format with AM/PM
-                                        const checkOutHour = parseInt(checkOutParts[0].split(':')[0]);
-                                        const checkOutMinute = parseInt(checkOutParts[0].split(':')[1]);
-                                        const checkOutHour24 = checkOutParts[1].toLowerCase() === 'pm' && checkOutHour < 12 ? checkOutHour + 12 : 
-                                                               checkOutParts[1].toLowerCase() === 'am' && checkOutHour === 12 ? 0 : checkOutHour;
-                                        checkOutTime = new Date(`${todayDate}T${checkOutHour24.toString().padStart(2, '0')}:${checkOutMinute.toString().padStart(2, '0')}:00`);
-                                    } else {
-                                        // 24-hour format
-                                        checkOutTime = new Date(`${todayDate}T${lastCheckOut}`);
-                                    }
-                                    
-                                    if (checkOutTime > checkInTime) {
-                                        totalWorkingMs = (checkOutTime - checkInTime);
-                                        
-                                        const hours = Math.floor(totalWorkingMs / (1000 * 60 * 60));
-                                        const minutes = Math.floor((totalWorkingMs % (1000 * 60 * 60)) / (1000 * 60));
-                                        workingHours = `${hours}h ${minutes}m`;
-                                    } else {
-                                        // If check-out time appears earlier than check-in, assume next day
-                                        checkOutTime.setDate(checkOutTime.getDate() + 1);
-                                        totalWorkingMs = (checkOutTime - checkInTime);
-                                        
+                                    // Format the total working hours
+                                    if (totalWorkingMs > 0) {
                                         const hours = Math.floor(totalWorkingMs / (1000 * 60 * 60));
                                         const minutes = Math.floor((totalWorkingMs % (1000 * 60 * 60)) / (1000 * 60));
                                         workingHours = `${hours}h ${minutes}m`;
                                     }
                                 } catch (error) {
-                                    console.error('Error calculating working hours:', error, {firstCheckIn, lastCheckOut, todayDate});
+                                    console.error('Error calculating working hours:', error, {
+                                        checkIns: group.checkIns,
+                                        checkOuts: group.checkOuts,
+                                        lateCheckIns: group.lateCheckIns,
+                                        todayDate
+                                    });
                                     workingHours = "Error";
                                 }
                             }
