@@ -2859,7 +2859,13 @@
                     );
                     
                     if (currentWeekEntry) {
-                        // Current week time table exists, load it
+                        // Current week time table exists, load it but make it read-only
+                        // Get the save button and disable it if it was set by employee (not admin)
+                        const saveButton = document.querySelector('.save-timetable');
+                        
+                        // Only allow editing if admin set it or if it's completely new
+                        const isSetByEmployee = currentWeekEntry.modifiedBy === 'employee';
+                        
                         getFirebaseData('timeTables', (firebaseTimeTables) => {
                             // Use Firebase data or fallback to localStorage
                             const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem('timeTables')) || [];
@@ -2890,43 +2896,86 @@
                                         const checkInInput = firstSlot.querySelector('.check-in-time');
                                         const checkOutInput = firstSlot.querySelector('.check-out-time');
                                         
-                                        if (checkInInput) checkInInput.value = timeSlotsArray[0].checkIn || '';
-                                        if (checkOutInput) checkOutInput.value = timeSlotsArray[0].checkOut || '';
+                                        if (checkInInput) {
+                                            checkInInput.value = timeSlotsArray[0].checkIn || '';
+                                            if (isSetByEmployee) checkInInput.disabled = true;
+                                        }
+                                        if (checkOutInput) {
+                                            checkOutInput.value = timeSlotsArray[0].checkOut || '';
+                                            if (isSetByEmployee) checkOutInput.disabled = true;
+                                        }
                                     }
                                     
                                     // Add additional slots as needed
                                     for (let i = 1; i < timeSlotsArray.length; i++) {
                                         const timeSlotDiv = document.createElement('div');
                                         timeSlotDiv.className = 'time-slot';
-                                        timeSlotDiv.innerHTML = `
-                                            <input type="time" class="check-in-time" data-day="${day}" value="${timeSlotsArray[i].checkIn || ''}">
-                                            <input type="time" class="check-out-time" data-day="${day}" value="${timeSlotsArray[i].checkOut || ''}">
-                                            <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
-                                        `;
+                                        
+                                        if (isSetByEmployee) {
+                                            // Read-only if set by employee
+                                            timeSlotDiv.innerHTML = `
+                                                <input type="time" class="check-in-time" data-day="${day}" value="${timeSlotsArray[i].checkIn || ''}" disabled>
+                                                <input type="time" class="check-out-time" data-day="${day}" value="${timeSlotsArray[i].checkOut || ''}" disabled>
+                                                <button class="remove-slot" onclick="removeTimeSlot(this)" style="display:none;">×</button>
+                                            `;
+                                        } else {
+                                            // Editable if set by admin
+                                            timeSlotDiv.innerHTML = `
+                                                <input type="time" class="check-in-time" data-day="${day}" value="${timeSlotsArray[i].checkIn || ''}">
+                                                <input type="time" class="check-out-time" data-day="${day}" value="${timeSlotsArray[i].checkOut || ''}">
+                                                <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
+                                            `;
+                                        }
+                                        
                                         daySlots.appendChild(timeSlotDiv);
                                     }
                                     
-                                    // Show remove buttons if multiple slots exist
-                                    const slotCount = daySlots.querySelectorAll('.time-slot').length;
-                                    if (slotCount > 1) {
-                                        const removeButtons = daySlots.querySelectorAll('.remove-slot');
-                                        removeButtons.forEach(btn => btn.style.display = 'inline-block');
+                                    // Show remove buttons if multiple slots exist and not employee-set
+                                    if (!isSetByEmployee) {
+                                        const slotCount = daySlots.querySelectorAll('.time-slot').length;
+                                        if (slotCount > 1) {
+                                            const removeButtons = daySlots.querySelectorAll('.remove-slot');
+                                            removeButtons.forEach(btn => btn.style.display = 'inline-block');
+                                        }
                                     }
                                 }
                             });
+                            
+                            // Disable add buttons and save button if already set by employee
+                            if (isSetByEmployee) {
+                                document.querySelectorAll('.add-slot').forEach(btn => {
+                                    btn.disabled = true;
+                                    btn.style.backgroundColor = '#ccc';
+                                    btn.style.cursor = 'not-allowed';
+                                });
+                                
+                                if (saveButton) {
+                                    saveButton.disabled = true;
+                                    saveButton.style.backgroundColor = '#ccc';
+                                    saveButton.style.cursor = 'not-allowed';
+                                }
+                            }
                         });
                         
                         // Show message that time table is already set for this week
                         const weekInfoElement = document.createElement('div');
                         weekInfoElement.style.marginBottom = '15px';
                         weekInfoElement.style.padding = '10px';
-                        weekInfoElement.style.backgroundColor = '#e0f7fa';
+                        weekInfoElement.style.backgroundColor = currentWeekEntry.modifiedBy === 'employee' ? '#ffecb3' : '#e0f7fa';
                         weekInfoElement.style.borderRadius = '5px';
                         weekInfoElement.style.textAlign = 'center';
-                        weekInfoElement.innerHTML = `
-                            Time table for the current week (${formatDate(currentWeekStart)} - ${formatDate(getWeekEndDate(currentWeekStart))}) 
-                            is already set. You can edit it below.
-                        `;
+                        
+                        if (currentWeekEntry.modifiedBy === 'employee') {
+                            weekInfoElement.innerHTML = `
+                                <strong>Notice:</strong> Time table for the current week (${formatDate(currentWeekStart)} - ${formatDate(getWeekEndDate(currentWeekStart))}) 
+                                has already been set. <span style="color: #e53935;">You cannot modify it. Please contact your administrator for any changes.</span>
+                            `;
+                        } else {
+                            weekInfoElement.innerHTML = `
+                                Time table for the current week (${formatDate(currentWeekStart)} - ${formatDate(getWeekEndDate(currentWeekStart))}) 
+                                was set by an administrator. You can edit it below.
+                            `;
+                        }
                         
                         // Insert before the days container
                         const daysContainer = document.querySelector('.time-table-days');
@@ -3001,7 +3050,15 @@
                                 );
                                 
                                 if (existingEntry) {
-                                    // Allow updating existing time table for current week
+                                    // Check if the time table was set by the employee or admin
+                                    if (existingEntry.modifiedBy === 'employee') {
+                                        // Employee cannot edit their time table once saved for the week
+                                        alert("You cannot modify your time table once it has been saved for the week. Please contact your administrator for any changes.");
+                                        closeTimeTableModal();
+                                        return;
+                                    }
+                                    
+                                    // Allow updating existing time table for current week if set by admin
                                     console.log("Updating existing time table for current week");
                                     collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString(), true);
                                 } else {
@@ -3018,8 +3075,15 @@
                                     new Date(entry.weekStart).toDateString() === weekStart.toDateString()
                                 );
                                 
+                                if (existingEntry && existingEntry.modifiedBy === 'employee') {
+                                    // Employee cannot edit their time table once saved for the week
+                                    alert("You cannot modify your time table once it has been saved for the week. Please contact your administrator for any changes.");
+                                    closeTimeTableModal();
+                                    return;
+                                }
+                                
                                 if (existingEntry) {
-                                    // Allow updating existing time table for current week
+                                    // Allow updating existing time table for current week if set by admin
                                     collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString(), true);
                                 } else {
                                     // Create new time table for current week
@@ -3034,8 +3098,15 @@
                             new Date(entry.weekStart).toDateString() === weekStart.toDateString()
                         );
                         
+                        if (existingEntry && existingEntry.modifiedBy === 'employee') {
+                            // Employee cannot edit their time table once saved for the week
+                            alert("You cannot modify your time table once it has been saved for the week. Please contact your administrator for any changes.");
+                            closeTimeTableModal();
+                            return;
+                        }
+                        
                         if (existingEntry) {
-                            // Allow updating existing time table for current week
+                            // Allow updating existing time table for current week if set by admin
                             collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString(), true);
                         } else {
                             // Create new time table for current week
