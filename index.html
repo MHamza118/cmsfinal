@@ -2001,6 +2001,8 @@
                             }
                             
                             // Calculate working hours
+                            let regularWorkingMs = 0;
+                            let lateWorkingMs = 0;
                             let totalWorkingMs = 0;
                             let workingHours = "Incomplete";
                             
@@ -2028,86 +2030,108 @@
                                 }
                             }
                             
-                            // Multiple check-ins/check-outs case
-                            if (group.checkIns.length > 0 && group.checkOuts.length > 0) {
-                                try {
-                                    // For single check-in and check-out
-                                    if (group.checkIns.length === 1 && group.checkOuts.length === 1) {
-                                        const checkInTime = parseTimeToDate(group.checkIns[0], todayDate);
-                                        const checkOutTime = parseTimeToDate(group.checkOuts[0], todayDate);
-                                        
-                                        if (checkInTime && checkOutTime) {
-                                            let diff;
-                                            if (checkOutTime > checkInTime) {
-                                                diff = checkOutTime - checkInTime;
-                                            } else {
-                                                // If check-out time appears earlier than check-in, assume next day
-                                                const nextDayCheckOut = new Date(checkOutTime);
-                                                nextDayCheckOut.setDate(nextDayCheckOut.getDate() + 1);
-                                                diff = nextDayCheckOut - checkInTime;
-                                            }
-                                            totalWorkingMs += diff;
+                            // Format ms to hours and minutes
+                            function formatMsToHoursMinutes(ms) {
+                                const hours = Math.floor(ms / (1000 * 60 * 60));
+                                const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+                                return `${hours}h ${minutes}m`;
+                            }
+                            
+                            try {
+                                // First, calculate working hours from regular check-in and check-out
+                                if (group.checkIns.length > 0 && group.checkOuts.length > 0) {
+                                    // Always use the first check-in with first check-out
+                                    const firstCheckInTime = parseTimeToDate(group.checkIns[0], todayDate);
+                                    const firstCheckOutTime = parseTimeToDate(group.checkOuts[0], todayDate);
+                                    
+                                    if (firstCheckInTime && firstCheckOutTime) {
+                                        let diff;
+                                        if (firstCheckOutTime > firstCheckInTime) {
+                                            diff = firstCheckOutTime - firstCheckInTime;
+                                        } else {
+                                            // If check-out time appears earlier than check-in, assume next day
+                                            const nextDayCheckOut = new Date(firstCheckOutTime);
+                                            nextDayCheckOut.setDate(nextDayCheckOut.getDate() + 1);
+                                            diff = nextDayCheckOut - firstCheckInTime;
                                         }
-                                    } 
-                                    // For multiple check-ins and check-outs
-                                    else if (group.checkIns.length >= 1 && group.checkOuts.length >= 1) {
-                                        // Use primary check-in with first check-out
-                                        const firstCheckInTime = parseTimeToDate(group.checkIns[0], todayDate);
-                                        const firstCheckOutTime = parseTimeToDate(group.checkOuts[0], todayDate);
-                                        
-                                        if (firstCheckInTime && firstCheckOutTime) {
-                                            let diff;
-                                            if (firstCheckOutTime > firstCheckInTime) {
-                                                diff = firstCheckOutTime - firstCheckInTime;
-                                            } else {
-                                                // If check-out time appears earlier than check-in, assume next day
-                                                const nextDayCheckOut = new Date(firstCheckOutTime);
-                                                nextDayCheckOut.setDate(nextDayCheckOut.getDate() + 1);
-                                                diff = nextDayCheckOut - firstCheckInTime;
-                                            }
-                                            totalWorkingMs += diff;
+                                        regularWorkingMs = diff;
+                                        totalWorkingMs += diff;
+                                    }
+                                }
+                                
+                                // Next, calculate hours from late check-ins with additional check-outs
+                                if (group.lateCheckIns.length > 0) {
+                                    // Create a copy of all late check-ins
+                                    const lateCheckIns = [...group.lateCheckIns];
+                                    
+                                    // Get additional check-outs (all check-outs except the first one if it was already used)
+                                    let additionalCheckOuts = [];
+                                    if (group.checkOuts.length > 0) {
+                                        // If we already used the first checkout with regular check-in, start from second
+                                        if (group.checkIns.length > 0) {
+                                            additionalCheckOuts = group.checkOuts.slice(1);
+                                        } else {
+                                            // If there was no regular check-in, use all check-outs
+                                            additionalCheckOuts = [...group.checkOuts];
                                         }
-                                        
-                                        // Handle late check-ins with corresponding check-outs
-                                        const lateCheckIns = [...group.lateCheckIns]; // Make a copy
-                                        // Start from second check-out if available
-                                        const additionalCheckOuts = group.checkOuts.slice(1);
-                                        
-                                        // Match late check-ins with additional check-outs if both exist
-                                        for (let i = 0; i < Math.min(lateCheckIns.length, additionalCheckOuts.length); i++) {
+                                    }
+                                    
+                                    // Check if we have unequal number of late check-ins and additional check-outs
+                                    if (lateCheckIns.length !== additionalCheckOuts.length) {
+                                        // If we have unequal pairs, do not calculate late hours
+                                        lateWorkingMs = 0;
+                                        if (regularWorkingMs === 0) {
+                                            // If we also don't have regular hours, show "Incomplete"
+                                            workingHours = "Incomplete";
+                                        }
+                                    } else {
+                                        // Match each late check-in with a check-out only if we have equal numbers
+                                        for (let i = 0; i < lateCheckIns.length; i++) {
                                             const lateInTime = parseTimeToDate(lateCheckIns[i], todayDate);
-                                            const additionalOutTime = parseTimeToDate(additionalCheckOuts[i], todayDate);
+                                            const checkOutTime = parseTimeToDate(additionalCheckOuts[i], todayDate);
                                             
-                                            if (lateInTime && additionalOutTime) {
+                                            if (lateInTime && checkOutTime) {
                                                 let diff;
-                                                if (additionalOutTime > lateInTime) {
-                                                    diff = additionalOutTime - lateInTime;
+                                                if (checkOutTime > lateInTime) {
+                                                    diff = checkOutTime - lateInTime;
                                                 } else {
                                                     // If check-out time appears earlier than check-in, assume next day
-                                                    const nextDayCheckOut = new Date(additionalOutTime);
+                                                    const nextDayCheckOut = new Date(checkOutTime);
                                                     nextDayCheckOut.setDate(nextDayCheckOut.getDate() + 1);
                                                     diff = nextDayCheckOut - lateInTime;
                                                 }
+                                                lateWorkingMs += diff;
                                                 totalWorkingMs += diff;
                                             }
                                         }
                                     }
-                                    
-                                    // Format the total working hours
-                                    if (totalWorkingMs > 0) {
-                                        const hours = Math.floor(totalWorkingMs / (1000 * 60 * 60));
-                                        const minutes = Math.floor((totalWorkingMs % (1000 * 60 * 60)) / (1000 * 60));
-                                        workingHours = `${hours}h ${minutes}m`;
-                                    }
-                                } catch (error) {
-                                    console.error('Error calculating working hours:', error, {
-                                        checkIns: group.checkIns,
-                                        checkOuts: group.checkOuts,
-                                        lateCheckIns: group.lateCheckIns,
-                                        todayDate
-                                    });
-                                    workingHours = "Error";
                                 }
+                                
+                                // Format the working hours display
+                                if (totalWorkingMs > 0) {
+                                    const regularHoursDisplay = regularWorkingMs > 0 ? formatMsToHoursMinutes(regularWorkingMs) : "";
+                                    const lateHoursDisplay = lateWorkingMs > 0 ? formatMsToHoursMinutes(lateWorkingMs) : "";
+                                    const totalHoursDisplay = formatMsToHoursMinutes(totalWorkingMs);
+                                    
+                                    if (regularWorkingMs > 0 && lateWorkingMs > 0) {
+                                        // Both regular and late hours
+                                        workingHours = `${regularHoursDisplay} + ${lateHoursDisplay} = ${totalHoursDisplay}`;
+                                    } else if (regularWorkingMs > 0) {
+                                        // Only regular hours
+                                        workingHours = regularHoursDisplay;
+                                    } else if (lateWorkingMs > 0) {
+                                        // Only late hours 
+                                        workingHours = lateHoursDisplay;
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Error calculating working hours:', error, {
+                                    checkIns: group.checkIns,
+                                    checkOuts: group.checkOuts,
+                                    lateCheckIns: group.lateCheckIns,
+                                    todayDate
+                                });
+                                workingHours = "Error";
                             }
                             
                             // Create dropdowns for check-outs and late check-ins if needed
@@ -2793,89 +2817,166 @@
                 if (overlay) overlay.style.display = 'block';
                 if (modal) modal.style.display = 'block';
                 
-                // Get data from Firebase first
-                getFirebaseData('timeTables', (firebaseTimeTables) => {
-                    // Use Firebase data or fallback to localStorage
-                    const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem('timeTables')) || [];
-                    const timeTable = timeTables.find(t => t.employee === employee) || {};
+                // Get current date and determine if we're in a new week
+                const today = new Date();
+                const currentWeekStart = getWeekStartDate(today);
+                
+                // Clear existing slots first (except the first one)
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                days.forEach(day => {
+                    const daySlots = document.getElementById(`${day}Slots`);
+                    if (!daySlots) {
+                        console.error(`Element with ID '${day}Slots' not found`);
+                        return;
+                    }
                     
-                    // Clear existing slots first (except the first one)
-                    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-                    days.forEach(day => {
-                        const daySlots = document.getElementById(`${day}Slots`);
-                        if (!daySlots) {
-                            console.error(`Element with ID '${day}Slots' not found`);
-                            return;
-                        }
-                        
-                        // Keep only the first slot
-                        while (daySlots.children.length > 1) {
-                            daySlots.removeChild(daySlots.lastChild);
-                        }
-                        
-                        // Reset the first slot's inputs
-                        const firstSlot = daySlots.querySelector('.time-slot');
-                        if (firstSlot) {
-                            const checkInInput = firstSlot.querySelector('.check-in-time');
-                            const checkOutInput = firstSlot.querySelector('.check-out-time');
-                            const removeButton = firstSlot.querySelector('.remove-slot');
-                            
-                            if (checkInInput) checkInInput.value = '';
-                            if (checkOutInput) checkOutInput.value = '';
-                            if (removeButton) removeButton.style.display = 'none';
-                        }
-                    });
+                    // Keep only the first slot
+                    while (daySlots.children.length > 1) {
+                        daySlots.removeChild(daySlots.lastChild);
+                    }
                     
-                    // Load time table data
-                    days.forEach(day => {
-                        if (timeTable[day]) {
-                            const daySlots = document.getElementById(`${day}Slots`);
-                            if (!daySlots) return;
-                            
-                            const timeSlots = timeTable[day];
-                            
-                            // Handle both old format (single entry) and new format (array of entries)
-                            let timeSlotsArray = [];
-                            if (Array.isArray(timeSlots)) {
-                                timeSlotsArray = timeSlots;
-                            } else if (timeSlots.checkIn || timeSlots.checkOut) {
-                                timeSlotsArray = [{
-                                    checkIn: timeSlots.checkIn || '',
-                                    checkOut: timeSlots.checkOut || ''
-                                }];
-                            }
-                            
-                            // Fill in the first slot
-                            const firstSlot = daySlots.querySelector('.time-slot');
-                            if (firstSlot && timeSlotsArray.length > 0) {
-                                const checkInInput = firstSlot.querySelector('.check-in-time');
-                                const checkOutInput = firstSlot.querySelector('.check-out-time');
-                                
-                                if (checkInInput) checkInInput.value = timeSlotsArray[0].checkIn || '';
-                                if (checkOutInput) checkOutInput.value = timeSlotsArray[0].checkOut || '';
-                            }
-                            
-                            // Add additional slots as needed
-                            for (let i = 1; i < timeSlotsArray.length; i++) {
-                                const timeSlotDiv = document.createElement('div');
-                                timeSlotDiv.className = 'time-slot';
-                                timeSlotDiv.innerHTML = `
-                                    <input type="time" class="check-in-time" data-day="${day}" value="${timeSlotsArray[i].checkIn || ''}">
-                                    <input type="time" class="check-out-time" data-day="${day}" value="${timeSlotsArray[i].checkOut || ''}">
-                                    <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
-                                `;
-                                daySlots.appendChild(timeSlotDiv);
-                            }
-                            
-                            // Show remove buttons if multiple slots exist
-                            const slotCount = daySlots.querySelectorAll('.time-slot').length;
-                            if (slotCount > 1) {
-                                const removeButtons = daySlots.querySelectorAll('.remove-slot');
-                                removeButtons.forEach(btn => btn.style.display = 'inline-block');
-                            }
-                        }
-                    });
+                    // Reset the first slot's inputs
+                    const firstSlot = daySlots.querySelector('.time-slot');
+                    if (firstSlot) {
+                        const checkInInput = firstSlot.querySelector('.check-in-time');
+                        const checkOutInput = firstSlot.querySelector('.check-out-time');
+                        const removeButton = firstSlot.querySelector('.remove-slot');
+                        
+                        if (checkInInput) checkInInput.value = '';
+                        if (checkOutInput) checkOutInput.value = '';
+                        if (removeButton) removeButton.style.display = 'none';
+                    }
                 });
+                
+                // Get data from Firebase to check if the time table for this week exists
+                getFirebaseData('timeTableHistory', (firebaseHistory) => {
+                    const history = firebaseHistory || [];
+                    
+                    // Check if there's an entry for this employee for the current week
+                    const currentWeekEntry = Array.isArray(history) && history.find(entry => 
+                        entry.employee === employee && 
+                        new Date(entry.weekStart).toDateString() === currentWeekStart.toDateString()
+                    );
+                    
+                    if (currentWeekEntry) {
+                        // Current week time table exists, load it
+                        getFirebaseData('timeTables', (firebaseTimeTables) => {
+                            // Use Firebase data or fallback to localStorage
+                            const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem('timeTables')) || [];
+                            const timeTable = timeTables.find(t => t.employee === employee) || {};
+                            
+                            // Load time table data
+                            days.forEach(day => {
+                                if (timeTable[day]) {
+                                    const daySlots = document.getElementById(`${day}Slots`);
+                                    if (!daySlots) return;
+                                    
+                                    const timeSlots = timeTable[day];
+                                    
+                                    // Handle both old format (single entry) and new format (array of entries)
+                                    let timeSlotsArray = [];
+                                    if (Array.isArray(timeSlots)) {
+                                        timeSlotsArray = timeSlots;
+                                    } else if (timeSlots.checkIn || timeSlots.checkOut) {
+                                        timeSlotsArray = [{
+                                            checkIn: timeSlots.checkIn || '',
+                                            checkOut: timeSlots.checkOut || ''
+                                        }];
+                                    }
+                                    
+                                    // Fill in the first slot
+                                    const firstSlot = daySlots.querySelector('.time-slot');
+                                    if (firstSlot && timeSlotsArray.length > 0) {
+                                        const checkInInput = firstSlot.querySelector('.check-in-time');
+                                        const checkOutInput = firstSlot.querySelector('.check-out-time');
+                                        
+                                        if (checkInInput) checkInInput.value = timeSlotsArray[0].checkIn || '';
+                                        if (checkOutInput) checkOutInput.value = timeSlotsArray[0].checkOut || '';
+                                    }
+                                    
+                                    // Add additional slots as needed
+                                    for (let i = 1; i < timeSlotsArray.length; i++) {
+                                        const timeSlotDiv = document.createElement('div');
+                                        timeSlotDiv.className = 'time-slot';
+                                        timeSlotDiv.innerHTML = `
+                                            <input type="time" class="check-in-time" data-day="${day}" value="${timeSlotsArray[i].checkIn || ''}">
+                                            <input type="time" class="check-out-time" data-day="${day}" value="${timeSlotsArray[i].checkOut || ''}">
+                                            <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
+                                        `;
+                                        daySlots.appendChild(timeSlotDiv);
+                                    }
+                                    
+                                    // Show remove buttons if multiple slots exist
+                                    const slotCount = daySlots.querySelectorAll('.time-slot').length;
+                                    if (slotCount > 1) {
+                                        const removeButtons = daySlots.querySelectorAll('.remove-slot');
+                                        removeButtons.forEach(btn => btn.style.display = 'inline-block');
+                                    }
+                                }
+                            });
+                        });
+                        
+                        // Show message that time table is already set for this week
+                        const weekInfoElement = document.createElement('div');
+                        weekInfoElement.style.marginBottom = '15px';
+                        weekInfoElement.style.padding = '10px';
+                        weekInfoElement.style.backgroundColor = '#e0f7fa';
+                        weekInfoElement.style.borderRadius = '5px';
+                        weekInfoElement.style.textAlign = 'center';
+                        weekInfoElement.innerHTML = `
+                            Time table for the current week (${formatDate(currentWeekStart)} - ${formatDate(getWeekEndDate(currentWeekStart))}) 
+                            is already set. You can edit it below.
+                        `;
+                        
+                        // Insert before the days container
+                        const daysContainer = document.querySelector('.time-table-days');
+                        if (daysContainer && !document.getElementById('week-info')) {
+                            weekInfoElement.id = 'week-info';
+                            daysContainer.parentNode.insertBefore(weekInfoElement, daysContainer);
+                        }
+                    } else {
+                        // No time table for current week, show message that a new week has started
+                        const weekInfoElement = document.createElement('div');
+                        weekInfoElement.style.marginBottom = '15px';
+                        weekInfoElement.style.padding = '10px';
+                        weekInfoElement.style.backgroundColor = '#e8f5e9';
+                        weekInfoElement.style.borderRadius = '5px';
+                        weekInfoElement.style.textAlign = 'center';
+                        weekInfoElement.innerHTML = `
+                            <strong>New Week Started!</strong><br>
+                            Please set your time table for the current week (${formatDate(currentWeekStart)} - ${formatDate(getWeekEndDate(currentWeekStart))}).
+                        `;
+                        
+                        // Insert before the days container
+                        const daysContainer = document.querySelector('.time-table-days');
+                        if (daysContainer && !document.getElementById('week-info')) {
+                            weekInfoElement.id = 'week-info';
+                            daysContainer.parentNode.insertBefore(weekInfoElement, daysContainer);
+                        }
+                    }
+                });
+            }
+            
+            // Helper function to get the start date (Monday) of the current week
+            function getWeekStartDate(date) {
+                const day = date.getDay();
+                const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+                const monday = new Date(date);
+                monday.setDate(diff);
+                monday.setHours(0, 0, 0, 0);
+                return monday;
+            }
+            
+            // Helper function to get the end date (Sunday) of the current week
+            function getWeekEndDate(startDate) {
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 6);
+                return endDate;
+            }
+            
+            // Helper function to format date as DD/MM/YYYY
+            function formatDate(date) {
+                return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()}`;
             }
             
             function saveTimeTable() {
@@ -2883,19 +2984,12 @@
                 const timeTable = { employee: employee };
                 const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                 
-                // Check if employee already has a time table set for this week
+                // Get the current week's start and end dates
+                const now = new Date();
+                const weekStart = getWeekStartDate(now);
+                const weekEnd = getWeekEndDate(weekStart);
+                
                 try {
-                    // Get the current week's start and end dates
-                    const now = new Date();
-                    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-                    const weekStart = new Date(now);
-                    weekStart.setDate(now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1)); // Start from Monday
-                    weekStart.setHours(0, 0, 0, 0);
-                    
-                    const weekEnd = new Date(weekStart);
-                    weekEnd.setDate(weekStart.getDate() + 6); // End on Sunday
-                    weekEnd.setHours(23, 59, 59, 999);
-                    
                     // Check if time table already exists for this week
                     if (typeof database !== 'undefined' && typeof database.ref === 'function') {
                         database.ref('timeTableHistory').once('value')
@@ -2903,18 +2997,17 @@
                                 const history = snapshot.val() || [];
                                 const existingEntry = Array.isArray(history) && history.find(entry => 
                                     entry.employee === employee && 
-                                    new Date(entry.weekStart) <= now && 
-                                    new Date(entry.weekEnd) >= now
+                                    new Date(entry.weekStart).toDateString() === weekStart.toDateString()
                                 );
                                 
                                 if (existingEntry) {
-                                    alert("You've already set your time table for this week. Please contact your admin if you need to make changes.");
-                                    closeTimeTableModal();
-                                    return;
+                                    // Allow updating existing time table for current week
+                                    console.log("Updating existing time table for current week");
+                                    collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString(), true);
+                                } else {
+                                    // Create new time table for current week
+                                    collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString(), false);
                                 }
-                                
-                                // If no existing entry, continue with saving
-                                collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString());
                             })
                             .catch((error) => {
                                 console.error('Error checking time table history:', error);
@@ -2922,36 +3015,32 @@
                                 const history = JSON.parse(localStorage.getItem('timeTableHistory')) || [];
                                 const existingEntry = history.find(entry => 
                                     entry.employee === employee && 
-                                    new Date(entry.weekStart) <= now && 
-                                    new Date(entry.weekEnd) >= now
+                                    new Date(entry.weekStart).toDateString() === weekStart.toDateString()
                                 );
                                 
                                 if (existingEntry) {
-                                    alert("You've already set your time table for this week. Please contact your admin if you need to make changes.");
-                                    closeTimeTableModal();
-                                    return;
+                                    // Allow updating existing time table for current week
+                                    collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString(), true);
+                                } else {
+                                    // Create new time table for current week
+                                    collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString(), false);
                                 }
-                                
-                                // If no existing entry, continue with saving
-                                collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString());
                             });
                     } else {
                         // If Firebase is not available, use localStorage
                         const history = JSON.parse(localStorage.getItem('timeTableHistory')) || [];
                         const existingEntry = history.find(entry => 
                             entry.employee === employee && 
-                            new Date(entry.weekStart) <= now && 
-                            new Date(entry.weekEnd) >= now
+                            new Date(entry.weekStart).toDateString() === weekStart.toDateString()
                         );
                         
                         if (existingEntry) {
-                            alert("You've already set your time table for this week. Please contact your admin if you need to make changes.");
-                            closeTimeTableModal();
-                            return;
+                            // Allow updating existing time table for current week
+                            collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString(), true);
+                        } else {
+                            // Create new time table for current week
+                            collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString(), false);
                         }
-                        
-                        // If no existing entry, continue with saving
-                        collectAndSaveTimeTable(employee, timeTable, days, weekStart.toISOString(), weekEnd.toISOString());
                     }
                 } catch (error) {
                     console.error('Error checking time table history:', error);
@@ -2960,7 +3049,7 @@
                 }
             }
             
-            function collectAndSaveTimeTable(employee, timeTable, days, weekStart, weekEnd) {
+            function collectAndSaveTimeTable(employee, timeTable, days, weekStart, weekEnd, isUpdate = false) {
                 days.forEach(day => {
                     const daySlots = document.getElementById(`${day}Slots`);
                     if (!daySlots) {
@@ -2998,28 +3087,28 @@
                         database.ref('timeTables').once('value')
                             .then((snapshot) => {
                                 const firebaseTimeTables = snapshot.val() || [];
-                                saveTimeTableData(employee, timeTable, firebaseTimeTables, weekStart, weekEnd);
+                                saveTimeTableData(employee, timeTable, firebaseTimeTables, weekStart, weekEnd, isUpdate);
                             })
                             .catch((error) => {
                                 console.error('Error getting time tables from Firebase:', error);
                                 // Fallback to localStorage
                                 const localTimeTables = JSON.parse(localStorage.getItem('timeTables')) || [];
-                                saveTimeTableData(employee, timeTable, localTimeTables, weekStart, weekEnd);
+                                saveTimeTableData(employee, timeTable, localTimeTables, weekStart, weekEnd, isUpdate);
                             });
                     } else {
                         // If Firebase is not available, use localStorage
                         const localTimeTables = JSON.parse(localStorage.getItem('timeTables')) || [];
-                        saveTimeTableData(employee, timeTable, localTimeTables, weekStart, weekEnd);
+                        saveTimeTableData(employee, timeTable, localTimeTables, weekStart, weekEnd, isUpdate);
                     }
                 } catch (error) {
                     console.error('Error in saveTimeTable:', error);
                     // In case of any error, try to save to localStorage
                     const localTimeTables = JSON.parse(localStorage.getItem('timeTables')) || [];
-                    saveTimeTableData(employee, timeTable, localTimeTables, weekStart, weekEnd);
+                    saveTimeTableData(employee, timeTable, localTimeTables, weekStart, weekEnd, isUpdate);
                 }
             }
 
-            function saveTimeTableData(employee, timeTable, existingTimeTables, weekStart, weekEnd) {
+            function saveTimeTableData(employee, timeTable, existingTimeTables, weekStart, weekEnd, isUpdate = false) {
                 // Make sure existingTimeTables is an array
                 let timeTables = Array.isArray(existingTimeTables) ? existingTimeTables : [];
                 
@@ -3050,19 +3139,42 @@
                                 return database.ref('timeTableHistory').once('value');
                             })
                             .then((snapshot) => {
-                                const history = snapshot.val() || [];
+                                let history = snapshot.val() || [];
                                 const historyArray = Array.isArray(history) ? history : [];
-                                historyArray.push(historyEntry);
+                                
+                                if (isUpdate) {
+                                    // Update existing entry
+                                    const existingEntryIndex = historyArray.findIndex(entry => 
+                                        entry.employee === employee && 
+                                        new Date(entry.weekStart).toDateString() === new Date(weekStart).toDateString()
+                                    );
+                                    
+                                    if (existingEntryIndex !== -1) {
+                                        historyArray[existingEntryIndex] = historyEntry;
+                                    } else {
+                                        historyArray.push(historyEntry);
+                                    }
+                                } else {
+                                    // Add new entry
+                                    historyArray.push(historyEntry);
+                                }
+                                
                                 return saveToFirebase('timeTableHistory', historyArray);
                             })
                             .then(() => {
                                 // Also update local history
-                                const localHistory = JSON.parse(localStorage.getItem('timeTableHistory')) || [];
-                                localHistory.push(historyEntry);
-                                localStorage.setItem('timeTableHistory', JSON.stringify(localHistory));
+                                database.ref('timeTableHistory').once('value', (snapshot) => {
+                                    const updatedHistory = snapshot.val() || [];
+                                    localStorage.setItem('timeTableHistory', JSON.stringify(updatedHistory));
+                                });
                                 
                                 closeTimeTableModal();
-                                alert('Time table saved successfully! You will not be able to change it for this week unless an admin approves.');
+                                
+                                if (isUpdate) {
+                                    alert('Time table updated successfully for the current week!');
+                                } else {
+                                    alert('Time table saved successfully for the current week!');
+                                }
                             })
                             .catch(error => {
                                 console.error('Error saving time table to Firebase:', error);
@@ -3071,11 +3183,33 @@
                                 
                                 // Save history locally
                                 const localHistory = JSON.parse(localStorage.getItem('timeTableHistory')) || [];
-                                localHistory.push(historyEntry);
+                                
+                                if (isUpdate) {
+                                    // Update existing entry
+                                    const existingEntryIndex = localHistory.findIndex(entry => 
+                                        entry.employee === employee && 
+                                        new Date(entry.weekStart).toDateString() === new Date(weekStart).toDateString()
+                                    );
+                                    
+                                    if (existingEntryIndex !== -1) {
+                                        localHistory[existingEntryIndex] = historyEntry;
+                                    } else {
+                                        localHistory.push(historyEntry);
+                                    }
+                                } else {
+                                    // Add new entry
+                                    localHistory.push(historyEntry);
+                                }
+                                
                                 localStorage.setItem('timeTableHistory', JSON.stringify(localHistory));
                                 
                                 closeTimeTableModal();
-                                alert('Time table saved to local storage. There was an issue syncing with the cloud, but your time table has been set for this week.');
+                                
+                                if (isUpdate) {
+                                    alert('Time table updated to local storage. There was an issue syncing with the cloud, but your time table has been updated for this week.');
+                                } else {
+                                    alert('Time table saved to local storage. There was an issue syncing with the cloud, but your time table has been set for this week.');
+                                }
                             });
                     } else {
                         // If saveToFirebase is not available, just save to localStorage
@@ -3083,11 +3217,33 @@
                         
                         // Save history locally
                         const localHistory = JSON.parse(localStorage.getItem('timeTableHistory')) || [];
-                        localHistory.push(historyEntry);
+                        
+                        if (isUpdate) {
+                            // Update existing entry
+                            const existingEntryIndex = localHistory.findIndex(entry => 
+                                entry.employee === employee && 
+                                new Date(entry.weekStart).toDateString() === new Date(weekStart).toDateString()
+                            );
+                            
+                            if (existingEntryIndex !== -1) {
+                                localHistory[existingEntryIndex] = historyEntry;
+                            } else {
+                                localHistory.push(historyEntry);
+                            }
+                        } else {
+                            // Add new entry
+                            localHistory.push(historyEntry);
+                        }
+                        
                         localStorage.setItem('timeTableHistory', JSON.stringify(localHistory));
                         
                         closeTimeTableModal();
-                        alert('Time table saved successfully! You will not be able to change it for this week unless an admin approves.');
+                        
+                        if (isUpdate) {
+                            alert('Time table updated successfully for the current week!');
+                        } else {
+                            alert('Time table saved successfully for the current week!');
+                        }
                     }
                 } catch (error) {
                     console.error('Error in saveTimeTableData:', error);
@@ -3097,11 +3253,33 @@
                         
                         // Save history locally
                         const localHistory = JSON.parse(localStorage.getItem('timeTableHistory')) || [];
-                        localHistory.push(historyEntry);
+                        
+                        if (isUpdate) {
+                            // Update existing entry
+                            const existingEntryIndex = localHistory.findIndex(entry => 
+                                entry.employee === employee && 
+                                new Date(entry.weekStart).toDateString() === new Date(weekStart).toDateString()
+                            );
+                            
+                            if (existingEntryIndex !== -1) {
+                                localHistory[existingEntryIndex] = historyEntry;
+                            } else {
+                                localHistory.push(historyEntry);
+                            }
+                        } else {
+                            // Add new entry
+                            localHistory.push(historyEntry);
+                        }
+                        
                         localStorage.setItem('timeTableHistory', JSON.stringify(localHistory));
                         
                         closeTimeTableModal();
-                        alert('Time table saved to local storage. You will not be able to change it for this week unless an admin approves.');
+                        
+                        if (isUpdate) {
+                            alert('Time table updated to local storage for the current week.');
+                        } else {
+                            alert('Time table saved to local storage for the current week.');
+                        }
                     } catch (localStorageError) {
                         console.error('Failed to save to localStorage:', localStorageError);
                         alert('Failed to save time table. Please try again.');
