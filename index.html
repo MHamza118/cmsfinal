@@ -576,10 +576,90 @@
                 <div class="employee-header" id="employeeHeader">
                     <p id="employeeDetails">Hamza | ID: 118</p>
                     <div class="action-buttons">
-                        <button onclick="handleCheckIn()">Check In</button>
-                        <button onclick="handleCheckOut()">Check Out</button>
+                        <button id="checkInBtn" onclick="handleCheckIn()">Check In</button>
+                        <button id="checkOutBtn" onclick="handleCheckOut()">Check Out</button>
                         <button id="lateCheckInBtn" onclick="handleLateCheckIn()">Add Late Check-In</button>
+                        <button id="compensateHoursBtn" onclick="openCompensateHoursModal()">Compensate Hours</button>
                     </div>
+                </div>
+                
+                <!-- Compensate Hours Modal -->
+                <div id="compensateHoursModal" class="modal-content compensation-popup" style="display: none; max-width: 600px;">
+                    <span class="close" onclick="closeCompensateHoursModal()"><i class="fa-solid fa-xmark"></i></span>
+                    <h2>Compensate Working Hours</h2>
+                    
+                    <!-- Missed working hours section -->
+                    <div class="section-header-small">
+                        <h3>Missed Working Hours</h3>
+                    </div>
+                    <div class="time-table-row">
+                        <div id="missedWorkingHoursInfo" class="missed-hours-container">
+                            <table class="compensate-table">
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Date</th>
+                                    <th>Scheduled Hours</th>
+                                </tr>
+                                <tr>
+                                    <td id="missedDay">-</td>
+                                    <td id="missedDate">-</td>
+                                    <td>
+                                        <select id="missedHoursSelect" style="width: 100%; padding: 8px;">
+                                            <option value="">No scheduled slots found</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="compensateMissedDay">Select missed working day</label>
+                        <select id="compensateMissedDay" required onchange="updateMissedWorkingInfo()">
+                            <option value="" disabled selected>Select missed working day</option>
+                            <option value="monday">Monday</option>
+                            <option value="tuesday">Tuesday</option>
+                            <option value="wednesday">Wednesday</option>
+                            <option value="thursday">Thursday</option>
+                            <option value="friday">Friday</option>
+                            <option value="saturday">Saturday</option>
+                        </select>
+                    </div>
+                    
+                    <div class="section-header-small">
+                        <h3>Select Compensation Date</h3>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="compensateDate">Date for Compensation</label>
+                        <input type="date" id="compensateDate" required placeholder="Compensation Date" onchange="updateCompensateDay()">
+                    </div>
+                    <div class="form-group">
+                        <label for="compensateDay">Day</label>
+                        <input type="text" id="compensateDay" readonly placeholder="Day">
+                    </div>
+                    
+                    <div class="section-header-small">
+                        <h3>Compensation Hours</h3>
+                    </div>
+                    
+                    <div class="time-table-row">
+                        <div class="form-group">
+                            <label for="compensateCheckIn">Check-in Time</label>
+                            <input type="time" id="compensateCheckIn" required placeholder="Check-in Time">
+                        </div>
+                        <div class="form-group">
+                            <label for="compensateCheckOut">Check-out Time</label>
+                            <input type="time" id="compensateCheckOut" required placeholder="Check-out Time">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="compensateReason">Reason for Compensation</label>
+                        <textarea id="compensateReason" rows="3" required placeholder="Please provide a reason for compensation"></textarea>
+                    </div>
+                    
+                    <button class="save-timetable" onclick="submitCompensation()">Submit Compensation</button>
                 </div>
                 <!-- Attendance Section -->
                 <div id="attendance-section" class="section" style="display: block;">
@@ -4297,6 +4377,605 @@
                     fileNameSpan.textContent = '';
                 }
             }
+            
+            // Compensate Hours Functions
+            function checkWorkingHoursEnd() {
+                const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
+                const now = new Date();
+                const currentDay = now.toLocaleString('en-us', { weekday: 'long' }).toLowerCase();
+                const currentTime = now.getHours() * 60 + now.getMinutes(); // Current time in minutes
+                const currentDate = now.toLocaleDateString();
+                
+                // Check if it's Sunday, only disable buttons on Sunday
+                if (now.getDay() === 0) { // 0 is Sunday
+                    // Disable check-in, check-out, and late check-in buttons
+                    document.getElementById('checkInBtn').disabled = true;
+                    document.getElementById('checkOutBtn').disabled = true;
+                    document.getElementById('lateCheckInBtn').disabled = true;
+                    
+                    // Style the disabled buttons
+                    document.getElementById('checkInBtn').style.backgroundColor = '#ccc';
+                    document.getElementById('checkOutBtn').style.backgroundColor = '#ccc';
+                    document.getElementById('lateCheckInBtn').style.backgroundColor = '#ccc';
+                    
+                    // Show compensate hours button
+                    document.getElementById('compensateHoursBtn').style.display = 'inline-block';
+                    return;
+                }
+                
+                // For all other days (Monday-Saturday), ensure buttons are enabled
+                document.getElementById('checkInBtn').disabled = false;
+                document.getElementById('checkOutBtn').disabled = false;
+                document.getElementById('lateCheckInBtn').disabled = false;
+                
+                // Restore button styles
+                document.getElementById('checkInBtn').style.backgroundColor = '';
+                document.getElementById('checkOutBtn').style.backgroundColor = '';
+                document.getElementById('lateCheckInBtn').style.backgroundColor = '';
+                
+                // Get employee timetable from Firebase to check if compensation button should be shown
+                getFirebaseData('timeTables', (firebaseTimeTables) => {
+                    const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem('timeTables')) || [];
+                    const employeeTimeTable = timeTables.find(t => t.employee === employee);
+                    
+                    if (!employeeTimeTable) {
+                        return; // No timetable at all, keep compensation button hidden
+                    }
+                    
+                    // Get scheduled times for today
+                    let scheduledTimes = [];
+                    
+                    if (employeeTimeTable[currentDay]) {
+                        if (Array.isArray(employeeTimeTable[currentDay])) {
+                            // Multiple time slots
+                            scheduledTimes = employeeTimeTable[currentDay];
+                        } else if (employeeTimeTable[currentDay].checkOut) {
+                            // Single time slot (old format)
+                            scheduledTimes = [{
+                                checkIn: employeeTimeTable[currentDay].checkIn,
+                                checkOut: employeeTimeTable[currentDay].checkOut
+                            }];
+                        }
+                    }
+                    
+                    // Show compensation button if there are missed hours in the past week
+                    getFirebaseData('attendanceRecords', (firebaseAttendanceRecords) => {
+                        const attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                        
+                        // Look back 7 days to check for completely missed days
+                        const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                        let hasMissedDays = false;
+                        
+                        // Check the previous 7 days
+                        for (let i = 1; i <= 7; i++) {
+                            const checkDate = new Date(now);
+                            checkDate.setDate(now.getDate() - i);
+                            
+                            const checkDayName = dayNames[checkDate.getDay()].toLowerCase();
+                            const checkDateStr = checkDate.toLocaleDateString();
+                            
+                            // Skip if there's no schedule for this day
+                            if (!employeeTimeTable[checkDayName]) continue;
+                            
+                            // Check if this day's time slots are completely missed
+                            const dayRecord = attendanceRecords.find(record => 
+                                record.employee === employee && record.date === checkDateStr
+                            );
+                            
+                            // If there's no record for a day with scheduled times, it's completely missed
+                            if (!dayRecord && 
+                                checkDate.getTime() < (now.getTime() - 24 * 60 * 60 * 1000)) {
+                                hasMissedDays = true;
+                                break;
+                            }
+                        }
+                        
+                        // Show compensate hours button if there are missed days
+                        if (hasMissedDays) {
+                            document.getElementById('compensateHoursBtn').style.display = 'inline-block';
+                        } else {
+                            document.getElementById('compensateHoursBtn').style.display = 'none';
+                        }
+                    });
+                });
+            }
+            
+            // Check working hours status every minute
+            setInterval(checkWorkingHoursEnd, 60000);
+            
+            // Also check when page loads
+            window.addEventListener('load', function() {
+                checkWorkingHoursEnd();
+                
+                // Set default date in compensate hours modal to today
+                const today = new Date();
+                const dateInput = document.getElementById('compensateDate');
+                if (dateInput) {
+                    dateInput.valueAsDate = today;
+                    updateCompensateDay();
+                }
+            });
+            
+            function openCompensateHoursModal() {
+                document.getElementById('modalOverlay').style.display = 'block';
+                document.getElementById('compensateHoursModal').style.display = 'block';
+                
+                // Reset missed working hours info
+                document.getElementById('missedDay').textContent = '-';
+                document.getElementById('missedDate').textContent = '-';
+                document.getElementById('missedHoursSelect').innerHTML = '<option value="">Select a missed slot</option>';
+                
+                // Clear all form values
+                document.getElementById('compensateDate').value = '';
+                document.getElementById('compensateDay').value = '';
+                document.getElementById('compensateCheckIn').value = '';
+                document.getElementById('compensateCheckOut').value = '';
+                document.getElementById('compensateReason').value = '';
+                document.getElementById('compensateMissedDay').value = '';
+                
+                // Set default date to today
+                const today = new Date();
+                const dateInput = document.getElementById('compensateDate');
+                if (dateInput) {
+                    dateInput.valueAsDate = today;
+                    updateCompensateDay();
+                }
+                
+                // Get current employee data
+                const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
+                
+                // Get timetable data
+                getFirebaseData('timeTables', (firebaseTimeTables) => {
+                    const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem('timeTables')) || [];
+                    const employeeTimeTable = timeTables.find(t => t.employee === employee);
+                    
+                    if (!employeeTimeTable) return;
+                    
+                    // Get attendance records to find completely missed days
+                    getFirebaseData('attendanceRecords', (firebaseAttendanceRecords) => {
+                        getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
+                            const attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                            const lateCheckIns = firebaseLateCheckIns || JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+                            
+                            // Look back only up to 7 days to find completely missed work days
+                            const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                            let completeMissedDays = [];
+                            
+                            const today = new Date();
+                            
+                            // Check the previous 7 days only
+                            for (let i = 1; i <= 7; i++) {
+                                const checkDate = new Date(today);
+                                checkDate.setDate(today.getDate() - i);
+                                
+                                const checkDayName = dayNames[checkDate.getDay()].toLowerCase();
+                                const checkDateStr = checkDate.toLocaleDateString();
+                                
+                                // Skip if there's no schedule for this day
+                                if (!employeeTimeTable[checkDayName]) continue;
+                                
+                                // Check if this day's time slots are completely missed (no record at all)
+                                const dayRecord = attendanceRecords.find(record => 
+                                    record.employee === employee && record.date === checkDateStr
+                                );
+                                
+                                const dayLateCheckIn = lateCheckIns.find(late => 
+                                    late.employee === employee && late.date === checkDateStr
+                                );
+                                
+                                // If there's no record and no late check-in for this day, and at least 24 hours have passed, it's completely missed
+                                if (!dayRecord && !dayLateCheckIn && 
+                                    (checkDate.getTime() < (today.getTime() - 24 * 60 * 60 * 1000))) {
+                                    
+                                    // Make sure there are scheduled slots for this day
+                                    const daySlots = employeeTimeTable[checkDayName];
+                                    if (daySlots) {
+                                        completeMissedDays.push({
+                                            day: checkDayName,
+                                            date: checkDate,
+                                            formattedDate: checkDateStr,
+                                            dayName: checkDate.toLocaleString('en-us', { weekday: 'long' })
+                                        });
+                                    }
+                                }
+                            }
+                            
+                            // If we found completely missed days, pre-select the most recent one
+                            if (completeMissedDays.length > 0) {
+                                // Sort by date, most recent first
+                                completeMissedDays.sort((a, b) => b.date - a.date);
+                                
+                                // Update the missed day dropdown options
+                                const missedDaySelect = document.getElementById('compensateMissedDay');
+                                missedDaySelect.innerHTML = '<option value="" disabled selected>Select missed working day</option>';
+                                
+                                completeMissedDays.forEach(missedDay => {
+                                    const option = document.createElement('option');
+                                    option.value = missedDay.day;
+                                    option.textContent = `${missedDay.dayName} (${missedDay.formattedDate})`;
+                                    missedDaySelect.appendChild(option);
+                                });
+                                
+                                // Don't auto-select any day, let the user choose
+                                
+                            } else {
+                                // No completely missed days found
+                                const missedDaySelect = document.getElementById('compensateMissedDay');
+                                missedDaySelect.innerHTML = '<option value="" disabled selected>No missed working days found</option>';
+                            }
+                        });
+                    });
+                });
+            }
+            
+            function closeCompensateHoursModal() {
+                document.getElementById('modalOverlay').style.display = 'none';
+                document.getElementById('compensateHoursModal').style.display = 'none';
+            }
+            
+            function updateCompensateDay() {
+                const dateInput = document.getElementById('compensateDate');
+                const dayInput = document.getElementById('compensateDay');
+                
+                if (dateInput.value) {
+                    const selectedDate = new Date(dateInput.value);
+                    const dayName = selectedDate.toLocaleString('en-US', { weekday: 'long' });
+                    dayInput.value = dayName;
+                }
+            }
+            
+            function updateMissedWorkingInfo() {
+                const missedDaySelect = document.getElementById('compensateMissedDay');
+                const missedDayValue = missedDaySelect.value;
+                
+                if (!missedDayValue) return;
+                
+                const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
+                
+                // Get the most recent date for the selected day
+                const currentDate = new Date();
+                const dayMap = {
+                    'sunday': 0,
+                    'monday': 1,
+                    'tuesday': 2,
+                    'wednesday': 3,
+                    'thursday': 4,
+                    'friday': 5,
+                    'saturday': 6
+                };
+                
+                const missedDayNumber = dayMap[missedDayValue];
+                const currentDayNumber = currentDate.getDay();
+                
+                // Calculate days to go back to find the most recent occurrence of the missed day
+                let daysToSubtract;
+                if (currentDayNumber >= missedDayNumber) {
+                    daysToSubtract = currentDayNumber - missedDayNumber;
+                } else {
+                    daysToSubtract = 7 - (missedDayNumber - currentDayNumber);
+                }
+                
+                // Get the date of the missed day
+                const missedDate = new Date(currentDate);
+                missedDate.setDate(missedDate.getDate() - daysToSubtract);
+                
+                // Format the date
+                const formattedMissedDate = missedDate.toLocaleDateString();
+                const missedDayName = missedDate.toLocaleString('en-us', { weekday: 'long' });
+                
+                // Update the display
+                document.getElementById('missedDay').textContent = missedDayName;
+                document.getElementById('missedDate').textContent = formattedMissedDate;
+                
+                // Get employee's timetable to show scheduled hours
+                getFirebaseData('timeTables', (firebaseTimeTables) => {
+                    const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem('timeTables')) || [];
+                    const employeeTimeTable = timeTables.find(t => t.employee === employee);
+                    
+                    if (!employeeTimeTable || !employeeTimeTable[missedDayValue]) {
+                        const missedHoursSelect = document.getElementById('missedHoursSelect');
+                        missedHoursSelect.innerHTML = '<option value="">No scheduled hours</option>';
+                        return;
+                    }
+                    
+                    // Get attendance record for the missed date to check if it was actually missed
+                    getFirebaseData('attendanceRecords', (firebaseAttendanceRecords) => {
+                        const attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                        const dateRecord = attendanceRecords.find(record => 
+                            record.employee === employee && record.date === formattedMissedDate
+                        );
+                        
+                        // Also check late check-ins
+                        getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
+                            const lateCheckIns = firebaseLateCheckIns || JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+                            const lateCheckInForDate = lateCheckIns.find(late => 
+                                late.employee === employee && late.date === formattedMissedDate
+                            );
+                            
+                            // Only display time slots that were completely missed (no check-in, check-out, or late check-in)
+                            // And only if more than 24 hours have passed
+                            const missedHoursSelect = document.getElementById('missedHoursSelect');
+                            missedHoursSelect.innerHTML = '';
+                            
+                            const timeSlots = Array.isArray(employeeTimeTable[missedDayValue]) 
+                                ? employeeTimeTable[missedDayValue] 
+                                : [{ 
+                                    checkIn: employeeTimeTable[missedDayValue].checkIn, 
+                                    checkOut: employeeTimeTable[missedDayValue].checkOut 
+                                  }];
+                            
+                            // Check if the date is at least 24 hours ago
+                            const is24HoursPassed = new Date(missedDate).getTime() < (new Date().getTime() - 24 * 60 * 60 * 1000);
+                            
+                            // If we have check-ins or late check-ins, or if 24 hours haven't passed, mark as not eligible
+                            const hasActivity = dateRecord || lateCheckInForDate;
+                            
+                            if (!is24HoursPassed) {
+                                missedHoursSelect.innerHTML = '<option value="">Not eligible - Less than 24 hours</option>';
+                            } else if (hasActivity) {
+                                missedHoursSelect.innerHTML = '<option value="">Not eligible - Activity recorded</option>';
+                            } else if (timeSlots.length === 0) {
+                                missedHoursSelect.innerHTML = '<option value="">No scheduled hours</option>';
+                            } else {
+                                // We have completely missed time slots
+                                timeSlots.forEach((slot, index) => {
+                                    if (slot.checkIn && slot.checkOut) {
+                                        const option = document.createElement('option');
+                                        option.value = index;
+                                        option.textContent = `${slot.checkIn} - ${slot.checkOut}`;
+                                        missedHoursSelect.appendChild(option);
+                                    }
+                                });
+                                
+                                // Add event listener to update check-in/out when selection changes
+                                missedHoursSelect.addEventListener('change', function() {
+                                    const selectedSlotIndex = this.value;
+                                    if (selectedSlotIndex !== '' && timeSlots[selectedSlotIndex]) {
+                                        const slot = timeSlots[selectedSlotIndex];
+                                        document.getElementById('compensateCheckIn').value = slot.checkIn || '';
+                                        document.getElementById('compensateCheckOut').value = slot.checkOut || '';
+                                    }
+                                });
+                            }
+                            
+                            // Update reason text
+                            document.getElementById('compensateReason').value = `Compensating for missed working hours on ${missedDayName}, ${formattedMissedDate}`;
+                        });
+                    });
+                });
+            }
+            
+            // Update day when date changes
+            document.addEventListener('DOMContentLoaded', function() {
+                const dateInput = document.getElementById('compensateDate');
+                if (dateInput) {
+                    dateInput.addEventListener('change', updateCompensateDay);
+                }
+            });
+            
+            function updateCompensateDay() {
+                const dateInput = document.getElementById('compensateDate');
+                const dayInput = document.getElementById('compensateDay');
+                
+                if (dateInput.value) {
+                    const selectedDate = new Date(dateInput.value);
+                    const dayName = selectedDate.toLocaleString('en-US', { weekday: 'long' });
+                    dayInput.value = dayName;
+                } else {
+                    dayInput.value = '';
+                }
+            }
+            
+            function submitCompensation() {
+                const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
+                const compensationDate = document.getElementById('compensateDate').value; // Date employee is doing compensation
+                const compensationDay = document.getElementById('compensateDay').value; // Day of compensation
+                const checkInTime = document.getElementById('compensateCheckIn').value;
+                const checkOutTime = document.getElementById('compensateCheckOut').value;
+                const reason = document.getElementById('compensateReason').value;
+                const missedDay = document.getElementById('compensateMissedDay').value; // Day they missed work
+                const missedHoursSelect = document.getElementById('missedHoursSelect');
+                const selectedTimeSlotIndex = missedHoursSelect.value;
+                
+                if (!compensationDate || !checkInTime || !checkOutTime || !reason || !missedDay) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+                
+                if (!selectedTimeSlotIndex && missedHoursSelect.options.length > 1) {
+                    alert('Please select a missed time slot');
+                    return;
+                }
+                
+                // Format compensation date as MM/DD/YYYY for logging when compensation was done
+                const formattedCompensationDate = new Date(compensationDate).toLocaleDateString();
+                
+                // Format times as HH:MM:SS AM/PM for consistency
+                const formatTime = (timeStr) => {
+                    const [hours, minutes] = timeStr.split(':');
+                    const date = new Date();
+                    date.setHours(parseInt(hours));
+                    date.setMinutes(parseInt(minutes));
+                    return date.toLocaleTimeString();
+                };
+                
+                const formattedCheckIn = formatTime(checkInTime);
+                const formattedCheckOut = formatTime(checkOutTime);
+                
+                // Get employee's timetable
+                getFirebaseData('timeTables', (firebaseTimeTables) => {
+                    const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem('timeTables')) || [];
+                    const employeeTimeTable = timeTables.find(t => t.employee === employee);
+                    
+                    if (!employeeTimeTable) {
+                        alert('No timetable found. Please set your timetable first.');
+                        return;
+                    }
+                    
+                    // Check if the missed day has timetable entries
+                    let scheduledTimes = [];
+                    
+                    if (employeeTimeTable[missedDay]) {
+                        if (Array.isArray(employeeTimeTable[missedDay])) {
+                            scheduledTimes = employeeTimeTable[missedDay];
+                        } else if (employeeTimeTable[missedDay].checkIn || employeeTimeTable[missedDay].checkOut) {
+                            scheduledTimes = [{
+                                checkIn: employeeTimeTable[missedDay].checkIn,
+                                checkOut: employeeTimeTable[missedDay].checkOut
+                            }];
+                        }
+                    }
+                    
+                    if (scheduledTimes.length === 0) {
+                        alert('No scheduled work hours found for the missed day. Please select a correct day.');
+                        return;
+                    }
+                    
+                    // Find the most recent date for the missed day
+                    const currentDate = new Date();
+                    let missedDate = new Date(currentDate);
+                    
+                    // Map day names to numbers (0 = Sunday, 1 = Monday, etc.)
+                    const dayMap = {
+                        'sunday': 0,
+                        'monday': 1,
+                        'tuesday': 2,
+                        'wednesday': 3,
+                        'thursday': 4,
+                        'friday': 5,
+                        'saturday': 6
+                    };
+                    
+                    const missedDayNumber = dayMap[missedDay];
+                    const currentDayNumber = currentDate.getDay();
+                    
+                    // Calculate days to go back to find the most recent occurrence of the missed day
+                    let daysToSubtract;
+                    if (currentDayNumber >= missedDayNumber) {
+                        daysToSubtract = currentDayNumber - missedDayNumber;
+                    } else {
+                        daysToSubtract = 7 - (missedDayNumber - currentDayNumber);
+                    }
+                    
+                    // Go back to the missed day
+                    missedDate.setDate(missedDate.getDate() - daysToSubtract);
+                    
+                    // Format the missed date
+                    const formattedMissedDate = missedDate.toLocaleDateString();
+                    const missedDayName = missedDate.toLocaleString('en-us', { weekday: 'long' });
+                    
+                    // Determine which time slot was missed (for multiple slots)
+                    const selectedSlot = selectedTimeSlotIndex && scheduledTimes[selectedTimeSlotIndex] 
+                        ? scheduledTimes[selectedTimeSlotIndex] 
+                        : scheduledTimes[0];
+                    
+                    // Get current attendance records
+                    getFirebaseData('attendanceRecords', (firebaseRecords) => {
+                        let attendanceRecords = firebaseRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                        
+                        // Find if a record exists for the missed date
+                        const recordIndex = attendanceRecords.findIndex(record => 
+                            record.employee === employee && record.date === formattedMissedDate
+                        );
+                        
+                        // Verify this was a completely missed day (at least 24 hours ago)
+                        if (missedDate.getTime() > (currentDate.getTime() - 24 * 60 * 60 * 1000)) {
+                            alert('You can only compensate for days that were completely missed at least 24 hours ago.');
+                            return;
+                        }
+                        
+                        // Create or update the record for the missed date
+                        if (recordIndex === -1) {
+                            // Create a new record for the missed date
+                            const newRecord = {
+                                employee: employee,
+                                date: formattedMissedDate,
+                                day: missedDayName,
+                                checkIn: formattedCheckIn,
+                                checkOut: formattedCheckOut,
+                                compensated: true,
+                                compensationReason: reason,
+                                compensatedOn: formattedCompensationDate,
+                                compensatedSlot: selectedSlot,
+                                scheduledSlots: scheduledTimes,
+                                compensationType: 'completely_missed_day'
+                            };
+                            
+                            attendanceRecords.push(newRecord);
+                        } else {
+                            // Update existing record for the missed date
+                            // For check-in, add as a new entry if it's an array, otherwise convert to array
+                            if (Array.isArray(attendanceRecords[recordIndex].checkIn)) {
+                                attendanceRecords[recordIndex].checkIn.push(formattedCheckIn);
+                            } else if (attendanceRecords[recordIndex].checkIn) {
+                                attendanceRecords[recordIndex].checkIn = [
+                                    attendanceRecords[recordIndex].checkIn,
+                                    formattedCheckIn
+                                ];
+                            } else {
+                                attendanceRecords[recordIndex].checkIn = formattedCheckIn;
+                            }
+                            
+                            // For check-out, add as a new entry if it's an array, otherwise convert to array
+                            if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
+                                attendanceRecords[recordIndex].checkOut.push(formattedCheckOut);
+                            } else if (attendanceRecords[recordIndex].checkOut) {
+                                attendanceRecords[recordIndex].checkOut = [
+                                    attendanceRecords[recordIndex].checkOut,
+                                    formattedCheckOut
+                                ];
+                            } else {
+                                attendanceRecords[recordIndex].checkOut = formattedCheckOut;
+                            }
+                            
+                            // Mark as compensated with reference to scheduled slots
+                            attendanceRecords[recordIndex].compensated = true;
+                            attendanceRecords[recordIndex].compensationReason = reason;
+                            attendanceRecords[recordIndex].compensatedOn = formattedCompensationDate;
+                            attendanceRecords[recordIndex].compensatedSlot = selectedSlot;
+                            attendanceRecords[recordIndex].scheduledSlots = scheduledTimes;
+                            attendanceRecords[recordIndex].compensationType = 'completely_missed_day';
+                        }
+                        
+                        // Also add a reference record for the compensation date
+                        attendanceRecords.push({
+                            employee: employee,
+                            date: formattedCompensationDate,
+                            day: compensationDay,
+                            isCompensationDay: true,
+                            compensationFor: {
+                                date: formattedMissedDate,
+                                day: missedDayName,
+                                timeSlot: `${selectedSlot.checkIn} - ${selectedSlot.checkOut}`
+                            },
+                            compensationReason: reason
+                        });
+                        
+                        // Save to Firebase
+                        saveToFirebase('attendanceRecords', attendanceRecords)
+                            .then(() => {
+                                // Save to localStorage as backup
+                                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                                
+                                alert(`Working hours for ${missedDayName} (${formattedMissedDate}) compensated successfully on ${compensationDay}`);
+                                closeCompensateHoursModal();
+                                loadAttendanceTable();
+                                updateSummaryValues();
+                            })
+                            .catch(error => {
+                                console.error('Error saving compensation to Firebase:', error);
+                                
+                                // Still save to localStorage as backup
+                                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
+                                
+                                alert(`Working hours for ${missedDayName} (${formattedMissedDate}) compensated successfully on ${compensationDay} (saved locally)`);
+                                closeCompensateHoursModal();
+                                loadAttendanceTable();
+                                updateSummaryValues();
+                            });
+                    });
+                });
+            }
             function closeHolidayModal() {
                 const modal = document.getElementById('holidayModal');
                 const overlay = document.getElementById('modalOverlay');
@@ -4995,7 +5674,11 @@
                             } else {
                                 lateCheckInDisplay = lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].time : '-';
                             }
-
+                            
+                            // Highlight compensated entries
+                            const rowClass = record && record.compensated ? 'compensated-row' : '';
+                            
+                            row.className = rowClass;
                             row.innerHTML = `
                                 <td>${date}</td>
                                 <td>${day}</td>
@@ -5004,7 +5687,23 @@
                                 <td>${lateCheckInDisplay}</td>
                             `;
                             tableBody.appendChild(row);
+                            
+                            // Add compensation reason if applicable
+                            if (record && record.compensated && record.compensationReason) {
+                                const reasonRow = document.createElement('tr');
+                                reasonRow.className = 'compensation-reason';
+                                reasonRow.innerHTML = `
+                                    <td colspan="5">
+                                        <div class="compensation-badge">Compensated</div>
+                                        <div class="compensation-reason-text">Reason: ${record.compensationReason}</div>
+                                    </td>
+                                `;
+                                tableBody.appendChild(reasonRow);
+                            }
                         });
+                        
+                        // Also check if working hours are over for today
+                        checkWorkingHoursEnd();
                     });
                 });
             }
