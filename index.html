@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -414,7 +413,6 @@
         .attendance-entry:last-child {
             border-bottom: none;
         }
-
     </style>
 </head>
 <body>
@@ -515,8 +513,7 @@
                             </div>
                         </div>
                         <button class="add-slot" onclick="addTimeSlot('monday')">+ Add Time Slot</button>
-                    </div>
-                    
+                    </div>                   
                     <div class="day-container" id="tuesdayContainer">
                         <h3>Tuesday</h3>
                         <div class="time-slots" id="tuesdaySlots">
@@ -527,8 +524,7 @@
                             </div>
                         </div>
                         <button class="add-slot" onclick="addTimeSlot('tuesday')">+ Add Time Slot</button>
-                    </div>
-                    
+                    </div>                    
                     <div class="day-container" id="wednesdayContainer">
                         <h3>Wednesday</h3>
                         <div class="time-slots" id="wednesdaySlots">
@@ -539,8 +535,7 @@
                             </div>
                         </div>
                         <button class="add-slot" onclick="addTimeSlot('wednesday')">+ Add Time Slot</button>
-                    </div>
-                    
+                    </div>                    
                     <div class="day-container" id="thursdayContainer">
                         <h3>Thursday</h3>
                         <div class="time-slots" id="thursdaySlots">
@@ -551,8 +546,7 @@
                             </div>
                         </div>
                         <button class="add-slot" onclick="addTimeSlot('thursday')">+ Add Time Slot</button>
-                    </div>
-                    
+                    </div>                    
                     <div class="day-container" id="fridayContainer">
                         <h3>Friday</h3>
                         <div class="time-slots" id="fridaySlots">
@@ -563,8 +557,7 @@
                             </div>
                         </div>
                         <button class="add-slot" onclick="addTimeSlot('friday')">+ Add Time Slot</button>
-                    </div>
-                    
+                    </div>                    
                     <div class="day-container" id="saturdayContainer">
                         <h3>Saturday</h3>
                         <div class="time-slots" id="saturdaySlots">
@@ -639,7 +632,7 @@
                             <tbody id="employeeProgressTable"></tbody>
                         </table>
                     </div>
-                    
+                    <!--Employee Page Progress Report Remarks Section-->                   
                     <div id="progressRemarkSection" style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
                         <h3 style="margin-bottom: 15px; color: #2c3e50;">Admin Remarks</h3>
                         <div id="progressAdminRemarks" style="padding: 15px; background-color: white; border-radius: 4px; border-left: 4px solid #2596be;">
@@ -681,7 +674,7 @@
                         </thead>
                         <tbody id="employeeTasksTable"></tbody>
                     </table>
-                    
+                    <!--Employee Page View Tasks Remarks Section-->
                     <div id="employeeTasksRemark" style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6;">
                         <h3 style="margin-bottom: 15px; color: #2c3e50;">Admin Remarks:</h3>
                         <div id="tasksAdminRemarks" style="padding: 15px; background-color: white; border-radius: 4px; border-left: 4px solid #2596be;">
@@ -749,7 +742,7 @@
                 </div>
             </div>
         </div>
-        <!--  Admin Page Hamburger Menu FOR MOBILE RESPONSIVENESS-->
+        <!--Admin Page Hamburger Menu FOR MOBILE RESPONSIVENESS-->
         <div class="container">
             <div class="hamburger-menu" onclick="toggleAdminMobileMenu()">
                 <span></span>
@@ -774,52 +767,7 @@
                 <div class="bottom-buttons">
                 </div>
             </div>
-            
-            <script>
-                // Function to delete only employee data without removing the employee account
-                function deleteOnlyEmployeeData() {
-                    const username = document.getElementById('deleteEmployeeSelect').value;
-                    if (!username) {
-                        alert('Please select an employee first');
-                        return;
-                    }
-                    
-                    if (confirm(`Are you sure you want to delete all data for "${username}" but keep their account? This cannot be undone.`)) {
-                        // Show status message
-                        const statusElement = document.getElementById('deleteDataStatus');
-                        statusElement.textContent = `Deleting data for ${username}...`;
-                        
-                        // Delete the employee's data
-                        deleteEmployeeData(username)
-                            .then(() => {
-                                console.log(`Data for employee ${username} removed successfully`);
-                                statusElement.textContent = `Data for ${username} has been deleted successfully.`;
-                                
-                                // Refresh admin views
-                                const selectedUser = username;
-                                if (selectedUser) {
-                                    loadAdminData(selectedUser);
-                                    loadMissedCheckIns(selectedUser);
-                                    loadAdminProgressReports(selectedUser);
-                                    loadAdminTimeTable(selectedUser);
-                                    loadAdminHolidayRequests(selectedUser);
-                                    loadAdminTasks(selectedUser);
-                                }
-                                
-                                setTimeout(() => {
-                                    statusElement.textContent = '';
-                                }, 5000);
-                            })
-                            .catch(error => {
-                                console.error('Error removing employee data:', error);
-                                statusElement.textContent = `Error removing data: ${error.message}`;
-                                setTimeout(() => {
-                                    statusElement.textContent = '';
-                                }, 5000);
-                            });
-                    }
-                }
-            </script>
+            <!--Admin Page main content Data-->
             <div class="main-content">
                 <div id="adminAttendance" style="display: block;">
                     <h2>Employee Attendance</h2>
@@ -1656,51 +1604,181 @@
                         return;
                     }
                     
-                    // Get today's scheduled checkin time
+                    // Get today's day of week
                     const dayOfWeek = now.toLocaleString('en-us', { weekday: 'long' }).toLowerCase();
                     
-                    // Handle both old format (single entry) and new format (array of entries)
-                    let scheduledCheckIn;
-                    if (Array.isArray(employeeTimeTable[dayOfWeek])) {
-                        if (employeeTimeTable[dayOfWeek].length > 0) {
-                            scheduledCheckIn = employeeTimeTable[dayOfWeek][0].checkIn;
+                    // Get all check-in times for today
+                    let scheduledCheckIns = [];
+                    
+                    if (employeeTimeTable[dayOfWeek]) {
+                        if (Array.isArray(employeeTimeTable[dayOfWeek])) {
+                            // New format with multiple entries
+                            scheduledCheckIns = employeeTimeTable[dayOfWeek]
+                                .filter(slot => slot.checkIn)
+                                .map(slot => slot.checkIn);
+                        } else if (employeeTimeTable[dayOfWeek].checkIn) {
+                            // Old format with single entry
+                            scheduledCheckIns = [employeeTimeTable[dayOfWeek].checkIn];
                         }
-                    } else if (employeeTimeTable[dayOfWeek]?.checkIn) {
-                        scheduledCheckIn = employeeTimeTable[dayOfWeek].checkIn;
                     }
                     
-                    if (!scheduledCheckIn) {
-                        alert('No scheduled check-in time for today.');
+                    if (scheduledCheckIns.length === 0) {
+                        alert('No scheduled check-in times for today. Please set your timetable first.');
                         return;
                     }
                     
-                    const scheduledTime = new Date();
-                    const [scheduledHours, scheduledMinutes] = scheduledCheckIn.split(':').map(Number);
-                    scheduledTime.setHours(scheduledHours, scheduledMinutes, 0, 0);
+                    // Get current hour and minute
+                    const currentHour = now.getHours();
+                    const currentMinute = now.getMinutes();
+                    const currentTimeInMinutes = currentHour * 60 + currentMinute;
                     
-                    // Time difference in minutes
-                    const diffMinutes = (now - scheduledTime) / (1000 * 60);
-                    if (diffMinutes > 60) {
-                        // More than 1 hour late, Only allow "Late Check-In"
-                        alert('You are more than 1 hour late! Use Late Check In.');
-                        document.getElementById('lateCheckInBtn').style.display = 'inline-block';
-                        return;
-                    } else if (diffMinutes > 0) {
-                        // Less than 1 hour late, Warn but allow check-in
-                        alert('You are late but Less than 01 hour, check in.');
-                        document.getElementById('lateCheckInBtn').style.display = 'inline-block';
-                    }
-                    
-                    // Get current records from Firebase first
+                    // Get current records from Firebase to check previous check-ins
                     getFirebaseData('attendanceRecords', (firebaseRecords) => {
                         // Use Firebase data or fallback to localStorage
                         let attendanceRecords = firebaseRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
                         
-                        // Find if there's an existing record for today
+                        // Find today's record if it exists
+                        const todayRecord = attendanceRecords.find(record => 
+                            record.employee === employee && record.date === dateString
+                        );
+                        
+                        // Get list of already completed check-ins
+                        let completedCheckIns = [];
+                        
+                        if (todayRecord && todayRecord.checkIn) {
+                            if (Array.isArray(todayRecord.checkIn)) {
+                                completedCheckIns = [...todayRecord.checkIn];
+                            } else {
+                                completedCheckIns = [todayRecord.checkIn];
+                            }
+                        }
+                        
+                        // Find the eligible check-in time (one that's within the allowed window and not already done)
+                        let eligibleCheckIn = null;
+                        let isLate = false;
+                        
+                        for (const scheduledTime of scheduledCheckIns) {
+                            // Convert scheduled time to minutes
+                            const [hours, minutes] = scheduledTime.split(':').map(Number);
+                            const scheduledTimeInMinutes = hours * 60 + minutes;
+                            
+                            // Check if this time is already checked in
+                            const isAlreadyCheckedIn = completedCheckIns.some(checkIn => {
+                                // Extract hours and minutes from completed check-in time
+                                let checkInHour, checkInMinute;
+                                
+                                if (checkIn.includes(':')) {
+                                    // Handle different time formats
+                                    if (checkIn.includes('AM') || checkIn.includes('PM')) {
+                                        // 12-hour format with AM/PM
+                                        const [timePart, ampm] = checkIn.split(' ');
+                                        const [hourPart, minutePart] = timePart.split(':');
+                                        checkInHour = parseInt(hourPart);
+                                        checkInMinute = parseInt(minutePart);
+                                        
+                                        // Adjust for PM
+                                        if (ampm === 'PM' && checkInHour < 12) {
+                                            checkInHour += 12;
+                                        }
+                                        // Adjust for 12 AM
+                                        if (ampm === 'AM' && checkInHour === 12) {
+                                            checkInHour = 0;
+                                        }
+                                    } else {
+                                        // 24-hour format
+                                        const [hourPart, minutePart] = checkIn.split(':');
+                                        checkInHour = parseInt(hourPart);
+                                        checkInMinute = parseInt(minutePart);
+                                    }
+                                    
+                                    // Convert to minutes for comparison
+                                    const checkInTimeInMinutes = checkInHour * 60 + checkInMinute;
+                                    
+                                    // Consider it the same check-in if within 1 hour of the scheduled time
+                                    return Math.abs(checkInTimeInMinutes - scheduledTimeInMinutes) <= 60;
+                                }
+                                return false;
+                            });
+                            
+                            if (!isAlreadyCheckedIn) {
+                                // Check if within allowed window (5 min before to 60 min after)
+                                const diffMinutes = currentTimeInMinutes - scheduledTimeInMinutes;
+                                
+                                if (diffMinutes >= -5 && diffMinutes <= 60) {
+                                    eligibleCheckIn = scheduledTime;
+                                    isLate = diffMinutes > 0;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!eligibleCheckIn) {
+                            // Check if there are any scheduled times that are more than 1 hour late
+                            const lateCheckIns = scheduledCheckIns.filter(scheduledTime => {
+                                const [hours, minutes] = scheduledTime.split(':').map(Number);
+                                const scheduledTimeInMinutes = hours * 60 + minutes;
+                                const diffMinutes = currentTimeInMinutes - scheduledTimeInMinutes;
+                                
+                                return diffMinutes > 60 && !completedCheckIns.some(checkIn => {
+                                    // Extract just the hour and minute parts for comparison
+                                    if (checkIn.includes(':')) {
+                                        let checkInHour, checkInMinute;
+                                        
+                                        if (checkIn.includes('AM') || checkIn.includes('PM')) {
+                                            // 12-hour format with AM/PM
+                                            const [timePart, ampm] = checkIn.split(' ');
+                                            const [hourPart, minutePart] = timePart.split(':');
+                                            checkInHour = parseInt(hourPart);
+                                            checkInMinute = parseInt(minutePart);
+                                            
+                                            // Adjust for PM
+                                            if (ampm === 'PM' && checkInHour < 12) {
+                                                checkInHour += 12;
+                                            }
+                                            // Adjust for 12 AM
+                                            if (ampm === 'AM' && checkInHour === 12) {
+                                                checkInHour = 0;
+                                            }
+                                        } else {
+                                            // 24-hour format
+                                            const [hourPart, minutePart] = checkIn.split(':');
+                                            checkInHour = parseInt(hourPart);
+                                            checkInMinute = parseInt(minutePart);
+                                        }
+                                        
+                                        const checkInTimeInMinutes = checkInHour * 60 + checkInMinute;
+                                        return Math.abs(checkInTimeInMinutes - scheduledTimeInMinutes) <= 60;
+                                    }
+                                    return false;
+                                });
+                            });
+                            
+                            if (lateCheckIns.length > 0) {
+                                // Suggest late check-in for the earliest missed check-in
+                                alert(`You are more than 1 hour late for check-in scheduled at ${lateCheckIns[0]}. Please use the Late Check-In button.`);
+                                document.getElementById('lateCheckInBtn').style.display = 'inline-block';
+                                return;
+                            } else if (completedCheckIns.length >= scheduledCheckIns.length) {
+                                alert('All scheduled check-ins for today have been completed.');
+                                return;
+                            } else {
+                                // No eligible check-in time right now
+                                alert('No check-in window currently available. Next check-ins: ' + 
+                                      scheduledCheckIns.filter(time => !completedCheckIns.some(ci => ci.includes(time))).join(', '));
+                                return;
+                            }
+                        }
+                        
+                        // Process the check-in
                         const day = now.toLocaleString('en-US', { weekday: 'long' });
                         const recordIndex = attendanceRecords.findIndex(record =>
                             record.employee === employee && record.date === dateString
                         );
+                        
+                        if (isLate) {
+                            alert(`You are late for check-in scheduled at ${eligibleCheckIn}, but less than 1 hour.`);
+                            document.getElementById('lateCheckInBtn').style.display = 'inline-block';
+                        }
                         
                         if (recordIndex === -1) {
                             // If no record exists for today, create one
@@ -1712,8 +1790,14 @@
                             };
                             attendanceRecords.push(newRecord);
                         } else {
-                            // Update existing record
-                            attendanceRecords[recordIndex].checkIn = timeString;
+                            // Update existing record with additional check-in
+                            if (Array.isArray(attendanceRecords[recordIndex].checkIn)) {
+                                attendanceRecords[recordIndex].checkIn.push(timeString);
+                            } else if (attendanceRecords[recordIndex].checkIn) {
+                                attendanceRecords[recordIndex].checkIn = [attendanceRecords[recordIndex].checkIn, timeString];
+                            } else {
+                                attendanceRecords[recordIndex].checkIn = timeString;
+                            }
                         }
                         
                         // Save to Firebase
@@ -2955,8 +3039,7 @@
                                     saveButton.style.cursor = 'not-allowed';
                                 }
                             }
-                        });
-                        
+                        });                       
                         // Show message that time table is already set for this week
                         const weekInfoElement = document.createElement('div');
                         weekInfoElement.style.marginBottom = '15px';
@@ -2973,7 +3056,7 @@
                         } else {
                             weekInfoElement.innerHTML = `
                                 Time table for the current week (${formatDate(currentWeekStart)} - ${formatDate(getWeekEndDate(currentWeekStart))}) 
-                                was set by an administrator. You can edit it below.
+                                was set by an administrator.
                             `;
                         }
                         
@@ -2994,8 +3077,7 @@
                         weekInfoElement.innerHTML = `
                             <strong>New Week Started!</strong><br>
                             Please set your time table for the current week (${formatDate(currentWeekStart)} - ${formatDate(getWeekEndDate(currentWeekStart))}).
-                        `;
-                        
+                        `;                        
                         // Insert before the days container
                         const daysContainer = document.querySelector('.time-table-days');
                         if (daysContainer && !document.getElementById('week-info')) {
@@ -3793,6 +3875,46 @@
                 document.getElementById('userName').value = '';
                 document.getElementById('userPassword').value = '';
             }
+                // Function to delete only employee data without removing the employee account
+                function deleteOnlyEmployeeData() {
+                    const username = document.getElementById('deleteEmployeeSelect').value;
+                    if (!username) {
+                        alert('Please select an employee first');
+                        return;
+                    }                   
+                    if (confirm(`Are you sure you want to delete all data for "${username}" but keep their account? This cannot be undone.`)) {
+                        // Show status message
+                        const statusElement = document.getElementById('deleteDataStatus');
+                        statusElement.textContent = `Deleting data for ${username}...`;                       
+                        // Delete the employee's data
+                        deleteEmployeeData(username)
+                            .then(() => {
+                                console.log(`Data for employee ${username} removed successfully`);
+                                statusElement.textContent = `Data for ${username} has been deleted successfully.`;
+                                
+                                // Refresh admin views
+                                const selectedUser = username;
+                                if (selectedUser) {
+                                    loadAdminData(selectedUser);
+                                    loadMissedCheckIns(selectedUser);
+                                    loadAdminProgressReports(selectedUser);
+                                    loadAdminTimeTable(selectedUser);
+                                    loadAdminHolidayRequests(selectedUser);
+                                    loadAdminTasks(selectedUser);
+                                }                               
+                                setTimeout(() => {
+                                    statusElement.textContent = '';
+                                }, 5000);
+                            })
+                            .catch(error => {
+                                console.error('Error removing employee data:', error);
+                                statusElement.textContent = `Error removing data: ${error.message}`;
+                                setTimeout(() => {
+                                    statusElement.textContent = '';
+                                }, 5000);
+                            });
+                    }
+                }
             function loadAttendanceTable() {
                 try {
                     const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
@@ -4090,8 +4212,16 @@
                                 request.employeeName === employee || request.employee === employee
                             );
                             
-                            // Calculate totals
-                            const totalCheckIns = employeeRecords.filter(record => record.checkIn).length;
+                            // Calculate totals with support for multiple check-ins
+                            const totalCheckIns = employeeRecords.reduce((total, record) => {
+                                if (Array.isArray(record.checkIn)) {
+                                    return total + record.checkIn.length;
+                                } else if (record.checkIn) {
+                                    return total + 1;
+                                }
+                                return total;
+                            }, 0);
+                            
                             const totalCheckOuts = employeeRecords.reduce((total, record) => {
                                 // If checkOut is an array, add its length
                                 if (Array.isArray(record.checkOut)) {
@@ -4811,6 +4941,14 @@
 
                         const sortedDates = Array.from(allDates).sort((a, b) => new Date(b) - new Date(a));
 
+                        // If no records found
+                        if (sortedDates.length === 0) {
+                            const row = document.createElement('tr');
+                            row.innerHTML = '<td colspan="5" style="text-align: center;">No attendance records found</td>';
+                            tableBody.appendChild(row);
+                            return;
+                        }
+
                         sortedDates.forEach(date => {
                             const record = attendanceRecords.find(r => r.employee === employee && r.date === date);
                             const lateCheckInsForDate = lateCheckIns
@@ -4819,38 +4957,53 @@
 
                             const checkOutTimes = record && record.checkOut ?
                                 (Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut]) : [];
+                                
+                            // Handle multiple check-ins
+                            const checkInTimes = record && record.checkIn ?
+                                (Array.isArray(record.checkIn) ? record.checkIn : [record.checkIn]) : [];
 
                             const row = document.createElement('tr');
                             const day = record ? record.day :
                                 (lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].day : '');
 
+                            // Create dropdowns for check-ins if multiple exist
+                            let checkInDisplay;
+                            if (checkInTimes.length > 1) {
+                                checkInDisplay = `<select class="attendance-dropdown">
+                                    ${checkInTimes.map(time => `<option>${time}</option>`).join('')}
+                                </select>`;
+                            } else {
+                                checkInDisplay = checkInTimes.length > 0 ? checkInTimes[0] : '-';
+                            }
+                            
+                            // Create dropdowns for check-outs if multiple exist
+                            let checkOutDisplay;
+                            if (checkOutTimes.length > 1) {
+                                checkOutDisplay = `<select class="attendance-dropdown">
+                                    ${checkOutTimes.map(time => `<option>${time}</option>`).join('')}
+                                </select>`;
+                            } else {
+                                checkOutDisplay = checkOutTimes.length > 0 ? checkOutTimes[0] : '-';
+                            }
+
+                            // Create dropdowns for late check-ins if multiple exist
+                            let lateCheckInDisplay;
+                            if (lateCheckInsForDate.length > 1) {
+                                lateCheckInDisplay = `<select class="attendance-dropdown">
+                                    ${lateCheckInsForDate.map(late => `<option>${late.time}</option>`).join('')}
+                                </select>`;
+                            } else {
+                                lateCheckInDisplay = lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].time : '-';
+                            }
+
                             row.innerHTML = `
-                            <td>${date}</td>
-                            <td>${day}</td>
-                            <td>${record && record.checkIn ? record.checkIn : '-'}</td>
-                            <td>${checkOutTimes.length > 0 ? checkOutTimes[0] : '-'}</td>
-                            <td>${lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].time : '-'}</td>
-                        `;
-                            tableBody.appendChild(row);
-
-                            // Calculate how many additional rows we need
-                            const maxAdditionalEntries = Math.max(
-                                checkOutTimes.length > 1 ? checkOutTimes.length - 1 : 0,
-                                lateCheckInsForDate.length > 1 ? lateCheckInsForDate.length - 1 : 0
-                            );
-
-                            // Add additional rows if needed
-                            for (let i = 0; i < maxAdditionalEntries; i++) {
-                                const additionalRow = document.createElement('tr');
-                                additionalRow.innerHTML = `
                                 <td>${date}</td>
                                 <td>${day}</td>
-                                <td>-</td>
-                                <td>${i + 1 < checkOutTimes.length ? checkOutTimes[i + 1] : '-'}</td>
-                                <td>${i + 1 < lateCheckInsForDate.length ? lateCheckInsForDate[i + 1].time : '-'}</td>
+                                <td>${checkInDisplay}</td>
+                                <td>${checkOutDisplay}</td>
+                                <td>${lateCheckInDisplay}</td>
                             `;
-                                tableBody.appendChild(additionalRow);
-                            }
+                            tableBody.appendChild(row);
                         });
                     });
                 });
@@ -5514,12 +5667,10 @@ function addAttendanceRecord(type) {
                 });
                 listenForChanges('notifications', (notifications) => {
                     if (notifications) localStorage.setItem('notifications', JSON.stringify(notifications));
-                });
-                
+                });                
                 listenForChanges('globalRemarks', (remarks) => {
                     if (remarks) {
-                        localStorage.setItem('globalRemarks', JSON.stringify(remarks));
-                        
+                        localStorage.setItem('globalRemarks', JSON.stringify(remarks));                        
                         // Update remarks in employee view if visible
                         if (document.getElementById('employeePage').style.display !== 'none') {
                             if (document.getElementById('progress-section').style.display === 'block') {
@@ -5528,8 +5679,7 @@ function addAttendanceRecord(type) {
                             if (document.getElementById('employeeTasks-section').style.display === 'block') {
                                 loadTasksRemarks();
                             }
-                        }
-                        
+                        }                        
                         // Update remarks in admin view if visible
                         if (document.getElementById('adminPage').style.display !== 'none') {
                             const selectedUser = document.getElementById('adminUserSelect').value;
@@ -5539,17 +5689,14 @@ function addAttendanceRecord(type) {
                         }
                     }
                 });
-
                 listenForChanges('employeeTasks', (tasks) => {
                     if (tasks) {
                         localStorage.setItem('employeeTasks', JSON.stringify(tasks));
-
                         // Refresh tasks view if currently visible
                         if (document.getElementById('employeePage').style.display !== 'none' &&
                             document.getElementById('employeeTasks-section').style.display === 'block') {
                             loadEmployeeTasks();
                         }
-
                         // Refresh admin tasks view if currently visible
                         if (document.getElementById('adminPage').style.display !== 'none' &&
                             document.getElementById('adminTargets').style.display === 'block') {
@@ -5562,5 +5709,4 @@ function addAttendanceRecord(type) {
             window.addEventListener('load', setupDataListeners);
         </script>
 </body>
-
 </html>
