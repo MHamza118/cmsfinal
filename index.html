@@ -1689,16 +1689,22 @@
                     
                     // Get all check-in times for today
                     let scheduledCheckIns = [];
+                    let allTimeSlots = [];
                     
                     if (employeeTimeTable[dayOfWeek]) {
                         if (Array.isArray(employeeTimeTable[dayOfWeek])) {
                             // New format with multiple entries
+                            allTimeSlots = employeeTimeTable[dayOfWeek];
                             scheduledCheckIns = employeeTimeTable[dayOfWeek]
                                 .filter(slot => slot.checkIn)
                                 .map(slot => slot.checkIn);
                         } else if (employeeTimeTable[dayOfWeek].checkIn) {
                             // Old format with single entry
                             scheduledCheckIns = [employeeTimeTable[dayOfWeek].checkIn];
+                            allTimeSlots = [{
+                                checkIn: employeeTimeTable[dayOfWeek].checkIn,
+                                checkOut: employeeTimeTable[dayOfWeek].checkOut
+                            }];
                         }
                     }
                     
@@ -1733,13 +1739,29 @@
                             }
                         }
                         
-                        // Find the eligible check-in time (one that's within the allowed window and not already done)
+                        // Find if there's an upcoming check-in slot
+                        let upcomingSlots = [];
                         let eligibleCheckIn = null;
                         let isLate = false;
                         
-                        for (const scheduledTime of scheduledCheckIns) {
+                        // Sort slots by time
+                        const sortedSlots = [...allTimeSlots].sort((a, b) => {
+                            if (!a.checkIn || !b.checkIn) return 0;
+                            
+                            const [aHours, aMinutes] = a.checkIn.split(':').map(Number);
+                            const [bHours, bMinutes] = b.checkIn.split(':').map(Number);
+                            
+                            const aTimeInMinutes = aHours * 60 + aMinutes;
+                            const bTimeInMinutes = bHours * 60 + bMinutes;
+                            
+                            return aTimeInMinutes - bTimeInMinutes;
+                        });
+                        
+                        for (const slot of sortedSlots) {
+                            if (!slot.checkIn) continue;
+                            
                             // Convert scheduled time to minutes
-                            const [hours, minutes] = scheduledTime.split(':').map(Number);
+                            const [hours, minutes] = slot.checkIn.split(':').map(Number);
                             const scheduledTimeInMinutes = hours * 60 + minutes;
                             
                             // Check if this time is already checked in
@@ -1781,17 +1803,42 @@
                             });
                             
                             if (!isAlreadyCheckedIn) {
-                                // Check if within allowed window (5 min before to 60 min after)
+                                // Find slots that are upcoming or within the allowed window
+                                // Allow check-in up to 2 hours before the scheduled time (changed from 5 min)
                                 const diffMinutes = currentTimeInMinutes - scheduledTimeInMinutes;
                                 
-                                if (diffMinutes >= -5 && diffMinutes <= 60) {
-                                    eligibleCheckIn = scheduledTime;
-                                    isLate = diffMinutes > 0;
-                                    break;
+                                if (diffMinutes >= -120 && diffMinutes <= 60) {
+                                    // This is a valid slot for check-in
+                                    upcomingSlots.push({
+                                        slot: slot,
+                                        scheduledTime: slot.checkIn,
+                                        diffMinutes: diffMinutes,
+                                        isLate: diffMinutes > 0
+                                    });
                                 }
                             }
                         }
                         
+                        // If we have upcoming slots, pick the closest one
+                        if (upcomingSlots.length > 0) {
+                            // First, find slots that are not late
+                            const onTimeSlots = upcomingSlots.filter(slot => !slot.isLate);
+                            
+                            // If we have on-time slots, pick the closest one
+                            if (onTimeSlots.length > 0) {
+                                // Sort by how close they are to the current time (prioritize closer slots)
+                                onTimeSlots.sort((a, b) => Math.abs(a.diffMinutes) - Math.abs(b.diffMinutes));
+                                eligibleCheckIn = onTimeSlots[0].scheduledTime;
+                                isLate = false;
+                            } else {
+                                // Otherwise, pick the earliest late slot
+                                upcomingSlots.sort((a, b) => a.diffMinutes - b.diffMinutes);
+                                eligibleCheckIn = upcomingSlots[0].scheduledTime;
+                                isLate = true;
+                            }
+                        }
+                        
+                        // If no eligible check-in found, find any missed slots
                         if (!eligibleCheckIn) {
                             // Check if there are any scheduled times that are more than 1 hour late
                             const lateCheckIns = scheduledCheckIns.filter(scheduledTime => {
@@ -1843,8 +1890,23 @@
                                 return;
                             } else {
                                 // No eligible check-in time right now
-                                alert('No check-in window currently available. Next check-ins: ' + 
-                                      scheduledCheckIns.filter(time => !completedCheckIns.some(ci => ci.includes(time))).join(', '));
+                                // Find the next scheduled check-in that hasn't been completed
+                                const pendingCheckIns = scheduledCheckIns.filter(time => 
+                                    !completedCheckIns.some(ci => {
+                                        if (typeof ci === 'string' && ci.includes(':')) {
+                                            // Extract time part for comparison
+                                            const ciTimePart = ci.split(' ')[0]; // Get the "HH:MM" part
+                                            return ciTimePart.includes(time);
+                                        }
+                                        return false;
+                                    })
+                                );
+                                
+                                if (pendingCheckIns.length > 0) {
+                                    alert('No check-in window currently available. Next check-ins: ' + pendingCheckIns.join(', '));
+                                } else {
+                                    alert('All scheduled check-ins for today have been completed.');
+                                }
                                 return;
                             }
                         }
@@ -1858,6 +1920,15 @@
                         if (isLate) {
                             alert(`You are late for check-in scheduled at ${eligibleCheckIn}, but less than 1 hour.`);
                             document.getElementById('lateCheckInBtn').style.display = 'inline-block';
+                        } else {
+                            // Show early check-in message
+                            const [hours, minutes] = eligibleCheckIn.split(':').map(Number);
+                            const scheduledTimeInMinutes = hours * 60 + minutes;
+                            const diffMinutes = scheduledTimeInMinutes - currentTimeInMinutes;
+                            
+                            if (diffMinutes > 0) {
+                                alert(`You're checking in ${diffMinutes} minutes early for your scheduled time at ${eligibleCheckIn}.`);
+                            }
                         }
                         
                         if (recordIndex === -1) {
@@ -2309,11 +2380,17 @@
                             
                             // Create the row
                             const row = document.createElement('tr');
+                            
+                            // Create dropdown for check-ins if needed
+                            const checkInDropdown = group.checkIns.length > 1 ?
+                                `<select class="attendance-dropdown">${group.checkIns.map(time => `<option>${time}</option>`).join('')}</select>` :
+                                (group.checkIns[0] || '-');
+                                
                             row.innerHTML = `
                                 <td>${group.employee}</td>
                                 <td>${group.date}</td>
                                 <td>${group.day}</td>
-                                <td>${group.checkIns[0] || '-'}</td>
+                                <td>${checkInDropdown}</td>
                                 <td>${checkOutDropdown}</td>
                                 <td>${lateCheckInDropdown}</td>
                                 <td>${workingHours}</td> <!-- Display Computed Working Hours -->
