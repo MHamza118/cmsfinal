@@ -495,6 +495,7 @@
                 <button onclick="openHolidayRequest(); closeMobileMenu()">Request for Holiday</button>
                 <button onclick="openTimeTableModal(); closeMobileMenu();">Time Table</button>
                 <button onclick="showSection('employeeTasks'); closeMobileMenu()">View Tasks</button>
+                <button onclick="openCompensateHoursModal(); closeMobileMenu();">Compensate Hours</button>
                 <button onclick="logout()">Logout</button>
             </div>
             <div id="modalOverlay" onclick="closeTimeTableModal()"></div>
@@ -579,7 +580,6 @@
                         <button id="checkInBtn" onclick="handleCheckIn()">Check In</button>
                         <button id="checkOutBtn" onclick="handleCheckOut()">Check Out</button>
                         <button id="lateCheckInBtn" onclick="handleLateCheckIn()">Add Late Check-In</button>
-                        <button id="compensateHoursBtn" onclick="openCompensateHoursModal()">Compensate Hours</button>
                     </div>
                 </div>
                 
@@ -835,6 +835,7 @@
                     <button onclick="showAdminSection('adminAttendance'); closeAdminMobileMenu();"
                         class="active">Attendance</button>
                     <button onclick="showAdminSection('weeklyAttendance'); closeAdminMobileMenu();">Weekly Attendance Summary</button>
+                    <button onclick="showAdminSection('adminCompensations'); closeAdminMobileMenu();">Compensation Records</button>
                     <button onclick="showAdminSection('adminProgress'); closeAdminMobileMenu();">Progress
                         Reports</button>
                     <button onclick="showAdminSection('adminHolidays'); closeAdminMobileMenu();">Holiday
@@ -849,6 +850,22 @@
             </div>
             <!--Admin Page main content Data-->
             <div class="main-content">
+                <div id="adminCompensations" style="display: none;">
+                    <h2>Employee Compensation Records</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Missed Date</th>
+                                <th>Missed Day</th>
+                                <th>Compensation Date</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminCompensationsTable"></tbody>
+                    </table>
+                </div>
                 <div id="adminAttendance" style="display: block;">
                     <h2>Employee Attendance</h2>
                     <select id="reportType"
@@ -1618,7 +1635,7 @@
             //Date & Time Display Section/Functionality.
             function updateTime() {
                 const now = new Date();
-                const timeString = now.toLocaleTimeString();
+                const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: true});
                 const dateString = now.toLocaleDateString('en-US', {
                     weekday: 'long',
                     year: 'numeric',
@@ -1918,7 +1935,7 @@
                         );
                         
                         if (isLate) {
-                            alert(`You are late for check-in scheduled at ${eligibleCheckIn}, but less than 1 hour.`);
+                            alert(`You are late for check-in scheduled at ${formatTimeToAMPM(eligibleCheckIn)}, but less than 1 hour.`);
                             document.getElementById('lateCheckInBtn').style.display = 'inline-block';
                         } else {
                             // Show early check-in message
@@ -1927,7 +1944,7 @@
                             const diffMinutes = scheduledTimeInMinutes - currentTimeInMinutes;
                             
                             if (diffMinutes > 0) {
-                                alert(`You're checking in ${diffMinutes} minutes early for your scheduled time at ${eligibleCheckIn}.`);
+                                alert(`You're checking in ${diffMinutes} minutes early for your scheduled time at ${formatTimeToAMPM(eligibleCheckIn)}.`);
                             }
                         }
                         
@@ -1956,7 +1973,7 @@
                             .then(() => {
                                 // Save to localStorage as backup
                                 localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
-                                alert('Check-in successful at ' + timeString);
+                                alert('Check-in successful at ' + formatTimeToAMPM(timeString));
                                 clearNotifications();
                                 loadAttendanceTable();
                                 updateSummaryValues();
@@ -1965,7 +1982,7 @@
                                 console.error('Error saving to Firebase:', error);
                                 // Still save to localStorage as backup
                                 localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords));
-                                alert('Check-in successful at ' + timeString + ' (saved locally)');
+                                alert('Check-in successful at ' + formatTimeToAMPM(timeString) + ' (saved locally)');
                                 clearNotifications();
                                 loadAttendanceTable();
                                 updateSummaryValues();
@@ -1978,12 +1995,59 @@
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
                 const date = now.toLocaleDateString();
                 const day = now.toLocaleString('en-us', { weekday: 'long' });
-                const time = now.toLocaleTimeString();
+                const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: true});
+
+                // Disable the button to prevent multiple clicks
+                const lateCheckInBtn = document.getElementById('lateCheckInBtn');
+                lateCheckInBtn.disabled = true;
+                lateCheckInBtn.style.backgroundColor = '#ccc';
 
                 // Get current data from Firebase first
                 getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
                     // Use Firebase data or fallback to localStorage
                     let lateCheckIns = firebaseLateCheckIns || JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+
+                    // Check if a late check-in was already recorded in the last 10 minutes
+                    const recentLateCheckIns = lateCheckIns.filter(checkIn => 
+                        checkIn.employee === employee && 
+                        checkIn.date === date
+                    );
+
+                    let recentCheckIn = false;
+                    if (recentLateCheckIns.length > 0) {
+                        // Get the most recent late check-in
+                        const latestCheckIn = recentLateCheckIns[recentLateCheckIns.length - 1];
+                        
+                        // Parse the last late check-in time
+                        const lastCheckInTime = new Date();
+                        const [timePart, ampm] = latestCheckIn.time.split(' ');
+                        const [hours, minutes, seconds] = timePart.split(':').map(Number);
+                        
+                        // Set the time components
+                        lastCheckInTime.setHours(
+                            ampm === 'PM' && hours < 12 ? hours + 12 : 
+                            ampm === 'AM' && hours === 12 ? 0 : hours,
+                            minutes,
+                            seconds || 0
+                        );
+                        
+                        // Check if the last late check-in was within 10 minutes
+                        const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+                        recentCheckIn = lastCheckInTime > tenMinutesAgo;
+                    }
+
+                    if (recentCheckIn) {
+                        // If a recent late check-in was found, don't add a new one
+                        alert('You have already recorded a late check-in in the last 10 minutes. This action will not be recorded again.');
+                        
+                        // Re-enable the button after 2 seconds
+                        setTimeout(() => {
+                            lateCheckInBtn.disabled = false;
+                            lateCheckInBtn.style.backgroundColor = '';
+                        }, 2000);
+                        
+                        return;
+                    }
 
                     // Record the late check-in
                     const newLateCheckIn = {
@@ -2034,6 +2098,12 @@
                             loadAttendanceTable();
                             updateSummaryValues();
                             sendNotification(employee);
+                            
+                            // Re-enable the button after 2 seconds
+                            setTimeout(() => {
+                                lateCheckInBtn.disabled = false;
+                                lateCheckInBtn.style.backgroundColor = '';
+                            }, 2000);
                         })
                         .catch(error => {
                             console.error('Error saving late check-in to Firebase:', error);
@@ -2043,6 +2113,10 @@
                             loadAttendanceTable();
                             updateSummaryValues();
                             sendNotification(employee);
+                            
+                            // Re-enable the button
+                            lateCheckInBtn.disabled = false;
+                            lateCheckInBtn.style.backgroundColor = '';
                         });
                 });
             }
@@ -2101,7 +2175,247 @@
                 // Load remarks for selected user
                 loadAdminRemarks(selectedUser);
             }
-            function loadAdminData(selectedUser = '') {
+            function loadAdminData(selectedUser = '') {            function loadAdminData(selectedUser = '') {
+                getFirebaseData('attendanceRecords', (firebaseAttendanceRecords) => {
+                    getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
+                        const attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                        const lateCheckIns = firebaseLateCheckIns || JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+            
+                        if (firebaseAttendanceRecords) {
+                            localStorage.setItem('attendanceRecords', JSON.stringify(firebaseAttendanceRecords));
+                        }
+                        if (firebaseLateCheckIns) {
+                            localStorage.setItem('lateCheckIns', JSON.stringify(firebaseLateCheckIns));
+                        }
+            
+                        const tableBody = document.getElementById('adminAttendanceTable');
+                        if (!tableBody) return;
+                        tableBody.innerHTML = '';
+            
+                        const filteredRecords = selectedUser 
+                            ? attendanceRecords.filter(record => record && record.employee === selectedUser)
+                            : attendanceRecords;
+            
+                        if (selectedUser && filteredRecords.length === 0) {
+                            const row = document.createElement('tr');
+                            row.innerHTML = '<td colspan="7" style="text-align: center;">No attendance records found for this employee</td>';
+                            tableBody.appendChild(row);
+                            loadMissedCheckIns(selectedUser);
+                            updateMissedCheckInsSummary();
+                            return;
+                        }
+            
+                        const groupedRecords = {};
+            
+                        filteredRecords.forEach(record => {
+                            if (!record.date || !record.employee) return;
+            
+                            const key = `${record.date}_${record.employee}`;
+                            if (!groupedRecords[key]) {
+                                groupedRecords[key] = {
+                                    date: record.date,
+                                    employee: record.employee,
+                                    day: record.day,
+                                    checkIns: [],
+                                    checkOuts: [],
+                                    lateCheckIns: []
+                                };
+                            }
+            
+                            if (record.checkIn) {
+                                groupedRecords[key].checkIns.push(record.checkIn);
+                            }
+            
+                            if (record.checkOut) {
+                                if (Array.isArray(record.checkOut)) {
+                                    groupedRecords[key].checkOuts = [...groupedRecords[key].checkOuts, ...record.checkOut];
+                                } else {
+                                    groupedRecords[key].checkOuts.push(record.checkOut);
+                                }
+                            }
+                        });
+            
+                        const filteredLateCheckIns = selectedUser
+                            ? lateCheckIns.filter(late => late && late.employee === selectedUser)
+                            : lateCheckIns;
+            
+                        filteredLateCheckIns.forEach(late => {
+                            if (!late.date || !late.employee) return;
+            
+                            const key = `${late.date}_${late.employee}`;
+                            if (!groupedRecords[key]) {
+                                groupedRecords[key] = {
+                                    date: late.date,
+                                    employee: late.employee,
+                                    day: late.day,
+                                    checkIns: [],
+                                    checkOuts: [],
+                                    lateCheckIns: []
+                                };
+                            }
+            
+                            groupedRecords[key].lateCheckIns.push(late.time);
+                        });
+            
+                        const sortedGroups = Object.values(groupedRecords).sort((a, b) => {
+                            const employeeComparison = a.employee.localeCompare(b.employee);
+                            if (employeeComparison !== 0) return employeeComparison;
+                            return new Date(b.date) - new Date(a.date);
+                        });
+            
+                        sortedGroups.forEach(group => {
+                            const checkInDropdown = group.checkIns.length > 1 ?
+                                `<select class="attendance-dropdown">${group.checkIns.map(time => `<option>${formatTimeToAMPM(time)}</option>`).join('')}</select>` :
+                                (group.checkIns[0] ? formatTimeToAMPM(group.checkIns[0]) : '-');
+            
+                            const checkOutDropdown = group.checkOuts.length > 1 ?
+                                `<select>${group.checkOuts.map(time => `<option>${formatTimeToAMPM(time)}</option>`).join('')}</select>` :
+                                (group.checkOuts[0] ? formatTimeToAMPM(group.checkOuts[0]) : '-');
+            
+                            const lateCheckInDropdown = group.lateCheckIns.length > 1 ?
+                                `<select>${group.lateCheckIns.map(late => `<option>${formatTimeToAMPM(late)}</option>`).join('')}</select>` :
+                                (group.lateCheckIns[0] ? formatTimeToAMPM(group.lateCheckIns[0]) : '-');
+            
+                            const workingHours = calculateWorkingHours(group.checkIns, group.checkOuts);
+            
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${group.employee}</td>
+                                <td>${group.date}</td>
+                                <td>${group.day}</td>
+                                <td>${checkInDropdown}</td>
+                                <td>${checkOutDropdown}</td>
+                                <td>${lateCheckInDropdown}</td>
+                                <td>${workingHours}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+            
+                        loadMissedCheckIns(selectedUser);
+                        updateMissedCheckInsSummary();
+                    });
+                });
+            }            function loadAdminData(selectedUser = '') {
+                getFirebaseData('attendanceRecords', (firebaseAttendanceRecords) => {
+                    getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
+                        const attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                        const lateCheckIns = firebaseLateCheckIns || JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+            
+                        if (firebaseAttendanceRecords) {
+                            localStorage.setItem('attendanceRecords', JSON.stringify(firebaseAttendanceRecords));
+                        }
+                        if (firebaseLateCheckIns) {
+                            localStorage.setItem('lateCheckIns', JSON.stringify(firebaseLateCheckIns));
+                        }
+            
+                        const tableBody = document.getElementById('adminAttendanceTable');
+                        if (!tableBody) return;
+                        tableBody.innerHTML = '';
+            
+                        const filteredRecords = selectedUser 
+                            ? attendanceRecords.filter(record => record && record.employee === selectedUser)
+                            : attendanceRecords;
+            
+                        if (selectedUser && filteredRecords.length === 0) {
+                            const row = document.createElement('tr');
+                            row.innerHTML = '<td colspan="7" style="text-align: center;">No attendance records found for this employee</td>';
+                            tableBody.appendChild(row);
+                            loadMissedCheckIns(selectedUser);
+                            updateMissedCheckInsSummary();
+                            return;
+                        }
+            
+                        const groupedRecords = {};
+            
+                        filteredRecords.forEach(record => {
+                            if (!record.date || !record.employee) return;
+            
+                            const key = `${record.date}_${record.employee}`;
+                            if (!groupedRecords[key]) {
+                                groupedRecords[key] = {
+                                    date: record.date,
+                                    employee: record.employee,
+                                    day: record.day,
+                                    checkIns: [],
+                                    checkOuts: [],
+                                    lateCheckIns: []
+                                };
+                            }
+            
+                            if (record.checkIn) {
+                                groupedRecords[key].checkIns.push(record.checkIn);
+                            }
+            
+                            if (record.checkOut) {
+                                if (Array.isArray(record.checkOut)) {
+                                    groupedRecords[key].checkOuts = [...groupedRecords[key].checkOuts, ...record.checkOut];
+                                } else {
+                                    groupedRecords[key].checkOuts.push(record.checkOut);
+                                }
+                            }
+                        });
+            
+                        const filteredLateCheckIns = selectedUser
+                            ? lateCheckIns.filter(late => late && late.employee === selectedUser)
+                            : lateCheckIns;
+            
+                        filteredLateCheckIns.forEach(late => {
+                            if (!late.date || !late.employee) return;
+            
+                            const key = `${late.date}_${late.employee}`;
+                            if (!groupedRecords[key]) {
+                                groupedRecords[key] = {
+                                    date: late.date,
+                                    employee: late.employee,
+                                    day: late.day,
+                                    checkIns: [],
+                                    checkOuts: [],
+                                    lateCheckIns: []
+                                };
+                            }
+            
+                            groupedRecords[key].lateCheckIns.push(late.time);
+                        });
+            
+                        const sortedGroups = Object.values(groupedRecords).sort((a, b) => {
+                            const employeeComparison = a.employee.localeCompare(b.employee);
+                            if (employeeComparison !== 0) return employeeComparison;
+                            return new Date(b.date) - new Date(a.date);
+                        });
+            
+                        sortedGroups.forEach(group => {
+                            const checkInDropdown = group.checkIns.length > 1 ?
+                                `<select class="attendance-dropdown">${group.checkIns.map(time => `<option>${formatTimeToAMPM(time)}</option>`).join('')}</select>` :
+                                (group.checkIns[0] ? formatTimeToAMPM(group.checkIns[0]) : '-');
+            
+                            const checkOutDropdown = group.checkOuts.length > 1 ?
+                                `<select>${group.checkOuts.map(time => `<option>${formatTimeToAMPM(time)}</option>`).join('')}</select>` :
+                                (group.checkOuts[0] ? formatTimeToAMPM(group.checkOuts[0]) : '-');
+            
+                            const lateCheckInDropdown = group.lateCheckIns.length > 1 ?
+                                `<select>${group.lateCheckIns.map(late => `<option>${formatTimeToAMPM(late)}</option>`).join('')}</select>` :
+                                (group.lateCheckIns[0] ? formatTimeToAMPM(group.lateCheckIns[0]) : '-');
+            
+                            const workingHours = calculateWorkingHours(group.checkIns, group.checkOuts);
+            
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${group.employee}</td>
+                                <td>${group.date}</td>
+                                <td>${group.day}</td>
+                                <td>${checkInDropdown}</td>
+                                <td>${checkOutDropdown}</td>
+                                <td>${lateCheckInDropdown}</td>
+                                <td>${workingHours}</td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
+            
+                        loadMissedCheckIns(selectedUser);
+                        updateMissedCheckInsSummary();
+                    });
+                });
+            }
                 // Get data from Firebase first
                 getFirebaseData('attendanceRecords', (firebaseAttendanceRecords) => {
                     getFirebaseData('lateCheckIns', (firebaseLateCheckIns) => {
@@ -2371,20 +2685,20 @@
                             
                             // Create dropdowns for check-outs and late check-ins if needed
                             const checkOutDropdown = group.checkOuts.length > 1 ?
-                                `<select>${group.checkOuts.map(time => `<option>${time}</option>`).join('')}</select>` :
-                                (group.checkOuts[0] || '-');
+                                `<select>${group.checkOuts.map(time => `<option>${formatTimeToAMPM(time)}</option>`).join('')}</select>` :
+                                (group.checkOuts[0] ? formatTimeToAMPM(group.checkOuts[0]) : '-');
                                 
                             const lateCheckInDropdown = group.lateCheckIns.length > 1 ?
-                                `<select>${group.lateCheckIns.map(late => `<option>${late}</option>`).join('')}</select>` :
-                                (group.lateCheckIns[0] || '-');
+                                `<select>${group.lateCheckIns.map(late => `<option>${formatTimeToAMPM(late)}</option>`).join('')}</select>` :
+                                (group.lateCheckIns[0] ? formatTimeToAMPM(group.lateCheckIns[0]) : '-');
                             
                             // Create the row
                             const row = document.createElement('tr');
                             
                             // Create dropdown for check-ins if needed
                             const checkInDropdown = group.checkIns.length > 1 ?
-                                `<select class="attendance-dropdown">${group.checkIns.map(time => `<option>${time}</option>`).join('')}</select>` :
-                                (group.checkIns[0] || '-');
+                                `<select class="attendance-dropdown">${group.checkIns.map(time => `<option>${formatTimeToAMPM(time)}</option>`).join('')}</select>` :
+                                (group.checkIns[0] ? formatTimeToAMPM(group.checkIns[0]) : '-');
                                 
                             row.innerHTML = `
                                 <td>${group.employee}</td>
@@ -2675,7 +2989,7 @@
                             const row = document.createElement('tr');
                             row.innerHTML = `
                                 <td>${report.date}</td>
-                                <td>${report.time}</td>
+                                <td>${formatTimeToAMPM(report.time)}</td>
                                 <td>${report.details}</td>
                                 <td>${report.fileName || 'No file'}</td>
                                 <td class="status-${statusClass}">${report.status || 'Pending'}</td>
@@ -2734,7 +3048,7 @@
                                 row.innerHTML = `
                                 <td>${report.employee}</td>
                                 <td>${report.date}</td>
-                                <td>${report.time}</td>
+                                <td>${formatTimeToAMPM(report.time)}</td>
                                 <td>${report.details}</td>
                                 <td>${report.fileName ? report.fileName : 'No file'}</td>
                                 <td>${fileDownloadButton}</td>
@@ -4311,11 +4625,36 @@
             }
             function formatTimeToAMPM(time) {
                 if (!time) return '-';
-                const [hours, minutes] = time.split(':');
-                const hour = parseInt(hours);
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                const formattedHour = hour % 12 || 12;
-                return `${formattedHour}:${minutes} ${ampm}`;
+                
+                // Check if time already has AM/PM format
+                if (time.includes('AM') || time.includes('PM')) {
+                    return time;
+                }
+                
+                // Handle different time formats
+                let hours, minutes, seconds = '';
+                if (time.includes(':')) {
+                    const parts = time.split(':');
+                    hours = parseInt(parts[0]);
+                    minutes = parts[1];
+                    
+                    // Handle if there are seconds
+                    if (parts.length > 2) {
+                        seconds = parts[2].split(' ')[0]; // Remove any additional text after seconds
+                    }
+                } else {
+                    return time; // If not a recognized time format, return as is
+                }
+                
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                const formattedHour = hours % 12 || 12;
+                
+                // Format with or without seconds
+                if (seconds) {
+                    return `${formattedHour}:${minutes}:${seconds} ${ampm}`;
+                } else {
+                    return `${formattedHour}:${minutes} ${ampm}`;
+                }
             }
             function calculateWorkingHours(checkIn, checkOut) {
                 if (!checkIn || !checkOut) return '-';
@@ -4343,8 +4682,8 @@
                     if (timeTable[day]) {
                         const checkIn = timeTable[day].checkIn;
                         const checkOut = timeTable[day].checkOut;
-                        document.getElementById(`admin${day.charAt(0).toUpperCase() + day.slice(1)}CheckIn`).textContent = formatTimeToAMPM(checkIn);
-                        document.getElementById(`admin${day.charAt(0).toUpperCase() + day.slice(1)}CheckOut`).textContent = formatTimeToAMPM(checkOut);
+                        document.getElementById(`admin${day.charAt(0).toUpperCase() + day.slice(1)}CheckIn`).textContent = checkIn ? formatTimeToAMPM(checkIn) : '-';
+                        document.getElementById(`admin${day.charAt(0).toUpperCase() + day.slice(1)}CheckOut`).textContent = checkOut ? formatTimeToAMPM(checkOut) : '-';
                         document.getElementById(`admin${day.charAt(0).toUpperCase() + day.slice(1)}Hours`).textContent = calculateWorkingHours(checkIn, checkOut);
                     }
                 });
@@ -4547,12 +4886,7 @@
                             }
                         }
                         
-                        // Show compensate hours button if there are missed days
-                        if (hasMissedDays) {
-                            document.getElementById('compensateHoursBtn').style.display = 'inline-block';
-                        } else {
-                            document.getElementById('compensateHoursBtn').style.display = 'none';
-                        }
+                        // No need to show/hide compensate button as it's now in the sidebar
                     });
                 });
             }
@@ -5576,8 +5910,13 @@
                 const employee = document.getElementById('employeeDetails').textContent.split('|')[0].trim();
                 const date = now.toLocaleDateString();
                 const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
-                const time = now.toLocaleTimeString();
+                const time = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit', hour12: true});
 
+                // Disable the button to prevent multiple clicks
+                const checkOutBtn = document.getElementById('checkOutBtn');
+                checkOutBtn.disabled = true;
+                checkOutBtn.style.backgroundColor = '#ccc';
+                
                 try {
                     // Get current records from Firebase first
                     database.ref('attendanceRecords').once('value')
@@ -5592,6 +5931,51 @@
                                 record.employee === employee && record.date === date
                             );
 
+                            // Check if a check-out was already recorded in the last 10 minutes
+                            let recentCheckOut = false;
+                            
+                            if (recordIndex !== -1 && attendanceRecords[recordIndex].checkOut) {
+                                const checkOuts = Array.isArray(attendanceRecords[recordIndex].checkOut) ? 
+                                    attendanceRecords[recordIndex].checkOut : 
+                                    [attendanceRecords[recordIndex].checkOut];
+                                
+                                // Get the most recent check-out
+                                if (checkOuts.length > 0) {
+                                    const lastCheckOut = checkOuts[checkOuts.length - 1];
+                                    
+                                    // Parse the last check-out time
+                                    const lastCheckOutTime = new Date();
+                                    const [timePart, ampm] = lastCheckOut.split(' ');
+                                    const [hours, minutes, seconds] = timePart.split(':').map(Number);
+                                    
+                                    // Set the time components
+                                    lastCheckOutTime.setHours(
+                                        ampm === 'PM' && hours < 12 ? hours + 12 : 
+                                        ampm === 'AM' && hours === 12 ? 0 : hours,
+                                        minutes,
+                                        seconds || 0
+                                    );
+                                    
+                                    // Check if the last check-out was within 10 minutes
+                                    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000);
+                                    recentCheckOut = lastCheckOutTime > tenMinutesAgo;
+                                }
+                            }
+
+                            if (recentCheckOut) {
+                                // If a recent check-out was found, don't add a new one
+                                alert('You have already checked out in the last 10 minutes. This action will not be recorded again.');
+                                
+                                // Re-enable the button after 2 seconds
+                                setTimeout(() => {
+                                    checkOutBtn.disabled = false;
+                                    checkOutBtn.style.backgroundColor = '';
+                                }, 2000);
+                                
+                                return Promise.resolve(); // Return a resolved promise to continue the chain
+                            }
+                            
+                            // Continue with recording the check-out
                             if (recordIndex === -1) {
                                 // If no record exists for today, create one
                                 const newRecord = {
@@ -5623,12 +6007,22 @@
                             const updatedRecords = snapshot.val() || [];
                             // Save to localStorage as backup
                             localStorage.setItem('attendanceRecords', JSON.stringify(updatedRecords));
-                            alert('Check-out successful! Time recorded: ' + time);
+                            alert('Check-out successful! Time recorded: ' + formatTimeToAMPM(time));
                             loadAttendanceTable();
                             updateSummaryValues();
+                            
+                            // Re-enable the button after 2 seconds
+                            setTimeout(() => {
+                                checkOutBtn.disabled = false;
+                                checkOutBtn.style.backgroundColor = '';
+                            }, 2000);
                         })
                         .catch(error => {
                             console.error('Error saving attendance record to Firebase:', error);
+                            
+                            // Re-enable the button
+                            checkOutBtn.disabled = false;
+                            checkOutBtn.style.backgroundColor = '';
                             
                             // Fallback to localStorage
                             let localRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || [];
@@ -5654,13 +6048,17 @@
                             }
                             
                             localStorage.setItem('attendanceRecords', JSON.stringify(localRecords));
-                            alert('Check-out successful! Time recorded: ' + time + ' (saved locally)');
+                            alert('Check-out successful! Time recorded: ' + formatTimeToAMPM(time) + ' (saved locally)');
                             loadAttendanceTable();
                             updateSummaryValues();
                         });
                 } catch (error) {
                     console.error('Error in handleCheckOut:', error);
                     alert('There was an error recording your check-out. Please try again.');
+                    
+                    // Re-enable the button
+                    checkOutBtn.disabled = false;
+                    checkOutBtn.style.backgroundColor = '';
                 }
             }
             function loadAttendanceTable() {
@@ -5729,27 +6127,27 @@
                                     ${checkInTimes.map(time => `<option>${time}</option>`).join('')}
                                 </select>`;
                             } else {
-                                checkInDisplay = checkInTimes.length > 0 ? checkInTimes[0] : '-';
+                                checkInDisplay = checkInTimes.length > 0 ? formatTimeToAMPM(checkInTimes[0]) : '-';
                             }
                             
                             // Create dropdowns for check-outs if multiple exist
                             let checkOutDisplay;
                             if (checkOutTimes.length > 1) {
                                 checkOutDisplay = `<select class="attendance-dropdown">
-                                    ${checkOutTimes.map(time => `<option>${time}</option>`).join('')}
+                                    ${checkOutTimes.map(time => `<option>${formatTimeToAMPM(time)}</option>`).join('')}
                                 </select>`;
                             } else {
-                                checkOutDisplay = checkOutTimes.length > 0 ? checkOutTimes[0] : '-';
+                                checkOutDisplay = checkOutTimes.length > 0 ? formatTimeToAMPM(checkOutTimes[0]) : '-';
                             }
 
                             // Create dropdowns for late check-ins if multiple exist
                             let lateCheckInDisplay;
                             if (lateCheckInsForDate.length > 1) {
                                 lateCheckInDisplay = `<select class="attendance-dropdown">
-                                    ${lateCheckInsForDate.map(late => `<option>${late.time}</option>`).join('')}
+                                    ${lateCheckInsForDate.map(late => `<option>${formatTimeToAMPM(late.time)}</option>`).join('')}
                                 </select>`;
                             } else {
-                                lateCheckInDisplay = lateCheckInsForDate.length > 0 ? lateCheckInsForDate[0].time : '-';
+                                lateCheckInDisplay = lateCheckInsForDate.length > 0 ? formatTimeToAMPM(lateCheckInsForDate[0].time) : '-';
                             }
                             
                             // Highlight compensated entries
@@ -5902,7 +6300,7 @@ function addAttendanceRecord(type) {
             }
             // Weekly Attendance Summary Functions
             function showAdminSection(sectionName) {
-                const sections = ['adminAttendance', 'adminProgress', 'adminHolidays', 'adminTimeTable', 'adminTargets', 'weeklyAttendance'];
+                const sections = ['adminAttendance', 'adminProgress', 'adminHolidays', 'adminTimeTable', 'adminTargets', 'weeklyAttendance', 'adminCompensations'];
                 sections.forEach(section => {
                     const element = document.getElementById(section);
                     if (element) element.style.display = 'none';
@@ -5934,8 +6332,55 @@ function addAttendanceRecord(type) {
                         case 'weeklyAttendance':
                             loadWeeklyAttendanceSummary();
                             break;
+                        case 'adminCompensations':
+                            loadCompensationRecords(selectedUser);
+                            break;
                     }
                 }
+            }
+            
+            function loadCompensationRecords(selectedUser = '') {
+                const tableBody = document.getElementById('adminCompensationsTable');
+                if (!tableBody) return;
+                tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center">Loading compensation records...</td></tr>';
+                
+                // Get attendance records from Firebase
+                getFirebaseData('attendanceRecords', (firebaseRecords) => {
+                    // Use Firebase data or fallback to localStorage
+                    const attendanceRecords = firebaseRecords || JSON.parse(localStorage.getItem('attendanceRecords')) || [];
+                    
+                    // Filter for records that have compensation information
+                    const compensationRecords = attendanceRecords.filter(record => 
+                        record && record.compensated === true
+                    );
+                    
+                    // Further filter by selected user if specified
+                    const filteredRecords = selectedUser 
+                        ? compensationRecords.filter(record => record.employee === selectedUser)
+                        : compensationRecords;
+                    
+                    if (filteredRecords.length === 0) {
+                        tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center">No compensation records found</td></tr>';
+                        return;
+                    }
+                    
+                    // Sort by date (newest first)
+                    filteredRecords.sort((a, b) => new Date(b.compensatedOn) - new Date(a.compensatedOn));
+                    
+                    // Render compensation records
+                    filteredRecords.forEach(record => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${record.employee}</td>
+                            <td>${record.date}</td>
+                            <td>${record.day}</td>
+                            <td>${record.compensatedOn || '-'}</td>
+                            <td>${record.compensationReason || '-'}</td>
+                            <td>Compensated</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                });
             }
             
             function loadWeeklyAttendanceSummary() {
@@ -6041,7 +6486,7 @@ function addAttendanceRecord(type) {
                                 }
                                 
                                 // Display only the check-in in the cell, we'll show checkouts in dropdown
-                                cell.innerHTML = `<div>In: ${mainCheckIn || ''}</div>`;
+                                cell.innerHTML = `<div>In: ${mainCheckIn ? formatTimeToAMPM(mainCheckIn) : ''}</div>`;
                                 
                                 // Collect all check-outs for dropdown
                                 const checkOuts = [];
@@ -6077,7 +6522,7 @@ function addAttendanceRecord(type) {
                                     
                                     checkOuts.forEach(time => {
                                         const option = document.createElement('option');
-                                        option.textContent = time;
+                                        option.textContent = formatTimeToAMPM(time);
                                         checkOutSelect.appendChild(option);
                                     });
                                     
@@ -6096,7 +6541,7 @@ function addAttendanceRecord(type) {
                                     
                                     lateCheckInTimes.forEach(time => {
                                         const option = document.createElement('option');
-                                        option.textContent = time;
+                                        option.textContent = formatTimeToAMPM(time);
                                         lateCheckInSelect.appendChild(option);
                                     });
                                     
