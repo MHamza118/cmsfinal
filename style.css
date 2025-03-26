@@ -1309,30 +1309,108 @@ td select option[value="Needs Revision"] {
 /* Message Cell Styles */
 #adminProgressTable td:nth-child(4),
 #employeeProgressTable td:nth-child(3) {
-    max-width: 300px;
+    min-width: 400px;
+    max-width: 600px;
+    width: 40%;
     white-space: pre-wrap;
     word-break: break-word;
+    padding: 15px;
+    line-height: 1.5;
 }
 
-/* File Cell Styles */
-#adminProgressTable td:nth-child(5),
-#employeeProgressTable td:nth-child(4) {
+/* Adjust table layout to accommodate wider details column */
+#adminProgressTable,
+#employeeProgressTable {
+    table-layout: fixed;
+    width: 100%;
+}
+
+/* Set specific widths for other columns to balance the layout */
+#adminProgressTable td:not(:nth-child(4)),
+#employeeProgressTable td:not(:nth-child(3)) {
+    width: auto;
     white-space: nowrap;
 }
 
-/* Update form group spacing */
-.form-group {
-    margin-bottom: 25px;
+/* Make tables horizontally scrollable on smaller screens */
+#progressList,
+#adminProgress {
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 15px;
 }
 
-.form-group textarea {
+/* Ensure the remarks column doesn't get too wide */
+#adminProgressTable td:last-child,
+#employeeProgressTable td:last-child {
+    width: 200px;
+    max-width: 250px;
+}
+
+/* File column width */
+#adminProgressTable td:nth-child(5),
+#employeeProgressTable td:nth-child(4) {
+    width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Status column width */
+#adminProgressTable td:nth-child(7),
+#employeeProgressTable td:nth-child(5) {
+    width: 180px;
+    min-width: 180px;
+    white-space: normal;
+}
+
+/* Employee name column width (admin table only) */
+#adminProgressTable td:first-child {
+    width: 150px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Date and Time columns */
+#adminProgressTable td:nth-child(2),
+#adminProgressTable td:nth-child(3),
+#employeeProgressTable td:nth-child(1),
+#employeeProgressTable td:nth-child(2) {
+    width: 100px;
+    white-space: nowrap;
+}
+
+/* Status dropdown styles */
+#adminProgressTable select {
     width: 100%;
-    padding: 12px;
+    padding: 8px;
     border: 1px solid #ddd;
     border-radius: 4px;
-    resize: vertical;
-    min-height: 120px;
+    background-color: white;
     font-size: 14px;
+}
+
+#adminProgressTable select:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* Status option colors */
+#adminProgressTable select option[value="Pending"] {
+    color: #f39c12;
+    padding: 8px;
+}
+
+#adminProgressTable select option[value="Approved"] {
+    color: #27ae60;
+    padding: 8px;
+}
+
+#adminProgressTable select option[value="Needs Revision"] {
+    color: #e74c3c;
+    padding: 8px;
 }
 
 /* Mobile Styles (up to 480px) */
@@ -2282,4 +2360,121 @@ table thead {
 
 .download-btn:hover {
     background-color: #1c7593;
+}
+
+/* Remarks Styles */
+.remarks-container {
+    width: 100%;
+    min-width: 200px;
+}
+
+.admin-remarks {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.admin-remarks:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+.remarks-cell {
+    max-width: 250px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: #666;
+    font-style: italic;
+}
+
+/* Status Colors */
+.status-pending {
+    color: #f39c12;
+}
+
+.status-approved {
+    color: #27ae60;
+}
+
+.status-needs.revision {
+    color: #e74c3c;
+}
+
+/* Progress Report Table Adjustments */
+#adminProgressTable td,
+#employeeProgressTable td {
+    vertical-align: top;
+    padding: 15px;
+}
+
+#adminProgressTable .remarks-container,
+#employeeProgressTable .remarks-cell {
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* Password field styles */
+.password-field {
+    position: relative;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.password-field input {
+    width: 100%;
+    padding: 12px;
+    padding-right: 40px;
+    border: 1px solid rgba(46, 45, 45, 0.2);
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.1);
+    color: black;
+    margin-bottom: 0;
+}
+
+.password-field input:focus {
+    outline: none;
+    border-color: #00fffc;
+    box-shadow: 0 0 0 3px rgba(0, 255, 252, 0.2);
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: rgba(0, 0, 0, 0.6);
+    padding: 5px;
+    z-index: 1;
+    transition: all 0.3s ease;
+}
+
+.password-toggle:hover {
+    color: #2596be;
+}
+
+.password-toggle i {
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+/* Dark mode support for password field */
+body.dark-mode .password-field input {
+    background: rgba(0, 0, 0, 0.2);
+    color: white;
+}
+
+body.dark-mode .password-toggle {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+body.dark-mode .password-toggle:hover {
+    color: #00fffc;
 }
