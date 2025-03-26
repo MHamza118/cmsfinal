@@ -1,4 +1,3 @@
-
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDmVkS1JM0-fu1cXGRCqrxZ0J1gOiK5SkY",
@@ -25,22 +24,34 @@ function updateFirebaseData(path, data) {
 }
 
 function getFirebaseData(path, callback) {
-  database.ref(path).once('value', (snapshot) => {
-    callback(snapshot.val());
-  });
+  database.ref(path).once('value')
+    .then((snapshot) => {
+      callback(snapshot.val());
+    })
+    .catch((error) => {
+      console.error(`Error fetching data from ${path}:`, error);
+      callback(null);
+    });
 }
 
 function listenForChanges(path, callback) {
-  database.ref(path).on('value', (snapshot) => {
-    callback(snapshot.val());
-  });
+  const ref = database.ref(path);
+  ref.on('value', 
+    (snapshot) => {
+      callback(snapshot.val());
+    },
+    (error) => {
+      console.error(`Error listening to ${path}:`, error);
+    }
+  );
+  return ref; // Return ref for cleanup
 }
 
 // Data helpers that replace localStorage functionality
 function saveData(key, data) {
   // Save to Firebase
   saveToFirebase(key, data);
-  
+
   // Still save to localStorage as backup
   try {
     localStorage.setItem(key, JSON.stringify(data));
@@ -54,7 +65,7 @@ function getData(key, callback) {
   getFirebaseData(key, (firebaseData) => {
     if (firebaseData) {
       callback(firebaseData);
-      
+
       // Update localStorage with the latest data
       try {
         localStorage.setItem(key, JSON.stringify(firebaseData));
@@ -66,7 +77,7 @@ function getData(key, callback) {
       try {
         const localData = JSON.parse(localStorage.getItem(key)) || null;
         callback(localData);
-        
+
         // If we have local data but not Firebase data, update Firebase
         if (localData) {
           saveToFirebase(key, localData);
@@ -93,14 +104,14 @@ function setupDataListeners() {
     'employeeTasks',
     'notifications'
   ];
-  
+
   // First load all data from Firebase
   dataKeys.forEach(key => {
     getFirebaseData(key, (firebaseData) => {
       if (firebaseData) {
         // Update localStorage with firebase data
         localStorage.setItem(key, JSON.stringify(firebaseData));
-        
+
         // Update global variables if needed
         if (key === 'users' && typeof window.users !== 'undefined') {
           window.users = Object.assign({}, window.users, firebaseData);
@@ -115,7 +126,7 @@ function setupDataListeners() {
       }
     });
   });
-  
+
   // Then set up listeners for real-time updates
   listenForChanges('users', (users) => {
     if (users) {
@@ -126,39 +137,46 @@ function setupDataListeners() {
       }
     }
   });
-  
+
   listenForChanges('attendanceRecords', (records) => {
     if (records) localStorage.setItem('attendanceRecords', JSON.stringify(records));
   });
-  
-  listenForChanges('lateCheckIns', (records) => {
-    if (records) localStorage.setItem('lateCheckIns', JSON.stringify(records));
-  });
-  
+
   listenForChanges('missedCheckIns', (records) => {
     if (records) localStorage.setItem('missedCheckIns', JSON.stringify(records));
   });
-  
+
   listenForChanges('holidayRequests', (requests) => {
     if (requests) localStorage.setItem('holidayRequests', JSON.stringify(requests));
   });
-  
+
   listenForChanges('progressReports', (reports) => {
     if (reports) localStorage.setItem('progressReports', JSON.stringify(reports));
   });
-  
+
   listenForChanges('timeTables', (tables) => {
     if (tables) localStorage.setItem('timeTables', JSON.stringify(tables));
   });
-  
+
   listenForChanges('employeeTasks', (tasks) => {
     if (tasks) localStorage.setItem('employeeTasks', JSON.stringify(tasks));
   });
-  
+
   listenForChanges('notifications', (notifications) => {
     if (notifications) localStorage.setItem('notifications', JSON.stringify(notifications));
   });
 }
+
+// Add listener for late check-ins
+listenForChanges('lateCheckIns', (lateCheckIns) => {
+    if (lateCheckIns) {
+        localStorage.setItem('lateCheckIns', JSON.stringify(lateCheckIns));
+        // Refresh the attendance table if it's visible
+        if (document.getElementById('attendanceTable')) {
+            loadAttendanceTable();
+        }
+    }
+});
 
 // Call this on application start
 window.addEventListener('load', setupDataListeners);
