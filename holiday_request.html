@@ -192,15 +192,11 @@
           tableBody.appendChild(row);
         });
       }
-      document
-        .getElementById("holidayRequestForm")
-        .addEventListener("submit", function (e) {
+      document.getElementById("holidayRequestForm").addEventListener("submit", function (e) {
           e.preventDefault();
           const currentEmployee = getLoggedInEmployee();
           if (!currentEmployee) {
-            alert(
-              "Error: Could not determine employee name. Please try again."
-            );
+            alert("Error: Could not determine employee name. Please try again.");
             return;
           }
           const startDate = document.getElementById("startDate").value;
@@ -223,24 +219,17 @@
             status: "pending",
             submittedDate: new Date().toISOString(),
           };
-          
-          // Get current holiday requests from Firebase
           getFirebaseData("holidayRequests", (firebaseRequests) => {
             let holidayRequests = firebaseRequests || JSON.parse(
               localStorage.getItem("holidayRequests") || "[]"
             );
-            
             holidayRequests.push(holidayRequest);
-            
-            // Save to Firebase
             saveToFirebase("holidayRequests", holidayRequests)
               .then(() => {
-                // Also save to localStorage as backup
                 localStorage.setItem(
                   "holidayRequests",
                   JSON.stringify(holidayRequests)
                 );
-                
                 window.dispatchEvent(
                   new CustomEvent(STATUS_UPDATED_EVENT, {
                     detail: {
@@ -250,7 +239,6 @@
                     },
                   })
                 );
-                
                 if (window.opener && !window.opener.closed) {
                   window.opener.dispatchEvent(
                     new CustomEvent(STATUS_UPDATED_EVENT, {
@@ -262,18 +250,13 @@
                     })
                   );
                 }
-                
                 alert("Holiday request submitted successfully!");
                 document.getElementById("holidayRequestForm").reset();
                 loadRequestHistory();
               })
               .catch(error => {
                 console.error('Error saving holiday request to Firebase:', error);
-                // Still save to localStorage as backup
-                localStorage.setItem(
-                  "holidayRequests",
-                  JSON.stringify(holidayRequests)
-                );
+                localStorage.setItem( "holidayRequests", JSON.stringify(holidayRequests) );
                 alert("Holiday request submitted successfully (saved locally)!");
                 document.getElementById("holidayRequestForm").reset();
                 loadRequestHistory();

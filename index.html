@@ -1361,53 +1361,64 @@
                 }
                 window.addEventListener("load", () => {
                     getFirebaseData("users", (firebaseUsers) => {
-                        if (firebaseUsers) {
-                            Object.keys(firebaseUsers).forEach((username) => {
-                                users[username] = firebaseUsers[username];
+                        const savedUsers = firebaseUsers || {};
+                        const selectElement = document.getElementById("adminUserSelect");
+                        if (selectElement) {
+                            // Clear existing options except the first one
+                            while (selectElement.options.length > 1) {
+                                selectElement.remove(1);
+                            }
+                            
+                            // Add hardcoded employees first
+                            Object.keys(users).forEach((username) => {
+                                if (username !== "admin") {
+                                    const option = document.createElement("option");
+                                    option.value = username;
+                                    option.textContent = username;
+                                    selectElement.appendChild(option);
+                                }
                             });
-                            localStorage.setItem("users", JSON.stringify(users));
-                            const selectElement =
-                                document.getElementById("adminUserSelect");
-                            if (selectElement) {
-                                while (selectElement.options.length > 1) {
-                                    selectElement.remove(1);
+
+                            // Add users from Firebase (excluding any that are already in the hardcoded list)
+                            Object.keys(savedUsers).forEach((username) => {
+                                if (username !== "admin" && !users[username]) {
+                                    const option = document.createElement("option");
+                                    option.value = username;
+                                    option.textContent = username;
+                                    selectElement.appendChild(option);
                                 }
-                                Object.keys(users).forEach((username) => {
-                                    if (username !== "admin") {
-                                        const option = document.createElement("option");
-                                        option.value = username;
-                                        option.textContent = username;
-                                        selectElement.appendChild(option);
-                                    }
-                                });
-                            }
-                        } else {
-                            const savedUsers = localStorage.getItem("users");
-                            if (savedUsers) {
-                                const parsedUsers = JSON.parse(savedUsers);
-                                Object.keys(parsedUsers).forEach((username) => {
-                                    if (!users[username]) {
-                                        users[username] = parsedUsers[username];
-                                    }
-                                });
-                                saveToFirebase("users", users);
-                                const selectElement =
-                                    document.getElementById("adminUserSelect");
-                                if (selectElement) {
-                                    while (selectElement.options.length > 1) {
-                                        selectElement.remove(1);
-                                    }
-                                    Object.keys(users).forEach((username) => {
-                                        if (username !== "admin") {
-                                            const option = document.createElement("option");
-                                            option.value = username;
-                                            option.textContent = username;
-                                            selectElement.appendChild(option);
-                                        }
-                                    });
-                                }
-                            }
+                            });
                         }
+                    });
+
+                    getFirebaseData("attendanceRecords", (firebaseRecords) => {
+                        const attendanceRecords = firebaseRecords || [];
+                        // Removed localStorage fallback
+                    });
+
+                    getFirebaseData("lateCheckIns", (firebaseLateCheckIns) => {
+                        const lateCheckIns = firebaseLateCheckIns || [];
+                        // Removed localStorage fallback
+                    });
+
+                    getFirebaseData("holidayRequests", (firebaseHolidayRequests) => {
+                        const holidayRequests = firebaseHolidayRequests || [];
+                        // Removed localStorage fallback
+                    });
+
+                    getFirebaseData("progressReports", (firebaseProgressReports) => {
+                        const progressReports = firebaseProgressReports || [];
+                        // Removed localStorage fallback
+                    });
+
+                    getFirebaseData("employeeTasks", (firebaseTasks) => {
+                        const tasks = firebaseTasks || [];
+                        // Removed localStorage fallback
+                    });
+
+                    getFirebaseData("notifications", (firebaseNotifications) => {
+                        const notifications = firebaseNotifications || [];
+                        // Removed localStorage fallback
                     });
                 });
                 const users = {
@@ -1580,13 +1591,7 @@
                         const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
                         const employeeSchedule = timeTables.find((t) => t.employee === employee);
                         
-                        // Check if employee has set up schedule for the entire week
-                        const hasWeeklySchedule = employeeSchedule && 
-                            ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].every(day => 
-                                employeeSchedule[day]?.slots && employeeSchedule[day].slots.length > 0
-                            );
-
-                        if (!employeeSchedule || (!employeeSchedule[day.toLowerCase()]?.slots && !hasWeeklySchedule)) {
+                        if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) {
                             alert("Please set up your schedule for today first.");
                             return;
                         }
@@ -1598,13 +1603,15 @@
                             const timeB = new Date(`1970-01-01T${b.checkIn}`);
                             return timeA - timeB;
                         });
+
                         let canCheckIn = false;
                         for (const slot of sortedSlots) {
                             const slotStart = new Date(`1970-01-01T${slot.checkIn}`);
                             const slotEnd = new Date(`1970-01-01T${slot.checkOut}`);
                             const earlyCheckIn = new Date(slotStart.getTime() - 30 * 60 * 1000);
-                            const lateCheckIn = new Date(slotStart.getTime() + 60 * 60 * 1000); // Changed from 2 hours to 60 minutes
-                        if (currentTime >= earlyCheckIn && currentTime <= lateCheckIn) {
+                            const lateCheckIn = new Date(slotStart.getTime() + 60 * 60 * 1000);
+
+                            if (currentTime >= earlyCheckIn && currentTime <= lateCheckIn) {
                                 canCheckIn = true;
                                 if (currentTime > slotStart) {
                                     const minutesLate = Math.floor((currentTime - slotStart) / (60 * 1000));
@@ -1628,10 +1635,8 @@
                 }
                 function recordCheckIn(employee, date, day, time, isLate) {
                     getFirebaseData("attendanceRecords", (firebaseRecords) => {
-                        let attendanceRecords =
-                            firebaseRecords ||
-                            JSON.parse(localStorage.getItem("attendanceRecords")) ||
-                            [];
+                        const attendanceRecords = firebaseRecords || [];
+                        // Removed localStorage fallback
                         const recordIndex = attendanceRecords.findIndex(
                             (record) => record.employee === employee && record.date === date
                         );
@@ -1653,7 +1658,7 @@
                                     time,
                                 ];
                             } else {
-                            attendanceRecords[recordIndex].checkIn = time;
+                                attendanceRecords[recordIndex].checkIn = time;
                             }
                             if (isLate) {
                                 attendanceRecords[recordIndex].isLate = true;
@@ -1661,10 +1666,6 @@
                         }
                         saveToFirebase("attendanceRecords", attendanceRecords)
                             .then(() => {
-                                localStorage.setItem(
-                                    "attendanceRecords",
-                                    JSON.stringify(attendanceRecords)
-                                );
                                 alert(
                                     isLate
                                         ? "Late check-in recorded successfully!"
@@ -1677,10 +1678,6 @@
                                 console.error(
                                     "Error saving attendance record to Firebase:",
                                     error
-                                );
-                                localStorage.setItem(
-                                    "attendanceRecords",
-                                    JSON.stringify(attendanceRecords)
                                 );
                                 alert(
                                     isLate
@@ -1710,10 +1707,7 @@
                     ][now.getDay()];
                     const time = now.toLocaleTimeString();
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables =
-                            firebaseTimeTables ||
-                            JSON.parse(localStorage.getItem("timeTables")) ||
-                            [];
+                        const timeTables = firebaseTimeTables;
                         const employeeSchedule = timeTables.find(
                             (t) => t.employee === employee
                         );
@@ -1744,10 +1738,8 @@
                 }
                 function recordCheckOut(employee, date, day, time) {
                     getFirebaseData("attendanceRecords", (firebaseRecords) => {
-                        let attendanceRecords =
-                            firebaseRecords ||
-                            JSON.parse(localStorage.getItem("attendanceRecords")) ||
-                            [];
+                        const attendanceRecords = firebaseRecords || [];
+                        // Removed localStorage fallback
                         const recordIndex = attendanceRecords.findIndex(
                             (record) => record.employee === employee && record.date === date
                         );
@@ -1773,10 +1765,6 @@
                         }
                         saveToFirebase("attendanceRecords", attendanceRecords)
                             .then(() => {
-                                localStorage.setItem(
-                                    "attendanceRecords",
-                                    JSON.stringify(attendanceRecords)
-                                );
                                 alert("Check-out recorded successfully!");
                                 loadAttendanceTable();
                                 updateSummaryValues();
@@ -1785,10 +1773,6 @@
                                 console.error(
                                     "Error saving attendance record to Firebase:",
                                     error
-                                );
-                                localStorage.setItem(
-                                    "attendanceRecords",
-                                    JSON.stringify(attendanceRecords)
                                 );
                                 alert("Check-out recorded successfully!");
                                 loadAttendanceTable();
@@ -4727,6 +4711,23 @@
                             onError(error);
                         });
                 }
+                getFirebaseData("users", (firebaseUsers) => {
+                    const savedUsers = firebaseUsers || {};
+                    const selectElement = document.getElementById("adminUserSelect");
+                    if (selectElement) {
+                        while (selectElement.options.length > 1) {
+                            selectElement.remove(1);
+                        }
+                        Object.keys(savedUsers).forEach((username) => {
+                            if (username !== "admin") {
+                                const option = document.createElement("option");
+                                option.value = username;
+                                option.textContent = username;
+                                selectElement.appendChild(option);
+                            }
+                        });
+                    }
+                });
             </script>
         </div>
     </div>
