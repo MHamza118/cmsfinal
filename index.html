@@ -1747,10 +1747,10 @@
                 function recordCheckIn(employee, date, day, time, isLate) {
                     getFirebaseData("attendanceRecords", (firebaseRecords) => {
                         const attendanceRecords = firebaseRecords || [];
-                        // Removed localStorage fallback
                         const recordIndex = attendanceRecords.findIndex(
                             (record) => record.employee === employee && record.date === date
                         );
+                        
                         if (recordIndex === -1) {
                             const newRecord = {
                                 employee: employee,
@@ -1758,6 +1758,7 @@
                                 day: day,
                                 checkIn: time,
                                 isLate: isLate,
+                                timestamp: new Date().toISOString() // Add timestamp for sorting
                             };
                             attendanceRecords.push(newRecord);
                         } else {
@@ -1774,25 +1775,18 @@
                             if (isLate) {
                                 attendanceRecords[recordIndex].isLate = true;
                             }
+                            attendanceRecords[recordIndex].timestamp = new Date().toISOString(); // Update timestamp
                         }
+
                         saveToFirebase("attendanceRecords", attendanceRecords)
                             .then(() => {
-                                alert(isLate ? "Late check-in recorded successfully!" : "Check-in recorded successfully!");
+                                alert("Check-in recorded successfully!");
                                 loadAttendanceTable();
                                 updateSummaryValues();
                             })
                             .catch((error) => {
-                                console.error(
-                                    "Error saving attendance record to Firebase:",
-                                    error
-                                );
-                                alert(
-                                    isLate
-                                        ? "Late check-in recorded successfully!"
-                                        : "Check-in recorded successfully!"
-                                );
-                                loadAttendanceTable();
-                                updateSummaryValues();
+                                console.error("Error saving attendance record to Firebase:", error);
+                                alert("Error recording check-in. Please try again.");
                             });
                     });
                 }
@@ -1846,16 +1840,17 @@
                 function recordCheckOut(employee, date, day, time) {
                     getFirebaseData("attendanceRecords", (firebaseRecords) => {
                         const attendanceRecords = firebaseRecords || [];
-                        // Removed localStorage fallback
                         const recordIndex = attendanceRecords.findIndex(
                             (record) => record.employee === employee && record.date === date
                         );
+                        
                         if (recordIndex === -1) {
                             const newRecord = {
                                 employee: employee,
                                 date: date,
                                 day: day,
                                 checkOut: time,
+                                timestamp: new Date().toISOString() // Add timestamp for sorting
                             };
                             attendanceRecords.push(newRecord);
                         } else {
@@ -1869,7 +1864,9 @@
                             } else {
                                 attendanceRecords[recordIndex].checkOut = time;
                             }
+                            attendanceRecords[recordIndex].timestamp = new Date().toISOString(); // Update timestamp
                         }
+
                         saveToFirebase("attendanceRecords", attendanceRecords)
                             .then(() => {
                                 alert("Check-out recorded successfully!");
@@ -1877,13 +1874,8 @@
                                 updateSummaryValues();
                             })
                             .catch((error) => {
-                                console.error(
-                                    "Error saving attendance record to Firebase:",
-                                    error
-                                );
-                                alert("Check-out recorded successfully!");
-                                loadAttendanceTable();
-                                updateSummaryValues();
+                                console.error("Error saving attendance record to Firebase:", error);
+                                alert("Error recording check-out. Please try again.");
                             });
                     });
                 }
@@ -2746,21 +2738,39 @@
                 function saveTimeTable() {
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     
-                    // Convert all times to UTC before saving
+                    // Get all time slots and convert to UTC
                     const timeTable = {
                         employee: employee,
                         weekStart: new Date().toISOString(),
-                        sunday: { slots: getTimeSlots("sunday", true) },
-                        monday: { slots: getTimeSlots("monday", true) },
-                        tuesday: { slots: getTimeSlots("tuesday", true) },
-                        wednesday: { slots: getTimeSlots("wednesday", true) },
-                        thursday: { slots: getTimeSlots("thursday", true) },
-                        friday: { slots: getTimeSlots("friday", true) },
-                        saturday: { slots: getTimeSlots("saturday", true) }
+                        sunday: { slots: getTimeSlots("sunday") },
+                        monday: { slots: getTimeSlots("monday") },
+                        tuesday: { slots: getTimeSlots("tuesday") },
+                        wednesday: { slots: getTimeSlots("wednesday") },
+                        thursday: { slots: getTimeSlots("thursday") },
+                        friday: { slots: getTimeSlots("friday") },
+                        saturday: { slots: getTimeSlots("saturday") }
                     };
 
+                    // Convert all times to UTC before saving
+                    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                    days.forEach(day => {
+                        if (timeTable[day]?.slots) {
+                            timeTable[day].slots = timeTable[day].slots.map(slot => {
+                                const localCheckIn = new Date(`1970-01-01T${slot.checkIn}`);
+                                const localCheckOut = new Date(`1970-01-01T${slot.checkOut}`);
+                                
+                                return {
+                                    checkIn: new Date(localCheckIn.getTime() - localCheckIn.getTimezoneOffset() * 60000)
+                                        .toISOString().split('T')[1].split('.')[0],
+                                    checkOut: new Date(localCheckOut.getTime() - localCheckOut.getTimezoneOffset() * 60000)
+                                        .toISOString().split('T')[1].split('.')[0]
+                                };
+                            });
+                        }
+                    });
+
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        let timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
+                        let timeTables = firebaseTimeTables || [];
                         const existingIndex = timeTables.findIndex(t => t.employee === employee);
                         
                         if (existingIndex !== -1) {
@@ -2769,6 +2779,7 @@
                             timeTables.push(timeTable);
                         }
 
+                        // Save to Firebase first
                         saveToFirebase("timeTables", timeTables)
                             .then(() => {
                                 localStorage.setItem("timeTables", JSON.stringify(timeTables));
@@ -2980,6 +2991,14 @@
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     getFirebaseData("attendanceRecords", (firebaseAttendanceRecords) => {
                         let attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+                        
+                        // Sort records by timestamp in descending order (newest first)
+                        attendanceRecords.sort((a, b) => {
+                            const dateA = new Date(a.timestamp || a.date);
+                            const dateB = new Date(b.timestamp || b.date);
+                            return dateB - dateA;
+                        });
+
                         attendanceRecords = attendanceRecords.map((record) => ({
                             ...record,
                             checkIn: record.checkIn
@@ -2993,6 +3012,7 @@
                                     : [record.checkOut]
                                 : [],
                         }));
+                        
                         localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
                         const tableBody = document.getElementById("attendanceTable");
                         const adminTableBody = document.getElementById("adminAttendanceTable");
@@ -4810,7 +4830,7 @@
                         });
                     }
                 });
-                function getTimeSlots(day, convertToUTC = false) {
+                function getTimeSlots(day) {
                     const daySlots = document.getElementById(`${day}Slots`);
                     const slots = [];
                     
@@ -4820,21 +4840,7 @@
                         const checkOut = inputs[1].value;
                         
                         if (checkIn && checkOut) {
-                            if (convertToUTC) {
-                                // Convert local time to UTC
-                                const localCheckIn = new Date(`1970-01-01T${checkIn}`);
-                                const localCheckOut = new Date(`1970-01-01T${checkOut}`);
-                                
-                                const utcCheckIn = new Date(localCheckIn.getTime() - localCheckIn.getTimezoneOffset() * 60000);
-                                const utcCheckOut = new Date(localCheckOut.getTime() - localCheckOut.getTimezoneOffset() * 60000);
-                                
-                                slots.push({
-                                    checkIn: utcCheckIn.toISOString().split('T')[1].split('.')[0],
-                                    checkOut: utcCheckOut.toISOString().split('T')[1].split('.')[0]
-                                });
-                            } else {
-                                slots.push({ checkIn, checkOut });
-                            }
+                            slots.push({ checkIn, checkOut });
                         }
                     });
                     
