@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -34,43 +35,53 @@
             color: #666;
             font-style: italic;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
+
         th,
         td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
+
         th {
             background-color: #f2f2f2;
         }
+
         tr:nth-child(even) {
             background-color: #f9f9f9;
         }
+
         tr:hover {
             background-color: #f5f5f5;
         }
+
         .status-pending {
             color: #f39c12;
             font-weight: bold;
         }
+
         .status-approved {
             color: #27ae60;
             font-weight: bold;
         }
+
         .status-rejected {
             color: #c0392b;
             font-weight: bold;
         }
+
         .status-uninformed {
             color: #e74c3c;
             font-weight: bold;
             text-decoration: underline;
         }
+
         .filter-section {
             margin: 20px 0;
             padding: 15px;
@@ -80,10 +91,12 @@
             align-items: center;
             gap: 10px;
         }
+
         .filter-section span {
             font-weight: bold;
             color: #333;
         }
+
         .filter-section select {
             padding: 8px;
             border: 1px solid #ddd;
@@ -92,18 +105,22 @@
             min-width: 120px;
             cursor: pointer;
         }
+
         .filter-section select:hover {
             border-color: #aaa;
         }
+
         .filter-section select:focus {
             outline: none;
             border-color: #4CAF50;
             box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
         }
+
         .action-buttons {
             display: flex;
             gap: 8px;
         }
+
         .approve-btn,
         .reject-btn {
             padding: 6px 12px;
@@ -113,37 +130,45 @@
             font-size: 14px;
             transition: background-color 0.2s;
         }
+
         .approve-btn {
             background-color: #27ae60;
             color: white;
         }
+
         .reject-btn {
             background-color: #e74c3c;
             color: white;
         }
+
         .approve-btn:hover {
             background-color: #219a52;
         }
+
         .reject-btn:hover {
             background-color: #c0392b;
         }
+
         #adminHolidays h2 {
             color: #2c3e50;
             margin-bottom: 20px;
             font-size: 24px;
         }
+
         .no-requests {
             text-align: center;
             color: #666;
             padding: 20px;
             font-style: italic;
         }
+
         .notification-icon {
             font-size: 24px;
             cursor: pointer;
             position: relative;
             margin-left: 20px;
         }
+
         .notification-icon .badge {
             position: absolute;
             top: -5px;
@@ -154,6 +179,7 @@
             padding: 2px 6px;
             font-size: 12px;
         }
+
         #notificationPopup {
             display: none;
             position: absolute;
@@ -164,6 +190,7 @@
             z-index: 1000;
             width: 200px;
         }
+
         .summary-section {
             display: flex;
             flex-direction: column;
@@ -173,32 +200,38 @@
             border-radius: 8px;
             margin-bottom: 20px;
         }
+
         .summary-row {
             display: flex;
             justify-content: space-between;
             gap: 20px;
         }
+
         .summary-item {
             flex: 1;
             text-align: center;
         }
+
         .summary-item h4 {
             margin: 0;
             color: #495057;
             font-size: 14px;
         }
+
         .summary-item p {
             margin: 0;
             font-size: 24px;
             font-weight: bold;
             color: #0d6efd;
         }
+
         .summary-row.values .summary-item {
             padding: 10px;
             background-color: white;
             border-radius: 4px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
+
         .download-btn {
             background-color: #4CAF50;
             color: white;
@@ -208,9 +241,11 @@
             cursor: pointer;
             font-size: 14px;
         }
+
         .download-btn:hover {
             background-color: #45a049;
         }
+
         .modal {
             display: none;
             position: fixed;
@@ -221,6 +256,7 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.4);
         }
+
         .modal-content {
             display: none;
             position: fixed;
@@ -235,6 +271,7 @@
             width: 90%;
             max-width: 600px;
         }
+
         .modal-content .close {
             position: absolute;
             right: 20px;
@@ -253,19 +290,23 @@
             text-align: center;
             padding-top: 2px;
         }
+
         .modal-content .close:hover {
             background-color: #c0392b;
         }
+
         .modal-content h2 {
             margin-top: 0;
             color: #2c3e50;
             margin-bottom: 20px;
         }
+
         .modal-content table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
+
         .modal-content th {
             background: linear-gradient(135deg, #2596be 0%, #1c7593 100%);
             color: white !important;
@@ -273,19 +314,23 @@
             padding: 16px !important;
             text-align: left;
         }
+
         .modal-content td {
             padding: 12px;
             border-bottom: 1px solid #eee;
         }
+
         .modal-content tr:last-child td {
             border-bottom: none;
         }
+
         .modal-content input[type="time"] {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             width: 100%;
         }
+
         .modal-content button {
             background: linear-gradient(135deg, #2596be 0%, #1c7593 100%);
             color: white;
@@ -296,6 +341,7 @@
             font-weight: 500;
             margin-top: 10px;
         }
+
         .holiday-modal {
             display: none;
             position: fixed;
@@ -311,6 +357,7 @@
             overflow-y: auto;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
+
         .holiday-modal .section-header {
             padding-bottom: 15px;
             margin-bottom: 20px;
@@ -321,12 +368,14 @@
             color: white;
             position: relative;
         }
+
         .holiday-modal .section-header h2 {
             color: white;
             font-size: 1.5em;
             margin: 0;
             font-weight: 600;
         }
+
         .holiday-modal .close-btn {
             position: absolute;
             right: 20px;
@@ -340,17 +389,21 @@
             line-height: 1;
             opacity: 0.8;
         }
+
         .holiday-modal .close-btn:hover {
             opacity: 1;
         }
+
         .main-content {
             overflow-y: auto;
             height: calc(100vh - 100px);
         }
+
         #timeTableContent {
             overflow-y: auto;
             max-height: 600px;
         }
+
         .edit-btn {
             background: #2596be;
             color: white;
@@ -360,30 +413,37 @@
             cursor: pointer;
             margin-left: 10px;
         }
+
         .edit-btn:hover {
             background: #1c7593;
         }
+
         .weekly-summary-table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 20px;
         }
+
         .weekly-summary-table th,
         .weekly-summary-table td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: center;
         }
+
         .weekly-summary-table th {
             background-color: #1c7593;
             color: white;
         }
+
         .weekly-summary-table tr:nth-child(even) {
             background-color: #f9f9f9;
         }
+
         .weekly-summary-table tr:hover {
             background-color: #f5f5f5;
         }
+
         .weekly-summary-table select.time-select {
             width: 100px;
             padding: 4px;
@@ -391,20 +451,24 @@
             border-radius: 4px;
             background-color: white;
         }
+
         .weekly-summary-table select.time-select:hover {
             border-color: #1c7593;
         }
+
         .weekly-summary-table select.time-select:focus {
             outline: none;
             border-color: #1c7593;
             box-shadow: 0 0 3px rgba(28, 117, 147, 0.3);
         }
+
         @media screen and (max-width: 768px) {
             .weekly-summary-table {
                 display: block;
                 overflow-x: auto;
                 white-space: nowrap;
             }
+
             .weekly-summary-table select.time-select {
                 width: 80px;
                 font-size: 12px;
@@ -412,6 +476,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Login Page -->
     <div id="loginPage">
@@ -419,7 +484,7 @@
             <h1>FSPro Login</h1>
             <input type="text" id="userName" placeholder="Username" />
             <div class="password-field">
-            <input type="password" id="userPassword" placeholder="Password" />
+                <input type="password" id="userPassword" placeholder="Password" />
                 <span class="password-toggle" onclick="togglePasswordVisibility()">
                     <i class="fas fa-eye"></i>
                 </span>
@@ -616,7 +681,8 @@
                     </div>
                     <div class="form-group">
                         <label for="compensateDate">Date for Compensation</label>
-                        <input type="date" id="compensateDate" required placeholder="Compensation Date" onchange="updateCompensateDay()" />
+                        <input type="date" id="compensateDate" required placeholder="Compensation Date"
+                            onchange="updateCompensateDay()" />
                     </div>
                     <div class="form-group">
                         <label for="compensateDay">Day</label>
@@ -661,13 +727,16 @@
                 <div id="progress-section" class="section" style="display: none">
                     <h2>Submit Daily Progress</h2>
                     <div class="form-group">
-                        <textarea id="progressMessage" rows="4" required placeholder="Enter your progress details here..."></textarea>
+                        <textarea id="progressMessage" rows="4" required
+                            placeholder="Enter your progress details here..."></textarea>
                     </div>
                     <div class="file-upload-container">
                         <label for="progressFile" class="file-upload-label">
                             <span class="file-icon">📎</span>
                             <span>Attach File</span>
-                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24'%3E%3Cpath fill='%234CAF50' d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E"id="fileUploadedIcon" style="display: none; margin-left: 5px; vertical-align: middle;" alt="File uploaded" />
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='24' height='24'%3E%3Cpath fill='%234CAF50' d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E"
+                                id="fileUploadedIcon" style="display: none; margin-left: 5px; vertical-align: middle;"
+                                alt="File uploaded" />
                         </label>
                         <input type="file" id="progressFile" hidden onchange="handleFileSelect(this)" />
                         <span id="fileName"></span>
@@ -741,8 +810,10 @@
                     <option value="zain">Zain</option>
                     <option value="hanzallah">Hanzallah</option>
                 </select>
-                <button id="addEmployeeBtn" onclick="openAddEmployeeModal()" style="background: white">Add Employee</button>
-                <button id="uninformedLeaveBtn" onclick="addUninformedLeave()" style="background: white">Uninformed Leave</button>
+                <button id="addEmployeeBtn" onclick="openAddEmployeeModal()" style="background: white">Add
+                    Employee</button>
+                <button id="uninformedLeaveBtn" onclick="addUninformedLeave()" style="background: white">Uninformed
+                    Leave</button>
             </div>
             <!-- Add Employee Modal -->
             <div id="addEmployeeModal" class="modal">
@@ -775,7 +846,8 @@
                     </div>
                     <div class="form-group" style="margin-top: 20px">
                         <label for="deleteEmployeeSelect"></label>
-                        <select id="deleteEmployeeSelect" style=" width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <select id="deleteEmployeeSelect"
+                            style=" width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                             <option value="">Select an employee</option>
                         </select>
                     </div>
@@ -792,13 +864,19 @@
             <div class="sidebar-overlay" onclick="closeAdminMobileMenu()"></div>
             <div class="left-sidebar">
                 <div class="main-buttons">
-                    <button onclick="showAdminSection('adminAttendance'); closeAdminMobileMenu();" class="active">Attendance</button>
-                    <button onclick="showAdminSection('weeklyAttendance'); closeAdminMobileMenu();">Weekly Attendance Summary</button>
-                    <button onclick="showAdminSection('adminProgress'); closeAdminMobileMenu();">Progress Reports</button>
-                    <button onclick="showAdminSection('adminHolidays'); closeAdminMobileMenu();">Holiday Requests</button>
-                    <button onclick="showAdminSection('adminTimeTable'); closeAdminMobileMenu();">View Time Table</button>
+                    <button onclick="showAdminSection('adminAttendance'); closeAdminMobileMenu();"
+                        class="active">Attendance</button>
+                    <button onclick="showAdminSection('weeklyAttendance'); closeAdminMobileMenu();">Weekly Attendance
+                        Summary</button>
+                    <button onclick="showAdminSection('adminProgress'); closeAdminMobileMenu();">Progress
+                        Reports</button>
+                    <button onclick="showAdminSection('adminHolidays'); closeAdminMobileMenu();">Holiday
+                        Requests</button>
+                    <button onclick="showAdminSection('adminTimeTable'); closeAdminMobileMenu();">View Time
+                        Table</button>
                     <button onclick="showAdminSection('adminTargets'); closeAdminMobileMenu();">Assign Tasks</button>
-                    <button onclick="showAdminSection('adminCompensations'); closeAdminMobileMenu();">Compensation Records</button>
+                    <button onclick="showAdminSection('adminCompensations'); closeAdminMobileMenu();">Compensation
+                        Records</button>
                     <button onclick="logout()">Logout</button>
                 </div>
                 <div class="bottom-buttons"></div>
@@ -824,12 +902,15 @@
                 <div class="main-content">
                     <div id="adminAttendance" style="display: block">
                         <h2>Employee Attendance</h2>
-                        <select id="reportType" style=" padding: 8px; border-radius: 5px; background-color: #2596be; color: white;">
+                        <select id="reportType"
+                            style=" padding: 8px; border-radius: 5px; background-color: #2596be; color: white;">
                             <option value="daily">Daily Report</option>
                             <option value="weekly">Weekly Report</option>
                             <option value="monthly">Monthly Report</option>
                         </select>
-                        <button onclick="generateReport()" style="color: white; padding: 8px; border: 1px solid black"><i class="fa-solid fa-download"></i></button>
+                        <button onclick="generateReport()"
+                            style="color: white; padding: 8px; border: 1px solid black"><i
+                                class="fa-solid fa-download"></i></button>
                         <table>
                             <thead>
                                 <tr>
@@ -880,7 +961,8 @@
                     <div id="adminTimeTable" style="display: none" class="admin-timetable-section">
                         <div class="section-header">
                             <h2>Employee Time Table</h2>
-                            <p class="selected-employee">Viewing schedule for:<span id="selectedEmployeeName">No employee selected</span></p>
+                            <p class="selected-employee">Viewing schedule for:<span id="selectedEmployeeName">No
+                                    employee selected</span></p>
                         </div>
                         <button onclick="openEditTimeTableModal()" class="edit-timetable-btn">Edit Time Table</button>
                         <div class="timetable-container">
@@ -936,7 +1018,8 @@
                         <!-- Edit Time Table Modal -->
                         <div id="editTimeTableModal" class="modal">
                             <div class="modal-content" id="editTimeTableContent">
-                                <span class="close" onclick="closeEditTimeTableModal()"><i class="fa-solid fa-xmark"></i></span>
+                                <span class="close" onclick="closeEditTimeTableModal()"><i
+                                        class="fa-solid fa-xmark"></i></span>
                                 <h2>Edit Time Table</h2>
                                 <div class="timetable-day-container">
                                     <div class="day-heading">Monday</div>
@@ -947,7 +1030,8 @@
                                             <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
                                         </div>
                                     </div>
-                                    <button class="add-slot-btn" onclick="addTimeSlot('editMonday')">+ Add Time Slot</button>
+                                    <button class="add-slot-btn" onclick="addTimeSlot('editMonday')">+ Add Time
+                                        Slot</button>
                                     <div class="day-heading">Tuesday</div>
                                     <div id="editTuesdaySlots" class="time-slots">
                                         <div class="time-slot-row">
@@ -956,16 +1040,18 @@
                                             <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
                                         </div>
                                     </div>
-                                    <button class="add-slot-btn" onclick="addTimeSlot('editTuesday')">+ Add Time Slot</button>
+                                    <button class="add-slot-btn" onclick="addTimeSlot('editTuesday')">+ Add Time
+                                        Slot</button>
                                     <div class="day-heading">Wednesday</div>
                                     <div id="editWednesdaySlots" class="time-slots">
                                         <div class="time-slot-row">
                                             <input type="time" class="time-input" />
                                             <input type="time" class="time-input" />
-                                            <button class="remove-slot" onclick="removeTimeSlot(this)"×</button>
-                                </div>
+                                            <button class="remove-slot" onclick="removeTimeSlot(this)" ×></button>
+                                        </div>
                                     </div>
-                                    <button class="add-slot-btn" onclick="addTimeSlot('editWednesday')">+ Add Time Slot</button>
+                                    <button class="add-slot-btn" onclick="addTimeSlot('editWednesday')">+ Add Time
+                                        Slot</button>
                                     <div class="day-heading">Thursday</div>
                                     <div id="editThursdaySlots" class="time-slots">
                                         <div class="time-slot-row">
@@ -974,7 +1060,8 @@
                                             <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
                                         </div>
                                     </div>
-                                    <button class="add-slot-btn" onclick="addTimeSlot('editThursday')">+ Add Time Slot</button>
+                                    <button class="add-slot-btn" onclick="addTimeSlot('editThursday')">+ Add Time
+                                        Slot</button>
                                     <div class="day-heading">Friday</div>
                                     <div id="editFridaySlots" class="time-slots">
                                         <div class="time-slot-row">
@@ -983,7 +1070,8 @@
                                             <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
                                         </div>
                                     </div>
-                                    <button class="add-slot-btn" onclick="addTimeSlot('editFriday')">+ Add Time Slot</button>
+                                    <button class="add-slot-btn" onclick="addTimeSlot('editFriday')">+ Add Time
+                                        Slot</button>
                                     <div class="day-heading">Saturday</div>
                                     <div id="editSaturdaySlots" class="time-slots">
                                         <div class="time-slot-row">
@@ -992,7 +1080,8 @@
                                             <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
                                         </div>
                                     </div>
-                                    <button class="add-slot-btn" onclick="addTimeSlot('editSaturday')">+ Add Time Slot</button>
+                                    <button class="add-slot-btn" onclick="addTimeSlot('editSaturday')">+ Add Time
+                                        Slot</button>
                                 </div>
                                 <button class="save-timetable-btn" onclick="saveEditedTimeTable()">Save Changes</button>
                             </div>
@@ -1046,9 +1135,11 @@
                         </table>
                     </div>
                     <div id="weeklyAttendance" style="display: none">
-                        <h1 style=" color: white; background-color: #1c7593; padding: 15px; text-align: center; ">Weekly Attendance Summary</h1>
+                        <h1 style=" color: white; background-color: #1c7593; padding: 15px; text-align: center; ">Weekly
+                            Attendance Summary</h1>
                         <div style="margin: 15px 0">
-                            <button onclick="downloadWeeklySummary()" class="download-btn" style="padding: 8px 15px"><i class="fas fa-download"></i> Download Summary</button>
+                            <button onclick="downloadWeeklySummary()" class="download-btn" style="padding: 8px 15px"><i
+                                    class="fas fa-download"></i> Download Summary</button>
                         </div>
                         <table id="weeklyAttendanceTable" class="weekly-summary-table">
                             <thead>
@@ -1091,7 +1182,8 @@
                     </div>
                     <!-- Admin Tasks/Targets Section -->
                     <div id="adminTargets" style="display: none">
-                        <h1 style=" color: white; background-color: #1c7593; padding: 15px; text-align: center;">Tasks Management</h1>
+                        <h1 style=" color: white; background-color: #1c7593; padding: 15px; text-align: center;">Tasks
+                            Management</h1>
                         <h4 style="padding: 10px">Assign Tasks To the selected Employee</h4>
                         <div class="task-form">
                             <label for="taskDate">Date:</label>
@@ -1203,7 +1295,7 @@
                     document.getElementById("addEmployeeModal").style.display = "block";
                     document.getElementById("modalOverlay").style.display = "block";
                     const deleteEmployeeSelect = document.getElementById("deleteEmployeeSelect");
-                    deleteEmployeeSelect.innerHTML ='<option value="">Select an employee</option>';
+                    deleteEmployeeSelect.innerHTML = '<option value="">Select an employee</option>';
                     Object.keys(users).forEach((username) => {
                         if (username !== "admin") {
                             const option = document.createElement("option");
@@ -1254,54 +1346,54 @@
                         delete users[username];
                         localStorage.setItem("users", JSON.stringify(users));
                         database.ref(`users/${username}`).remove().then(() => {
-                                console.log("Employee removed from Firebase successfully");
-                                const promises = [
-                                    database.ref('attendanceRecords').once('value').then(snapshot => {
-                                            const records = snapshot.val() || {};
-                                            const updatedRecords = Object.values(records).filter(record => record.employee !== username);
-                                            return database.ref('attendanceRecords').set(updatedRecords);
-                                        }),
-                                    database.ref('lateCheckIns').once('value').then(snapshot => {
-                                            const records = snapshot.val() || {};
-                                            const updatedRecords = Object.values(records).filter(record => record.employee !== username);
-                                            return database.ref('lateCheckIns').set(updatedRecords);
-                                        }),
-                                    database.ref('holidayRequests').once('value').then(snapshot => {
-                                            const records = snapshot.val() || {};
-                                            const updatedRecords = Object.values(records).filter(record => record.employee !== username && record.employeeName !== username);
-                                            return database.ref('holidayRequests').set(updatedRecords);
-                                        }),
-                                    database.ref('progressReports').once('value').then(snapshot => {
-                                            const records = snapshot.val() || {};
-                                            const updatedRecords = Object.values(records).filter(record => record.employee !== username);
-                                            return database.ref('progressReports').set(updatedRecords);
-                                        }),
-                                    database.ref('employeeTasks').once('value').then(snapshot => {
-                                            const records = snapshot.val() || {};
-                                            const updatedRecords = Object.values(records).filter(record => record.assignedTo !== username);
-                                            return database.ref('employeeTasks').set(updatedRecords);
-                                        })
-                                ];
-                                Promise.all(promises).then(() => {
-                                        localStorage.setItem("attendanceRecords", JSON.stringify([]));
-                                        localStorage.setItem("lateCheckIns", JSON.stringify([]));
-                                        localStorage.setItem("holidayRequests", JSON.stringify([]));
-                                        localStorage.setItem("progressReports", JSON.stringify([]));
-                                        localStorage.setItem("employeeTasks", JSON.stringify([]));
-                                        const adminUserSelect = document.getElementById("adminUserSelect");
-                        const optionToRemove = Array.from(adminUserSelect.options).find( (option) => option.value === username);
-                        if (optionToRemove) {adminUserSelect.removeChild(optionToRemove);}
-                        const deleteEmployeeSelect = document.getElementById("deleteEmployeeSelect");
-                        const deleteOptionToRemove = Array.from(deleteEmployeeSelect.options).find( (option) => option.value === username);
-                        if (deleteOptionToRemove) {deleteEmployeeSelect.removeChild(deleteOptionToRemove);}
-                        deleteEmployeeSelect.value = "";
-                                        alert(`Employee "${username}" and all associated data have been deleted successfully.`);
-                                    })
-                                    .catch(error => {
-                                        console.error("Error deleting employee data:", error);
-                                        alert("Employee was deleted but there was an error removing some associated data.");
-                                    });
+                            console.log("Employee removed from Firebase successfully");
+                            const promises = [
+                                database.ref('attendanceRecords').once('value').then(snapshot => {
+                                    const records = snapshot.val() || {};
+                                    const updatedRecords = Object.values(records).filter(record => record.employee !== username);
+                                    return database.ref('attendanceRecords').set(updatedRecords);
+                                }),
+                                database.ref('lateCheckIns').once('value').then(snapshot => {
+                                    const records = snapshot.val() || {};
+                                    const updatedRecords = Object.values(records).filter(record => record.employee !== username);
+                                    return database.ref('lateCheckIns').set(updatedRecords);
+                                }),
+                                database.ref('holidayRequests').once('value').then(snapshot => {
+                                    const records = snapshot.val() || {};
+                                    const updatedRecords = Object.values(records).filter(record => record.employee !== username && record.employeeName !== username);
+                                    return database.ref('holidayRequests').set(updatedRecords);
+                                }),
+                                database.ref('progressReports').once('value').then(snapshot => {
+                                    const records = snapshot.val() || {};
+                                    const updatedRecords = Object.values(records).filter(record => record.employee !== username);
+                                    return database.ref('progressReports').set(updatedRecords);
+                                }),
+                                database.ref('employeeTasks').once('value').then(snapshot => {
+                                    const records = snapshot.val() || {};
+                                    const updatedRecords = Object.values(records).filter(record => record.assignedTo !== username);
+                                    return database.ref('employeeTasks').set(updatedRecords);
+                                })
+                            ];
+                            Promise.all(promises).then(() => {
+                                localStorage.setItem("attendanceRecords", JSON.stringify([]));
+                                localStorage.setItem("lateCheckIns", JSON.stringify([]));
+                                localStorage.setItem("holidayRequests", JSON.stringify([]));
+                                localStorage.setItem("progressReports", JSON.stringify([]));
+                                localStorage.setItem("employeeTasks", JSON.stringify([]));
+                                const adminUserSelect = document.getElementById("adminUserSelect");
+                                const optionToRemove = Array.from(adminUserSelect.options).find((option) => option.value === username);
+                                if (optionToRemove) { adminUserSelect.removeChild(optionToRemove); }
+                                const deleteEmployeeSelect = document.getElementById("deleteEmployeeSelect");
+                                const deleteOptionToRemove = Array.from(deleteEmployeeSelect.options).find((option) => option.value === username);
+                                if (deleteOptionToRemove) { deleteEmployeeSelect.removeChild(deleteOptionToRemove); }
+                                deleteEmployeeSelect.value = "";
+                                alert(`Employee "${username}" and all associated data have been deleted successfully.`);
                             })
+                                .catch(error => {
+                                    console.error("Error deleting employee data:", error);
+                                    alert("Employee was deleted but there was an error removing some associated data.");
+                                });
+                        })
                             .catch((error) => {
                                 console.error("Error removing employee from Firebase:", error);
                                 alert("Error deleting employee. Please try again.");
@@ -1356,7 +1448,8 @@
                         sendCredentialsContainer.style.marginTop = "20px";
                         sendCredentialsContainer.innerHTML = `
                     <button onclick="sendCredentialsEmail('${username}')" style="background-color: #3498db;">Send Credentials to ${email}</button>`;
-                        document.getElementById("addEmployeeContent").appendChild(sendCredentialsContainer);}
+                        document.getElementById("addEmployeeContent").appendChild(sendCredentialsContainer);
+                    }
                     alert("Employee added successfully!");
                 }
                 window.addEventListener("load", () => {
@@ -1368,7 +1461,7 @@
                             while (selectElement.options.length > 1) {
                                 selectElement.remove(1);
                             }
-                            
+
                             // Add hardcoded employees first
                             Object.keys(users).forEach((username) => {
                                 if (username !== "admin") {
@@ -1424,7 +1517,7 @@
                 const users = {
                     admin: { password: "admin123", role: "admin" },
                     hamza: { password: "hamza123", id: "118", role: "employee", phone: "923480970884", },
-                    zain: { password: "zain123", id: "119", role: "employee", phone: "9230251866577",},
+                    zain: { password: "zain123", id: "119", role: "employee", phone: "9230251866577", },
                     hanzallah: { password: "hanzallah123", id: "120", role: "employee", phone: "923474224118", },
                 };
                 window.addEventListener("load", () => {
@@ -1584,20 +1677,25 @@
                 function handleCheckIn() {
                     const now = new Date();
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
-                    const date = now.toLocaleDateString();
-                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
-                    const time = now.toLocaleTimeString();
+                    
+                    // Use UTC time for consistency across timezones
+                    const utcDate = now.toISOString().split('T')[0];
+                    const utcTime = now.toISOString().split('T')[1].split('.')[0];
+                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getUTCDay()];
+                    
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
                         const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
                         const employeeSchedule = timeTables.find((t) => t.employee === employee);
-                        
+
                         if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) {
                             alert("Please set up your schedule for today first.");
                             return;
                         }
 
                         const todaySlots = employeeSchedule[day.toLowerCase()].slots;
-                        const currentTime = new Date(`1970-01-01T${time}`);
+                        const currentTime = new Date(`1970-01-01T${utcTime}`);
+                        
+                        // Sort slots by check-in time
                         const sortedSlots = [...todaySlots].sort((a, b) => {
                             const timeA = new Date(`1970-01-01T${a.checkIn}`);
                             const timeB = new Date(`1970-01-01T${b.checkIn}`);
@@ -1608,8 +1706,10 @@
                         for (const slot of sortedSlots) {
                             const slotStart = new Date(`1970-01-01T${slot.checkIn}`);
                             const slotEnd = new Date(`1970-01-01T${slot.checkOut}`);
-                            const earlyCheckIn = new Date(slotStart.getTime() - 30 * 60 * 1000);
-                            const lateCheckIn = new Date(slotStart.getTime() + 60 * 60 * 1000);
+                            
+                            // Increased flexibility: allow check-in 45 minutes before and 90 minutes after scheduled time
+                            const earlyCheckIn = new Date(slotStart.getTime() - 45 * 60 * 1000);
+                            const lateCheckIn = new Date(slotStart.getTime() + 90 * 60 * 1000);
 
                             if (currentTime >= earlyCheckIn && currentTime <= lateCheckIn) {
                                 canCheckIn = true;
@@ -1617,19 +1717,30 @@
                                     const minutesLate = Math.floor((currentTime - slotStart) / (60 * 1000));
                                     if (minutesLate > 60) {
                                         if (confirm("You are checking in more than 60 minutes late. This will be recorded as a late check-in. Continue?")) {
-                                            recordCheckIn(employee, date, day, time, true);
+                                            recordCheckIn(employee, utcDate, day, utcTime, true);
                                         }
                                     } else {
-                                        recordCheckIn(employee, date, day, time, false);
+                                        recordCheckIn(employee, utcDate, day, utcTime, false);
                                     }
                                 } else {
-                                    recordCheckIn(employee, date, day, time, false);
+                                    recordCheckIn(employee, utcDate, day, utcTime, false);
                                 }
                                 return;
                             }
                         }
+                        
                         if (!canCheckIn) {
-                            alert("You are outside the allowed check-in window for any slot today.");
+                            // Provide more helpful error message
+                            const nextSlot = sortedSlots.find(slot => {
+                                const slotStart = new Date(`1970-01-01T${slot.checkIn}`);
+                                return slotStart > currentTime;
+                            });
+                            
+                            if (nextSlot) {
+                                alert(`You are outside the allowed check-in window. Your next available check-in time is at ${nextSlot.checkIn} UTC`);
+                            } else {
+                                alert("You are outside the allowed check-in window for any slot today.");
+                            }
                         }
                     });
                 }
@@ -1666,11 +1777,7 @@
                         }
                         saveToFirebase("attendanceRecords", attendanceRecords)
                             .then(() => {
-                                alert(
-                                    isLate
-                                        ? "Late check-in recorded successfully!"
-                                        : "Check-in recorded successfully!"
-                                );
+                                alert(isLate ? "Late check-in recorded successfully!" : "Check-in recorded successfully!");
                                 loadAttendanceTable();
                                 updateSummaryValues();
                             })
@@ -2132,7 +2239,7 @@
                                 document.getElementById("progressFile").value = "";
                                 document.getElementById("fileName").textContent = "";
                                 document.getElementById("fileUploadedIcon").style.display = "none";
-                               alert("Progress report submitted successfully (saved locally)!");
+                                alert("Progress report submitted successfully (saved locally)!");
                                 loadEmployeeProgress();
                             });
                     });
@@ -2205,7 +2312,7 @@
                                 `;
                                 tableBody.appendChild(row);
                             });
-                    });
+                        });
                 }
                 function loadAdminProgressReports(selectedUser = "") {
                     const tableBody = document.getElementById("adminProgressTable");
@@ -2238,11 +2345,10 @@
                                     <td>${report.details}</td>
                                     <td>${report.fileName || "No file"}</td>
                                     <td>
-                                        ${
-                                            report.fileData
-                                                ? `<a href="${report.fileData}" download="${report.fileName}" class="download-link">
+                                        ${report.fileData
+                                        ? `<a href="${report.fileData}" download="${report.fileName}" class="download-link">
                                                     <i class="fas fa-download"></i> Download</a>`: "No file"
-                                                    }
+                                    }
                                     </td>
                                     <td>
                                         <select onchange="updateProgressStatus(this.value, '${report.date}', '${report.time}', '${report.employee}')" class="status-${statusClass}">
@@ -2273,11 +2379,11 @@
                                     return dateB - dateA;
                                 });
                             if (selectedUser && reports.length === 0) {
-                            const row = document.createElement("tr");
+                                const row = document.createElement("tr");
                                 row.innerHTML = '<td colspan="8" style="text-align: center;">No progress reports found for this employee</td>';
-                            tableBody.appendChild(row);
-                            return;
-                        }
+                                tableBody.appendChild(row);
+                                return;
+                            }
                             reports.forEach((report) => {
                                 const statusClass = report.status.toLowerCase();
                                 const row = document.createElement("tr");
@@ -2288,13 +2394,12 @@
                             <td>${report.details}</td>
                                     <td>${report.fileName || "No file"}</td>
                                     <td>
-                                        ${
-                                            report.fileData
-                                                ? `<a href="${report.fileData}" download="${report.fileName}" class="download-link">
+                                        ${report.fileData
+                                        ? `<a href="${report.fileData}" download="${report.fileName}" class="download-link">
                                                     <i class="fas fa-download"></i> Download
                                                 </a>`
-                                                : "No file"
-                                        }
+                                        : "No file"
+                                    }
                                     </td>
                                     <td>
                                         <select onchange="updateProgressStatus(this.value, '${report.date}', '${report.time}', '${report.employee}')" class="status-${statusClass}">
@@ -2312,7 +2417,7 @@
                             </td>`;
                                 tableBody.appendChild(row);
                             });
-                    });
+                        });
                 }
                 function updateProgressStatus(status, date, time, employee) {
                     getFirebaseData("progressReports", (firebaseProgressReports) => {
@@ -2616,7 +2721,7 @@
                             if (isAdminEdited) {
                                 noticeDiv.innerHTML = `<strong>Notice:</strong> Your timetable for the current week (${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}) has been modified by an administrator. You cannot modify it further.`;
                             } else {
-                            noticeDiv.innerHTML = `<strong>Notice:</strong> Time table for the current week (${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}) has already been set. You cannot modify it. Please contact your administrator for any changes.`;
+                                noticeDiv.innerHTML = `<strong>Notice:</strong> Time table for the current week (${weekStart.toLocaleDateString()} - ${weekEnd.toLocaleDateString()}) has already been set. You cannot modify it. Please contact your administrator for any changes.`;
                             }
                             document.querySelectorAll('#timeTableContent input, #timeTableContent button.add-slot-btn, #timeTableContent button.remove-slot').forEach(el => {
                                 el.disabled = true;
@@ -2640,69 +2745,47 @@
                 }
                 function saveTimeTable() {
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
-                        const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-                    const currentDate = new Date();
-                    const weekStart = getWeekStart(currentDate);
+                    
+                    // Convert all times to UTC before saving
+                    const timeTable = {
+                        employee: employee,
+                        weekStart: new Date().toISOString(),
+                        sunday: { slots: getTimeSlots("sunday", true) },
+                        monday: { slots: getTimeSlots("monday", true) },
+                        tuesday: { slots: getTimeSlots("tuesday", true) },
+                        wednesday: { slots: getTimeSlots("wednesday", true) },
+                        thursday: { slots: getTimeSlots("thursday", true) },
+                        friday: { slots: getTimeSlots("friday", true) },
+                        saturday: { slots: getTimeSlots("saturday", true) }
+                    };
+
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables = firebaseTimeTables || [];
-                        const existingTimeTable = timeTables.find(t => t.employee === employee);
-                        if (existingTimeTable && existingTimeTable.lastSaved) {
-                            const lastSavedDate = new Date(existingTimeTable.lastSaved);
-                            if (lastSavedDate >= weekStart) {
-                                alert("Time table for this week has already been set and cannot be modified.");
-                                closeTimeTableModal();
-                                return;
-                            }
+                        let timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
+                        const existingIndex = timeTables.findIndex(t => t.employee === employee);
+                        
+                        if (existingIndex !== -1) {
+                            timeTables[existingIndex] = timeTable;
+                        } else {
+                            timeTables.push(timeTable);
                         }
-                        const timeTable = { 
-                            employee, 
-                            lastSaved: new Date().toISOString(),
-                            weekStart: weekStart.toISOString()
-                        };
-                        let hasValidSlots = false;
-                        for (const day of days) {
-                            const daySlots = document.getElementById(`${day}Slots`);
-                            const slots = [];
-                            daySlots.querySelectorAll('.time-slot-row').forEach(row => {
-                                const inputs = row.querySelectorAll('input[type="time"]');
-                                const checkIn = inputs[0].value;
-                                const checkOut = inputs[1].value;
-                                if (checkIn && checkOut) {
-                                    const checkInTime = new Date(`1970-01-01T${checkIn}`);
-                                    const checkOutTime = new Date(`1970-01-01T${checkOut}`);
-                                    if (checkInTime >= checkOutTime) {
-                                        alert(`Check-out time must be after check-in time for ${day}`);
-                                        return;
-                                    }
-                                    slots.push({ checkIn, checkOut });
-                                    hasValidSlots = true;
-                                }
-                            });
-                            if (slots.length > 0) {
-                                timeTable[day] = { slots };
-                            }
-                        }
-                        if (!hasValidSlots) {
-                            alert("Please add at least one valid time slot");
-                            return;
-                        }
-                        handleTimeTableSave(timeTables, timeTable, 
-                            () => {
+
+                        saveToFirebase("timeTables", timeTables)
+                            .then(() => {
+                                localStorage.setItem("timeTables", JSON.stringify(timeTables));
                                 alert("Schedule saved successfully!");
-                                closeTimeTableModal();
-                            },
-                            (error) => {
-                                console.error("Error saving timetable:", error);
+                            })
+                            .catch(error => {
+                                console.error("Error saving timetable to Firebase:", error);
                                 alert("Error saving schedule. Please try again.");
-                            }
-                        );
+                            });
                     });
                 }
                 function openEditTimeTableModal() {
                     const selectedUser = document.getElementById("adminUserSelect").value;
                     if (!selectedUser) {
                         alert("Please select an employee first");
-                        return;}
+                        return;
+                    }
                     document.getElementById("modalOverlay").style.display = "block";
                     document.getElementById("editTimeTableModal").style.display = "block";
                     document.getElementById("editTimeTableContent").style.display = "block";
@@ -2732,13 +2815,13 @@
                             const checkIn = inputs[0].value;
                             const checkOut = inputs[1].value;
                             if (checkIn && checkOut) {
-                            const checkInTime = new Date(`1970-01-01T${checkIn}`);
-                            const checkOutTime = new Date(`1970-01-01T${checkOut}`);
-                            if (checkInTime >= checkOutTime) {
-                                alert(`Check-out time must be after check-in time for ${day}`);
-                                return;
-                            }
-                            slots.push({ checkIn, checkOut });
+                                const checkInTime = new Date(`1970-01-01T${checkIn}`);
+                                const checkOutTime = new Date(`1970-01-01T${checkOut}`);
+                                if (checkInTime >= checkOutTime) {
+                                    alert(`Check-out time must be after check-in time for ${day}`);
+                                    return;
+                                }
+                                slots.push({ checkIn, checkOut });
                                 hasValidSlots = true;
                             }
                         });
@@ -2771,11 +2854,11 @@
                     return weekStart;
                 }
                 function populateTimeTableSlots(timeTable) {
-                        const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-                        days.forEach(day => {
+                    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+                    days.forEach(day => {
                         const daySlots = document.getElementById(`${day}Slots`);
-                        daySlots.innerHTML = ''; 
-                            const slots = timeTable[day]?.slots || [];
+                        daySlots.innerHTML = '';
+                        const slots = timeTable[day]?.slots || [];
                         if (slots.length === 0) {
                             addTimeSlot(day);
                         } else {
@@ -2786,19 +2869,19 @@
                     });
                 }
                 function populateEditTimeTableSlots(timeTable) {
-                        const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-                        days.forEach(day => {
+                    const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+                    days.forEach(day => {
                         const daySlots = document.getElementById(`edit${day.charAt(0).toUpperCase() + day.slice(1)}Slots`);
-                        daySlots.innerHTML = ''; 
+                        daySlots.innerHTML = '';
                         const slots = timeTable[day]?.slots || [];
-                            if (slots.length === 0) {
+                        if (slots.length === 0) {
                             addTimeSlot(`edit${day.charAt(0).toUpperCase() + day.slice(1)}`);
-                            } else {
+                        } else {
                             slots.forEach(slot => {
                                 addTimeSlot(`edit${day.charAt(0).toUpperCase() + day.slice(1)}`, slot.checkIn, slot.checkOut);
-                                });
-                            }
-                        });
+                            });
+                        }
+                    });
                 }
                 function resetWeeklyTimetables() {
                     const currentDate = new Date();
@@ -2822,7 +2905,7 @@
                     if (now.getDay() === 1 && now.getHours() === 0 && now.getMinutes() === 0) {
                         resetWeeklyTimetables();
                     }
-                }, 60000); 
+                }, 60000);
                 function addTimeSlot(day, checkIn, checkOut) {
                     const slotsContainer = document.getElementById(`${day}Slots`);
                     const slotCount = slotsContainer.children.length;
@@ -2897,50 +2980,50 @@
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     getFirebaseData("attendanceRecords", (firebaseAttendanceRecords) => {
                         let attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem("attendanceRecords")) || [];
-                            attendanceRecords = attendanceRecords.map((record) => ({
-                                ...record,
-                                checkIn: record.checkIn
-                                    ? Array.isArray(record.checkIn)
+                        attendanceRecords = attendanceRecords.map((record) => ({
+                            ...record,
+                            checkIn: record.checkIn
+                                ? Array.isArray(record.checkIn)
                                     ? [...new Set(record.checkIn)]
-                                        : [record.checkIn]
-                                    : [],
-                                checkOut: record.checkOut
-                                    ? Array.isArray(record.checkOut)
+                                    : [record.checkIn]
+                                : [],
+                            checkOut: record.checkOut
+                                ? Array.isArray(record.checkOut)
                                     ? [...new Set(record.checkOut)]
-                                        : [record.checkOut]
-                                    : [],
-                            }));
+                                    : [record.checkOut]
+                                : [],
+                        }));
                         localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
-                            const tableBody = document.getElementById("attendanceTable");
+                        const tableBody = document.getElementById("attendanceTable");
                         const adminTableBody = document.getElementById("adminAttendanceTable");
-                            if (tableBody) {
-                                tableBody.innerHTML = "";
-                                const employeeRecords = attendanceRecords.filter((record) => record.employee === employee)
+                        if (tableBody) {
+                            tableBody.innerHTML = "";
+                            const employeeRecords = attendanceRecords.filter((record) => record.employee === employee)
                                 .sort((a, b) => new Date(b.date) - new Date(a.date));
-                                employeeRecords.forEach((record) => {
-                                    const mainRow = document.createElement("tr");
+                            employeeRecords.forEach((record) => {
+                                const mainRow = document.createElement("tr");
                                 const checkInOptions = record.checkIn.length > 0
                                     ? record.checkIn
                                         .sort((a, b) => timeToMinutes(a) - timeToMinutes(b)) // Sort times chronologically
-                                        .map(time => 
+                                        .map(time =>
                                             `<option value="${time}" ${record.checkIn[0] === time ? 'selected' : ''}>${time}</option>`
                                         ).join('')
                                     : '<option value="">-</option>';
                                 const checkOutOptions = record.checkOut.length > 0
                                     ? record.checkOut
                                         .sort((a, b) => timeToMinutes(a) - timeToMinutes(b)) // Sort times chronologically
-                                        .map(time => 
+                                        .map(time =>
                                             `<option value="${time}" ${record.checkOut[0] === time ? 'selected' : ''}>${time}</option>`
                                         ).join('')
                                     : '<option value="">-</option>';
                                 const lateCheckIns = JSON.parse(localStorage.getItem('lateCheckIns')) || [];
                                 const lateCheckInTimes = lateCheckIns.filter(late => late.employee === record.employee && late.date === record.date).sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
                                 const lateCheckInOptions = lateCheckInTimes.length > 0
-                                    ? recordLateCheckIns.map(late => 
+                                    ? recordLateCheckIns.map(late =>
                                         `<option value="${late.time}" ${recordLateCheckIns[0].time === late.time ? 'selected' : ''}>${late.time}</option>`
                                     ).join('')
                                     : '<option value="">-</option>';
-                                    mainRow.innerHTML = `
+                                mainRow.innerHTML = `
                         <td>${record.date}</td>
                         <td>${record.day}</td>
                                     <td>
@@ -2960,34 +3043,34 @@
                                         </select>
                                     </td>
                             `;
-                                    tableBody.appendChild(mainRow);
-                                });
-                            }
-                            if (adminTableBody) {
-                                adminTableBody.innerHTML = "";
+                                tableBody.appendChild(mainRow);
+                            });
+                        }
+                        if (adminTableBody) {
+                            adminTableBody.innerHTML = "";
                             const selectedEmployee = document.getElementById("adminUserSelect")?.value;
-                                const recordsToShow = selectedEmployee
+                            const recordsToShow = selectedEmployee
                                 ? attendanceRecords.filter((record) => record.employee === selectedEmployee)
-                                    : attendanceRecords;
-                                recordsToShow
+                                : attendanceRecords;
+                            recordsToShow
                                 .sort((a, b) => new Date(b.date) - new Date(a.date))
-                                    .forEach((record) => {
-                                        const mainRow = document.createElement("tr");
+                                .forEach((record) => {
+                                    const mainRow = document.createElement("tr");
                                     const checkIns = (Array.isArray(record.checkIn) ? record.checkIn : [record.checkIn])
-                                            .filter((time) => time)
+                                        .filter((time) => time)
                                         .map((time) => convertTo24Hour(time))
                                         .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
                                     const checkOuts = (Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut])
-                                            .filter((time) => time)
+                                        .filter((time) => time)
                                         .map((time) => convertTo24Hour(time))
                                         .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
                                     const checkInOptions = checkIns.length > 0
                                         ? checkIns.map((time) => `<option value="${time}">${time}</option>`).join("")
-                                                : '<option value="">-</option>';
+                                        : '<option value="">-</option>';
                                     const checkOutOptions = checkOuts.length > 0
                                         ? checkOuts.map((time) => `<option value="${time}">${time}</option>`).join("")
-                                                : '<option value="">-</option>';
-                                        mainRow.innerHTML = `
+                                        : '<option value="">-</option>';
+                                    mainRow.innerHTML = `
                                     <td>${record.employee}</td>
                                     <td>${record.date}</td>
                                     <td>${record.day}</td>
@@ -3005,9 +3088,9 @@
                                     <td>${record.isLate ? "Yes" : "No"}</td>
                                         <td>${calculateWorkingHours(checkIns, checkOuts, record.isLate ? checkIns : [])}</td>
                                 `;
-                                        adminTableBody.appendChild(mainRow);
-                                    });
-                            }
+                                    adminTableBody.appendChild(mainRow);
+                                });
+                        }
                     });
                 }
                 function calculateWorkingHours(checkIn, checkOut, lateCheckIns = []) {
@@ -3145,8 +3228,8 @@
                                 updateSummaryValues();
                             })
                             .catch((error) => {
-                                console.error("Error saving attendance record to Firebase:", error );
-                                localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords) );
+                                console.error("Error saving attendance record to Firebase:", error);
+                                localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
                                 updateSummaryValues();
                             });
                     });
@@ -3212,10 +3295,10 @@
                     const today = new Date();
                     const startOfMonth = new Date(
                         today.getFullYear(),
-                        today.getMonth(),1 );
+                        today.getMonth(), 1);
                     const daysInMonth = new Date(
                         today.getFullYear(),
-                        today.getMonth() + 1, 0 ).getDate();
+                        today.getMonth() + 1, 0).getDate();
                     let totalAbsences = 0;
                     for (let day = 1; day <= daysInMonth; day++) {
                         const date = new Date(today.getFullYear(), today.getMonth(), day);
@@ -3238,7 +3321,7 @@
                         }
                     }
                     const unapprovedLeaves = employeeHolidays.filter((request) =>
-                    equest.status && request.status.toLowerCase() === "rejected").length;
+                        equest.status && request.status.toLowerCase() === "rejected").length;
                     document.getElementById("totalCheckIns").textContent = totalCheckIns;
                     document.getElementById("totalCheckOuts").textContent = totalCheckOuts;
                     document.getElementById("lateCheckIns").textContent = totalLateCheckIns;
@@ -3266,24 +3349,24 @@
                     if (frame) frame.src = "";
                 }
                 document.getElementById("holidayRequestForm").addEventListener("submit", function (e) {
-                        e.preventDefault();
-                        const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
-                        const startDate = document.getElementById("startDate").value;
-                        const endDate = document.getElementById("endDate").value;
-                        const reason = document.getElementById("reason").value;
-                        const requests = JSON.parse(localStorage.getItem("holidayRequests")) || [];
-                        requests.push({
-                            employee,
-                            startDate,
-                            endDate,
-                            reason,
-                            status: "pending",
-                            requestDate: new Date().toISOString(),
-                        });
-                        localStorage.setItem("holidayRequests", JSON.stringify(requests));
-                        alert("Holiday request submitted successfully!");
-                        closeHolidayModal();
+                    e.preventDefault();
+                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
+                    const startDate = document.getElementById("startDate").value;
+                    const endDate = document.getElementById("endDate").value;
+                    const reason = document.getElementById("reason").value;
+                    const requests = JSON.parse(localStorage.getItem("holidayRequests")) || [];
+                    requests.push({
+                        employee,
+                        startDate,
+                        endDate,
+                        reason,
+                        status: "pending",
+                        requestDate: new Date().toISOString(),
                     });
+                    localStorage.setItem("holidayRequests", JSON.stringify(requests));
+                    alert("Holiday request submitted successfully!");
+                    closeHolidayModal();
+                });
                 function generateReport() {
                     const employee = document.getElementById("adminUserSelect").value;
                     const reportType = document.getElementById("reportType").value;
@@ -3411,7 +3494,7 @@
                     const reader = new FileReader();
                     reader.onload = function (e) {
                         getFirebaseData("employeeTasks", (firebaseTasks) => {
-                            let tasks =firebaseTasks || JSON.parse(localStorage.getItem("employeeTasks")) ||
+                            let tasks = firebaseTasks || JSON.parse(localStorage.getItem("employeeTasks")) ||
                                 [];
                             const newTask = {
                                 id: Date.now(),
@@ -3498,7 +3581,7 @@
                                     tasks[taskIndex].fileData = e.target.result;
                                     saveToFirebase("employeeTasks", tasks)
                                         .then(() => {
-                                            localStorage.setItem( "employeeTasks", JSON.stringify(tasks));
+                                            localStorage.setItem("employeeTasks", JSON.stringify(tasks));
                                             const selectedUser =
                                                 document.getElementById("adminUserSelect").value;
                                             loadAdminTasks(selectedUser);
@@ -3575,10 +3658,10 @@
                     }
                 }
                 document.getElementById("taskDate").addEventListener("change", function () {
-                        const date = new Date(this.value);
-                        const day = date.toLocaleString("en-US", { weekday: "long" });
-                        document.getElementById("taskDay").value = day;
-                    });
+                    const date = new Date(this.value);
+                    const day = date.toLocaleString("en-US", { weekday: "long" });
+                    document.getElementById("taskDay").value = day;
+                });
                 document.addEventListener("DOMContentLoaded", function () {
                     const handleUserSelect = () => {
                         const selectedUser =
@@ -3638,9 +3721,9 @@
                                     : "No file"
                                 }</td>
                 <td>
-                    <select onchange="updateEmployeeTaskStatus(${task.id }, this.value)">
+                    <select onchange="updateEmployeeTaskStatus(${task.id}, this.value)">
                         <option value="Pending" ${task.status === "Pending" ? "selected" : ""}>Pending</option>
-                        <option value="Completed" ${task.status === "Completed" ? "selected" : "" }>Completed</option>
+                        <option value="Completed" ${task.status === "Completed" ? "selected" : ""}>Completed</option>
                         <option value="Not Achieved" ${task.status === "Not Achieved" ? "selected" : ""}>Not Achieved</option>
                     </select>
                 </td>
@@ -3745,7 +3828,7 @@
                                         "Error saving task changes to Firebase:",
                                         error
                                     );
-                                    localStorage.setItem( "employeeTasks", JSON.stringify(tasks) );
+                                    localStorage.setItem("employeeTasks", JSON.stringify(tasks));
                                     alert("Changes saved locally. There was an issue syncing with the cloud.");
                                     loadEmployeeTasks();
                                     if (
@@ -3844,56 +3927,56 @@
                         .textContent.split("|")[0]
                         .trim();
                     getFirebaseData("attendanceRecords", (firebaseAttendanceRecords) => {
-                            let attendanceRecords =
-                                firebaseAttendanceRecords ||
-                                JSON.parse(localStorage.getItem("attendanceRecords")) ||
-                                [];
-                            attendanceRecords = attendanceRecords.map((record) => ({
-                                ...record,
-                                checkIn: record.checkIn
-                                    ? Array.isArray(record.checkIn)
+                        let attendanceRecords =
+                            firebaseAttendanceRecords ||
+                            JSON.parse(localStorage.getItem("attendanceRecords")) ||
+                            [];
+                        attendanceRecords = attendanceRecords.map((record) => ({
+                            ...record,
+                            checkIn: record.checkIn
+                                ? Array.isArray(record.checkIn)
                                     ? [...new Set(record.checkIn)]
-                                        : [record.checkIn]
-                                    : [],
-                                checkOut: record.checkOut
-                                    ? Array.isArray(record.checkOut)
+                                    : [record.checkIn]
+                                : [],
+                            checkOut: record.checkOut
+                                ? Array.isArray(record.checkOut)
                                     ? [...new Set(record.checkOut)]
-                                        : [record.checkOut] : [],
-                            }));
+                                    : [record.checkOut] : [],
+                        }));
                         localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
-                            const tableBody = document.getElementById("attendanceTable");
+                        const tableBody = document.getElementById("attendanceTable");
                         const adminTableBody = document.getElementById("adminAttendanceTable");
-                            if (tableBody) {
-                                tableBody.innerHTML = "";
-                                const employeeRecords = attendanceRecords
-                                    .filter((record) => record.employee === employee)
+                        if (tableBody) {
+                            tableBody.innerHTML = "";
+                            const employeeRecords = attendanceRecords
+                                .filter((record) => record.employee === employee)
                                 .sort((a, b) => new Date(b.date) - new Date(a.date));
-                                employeeRecords.forEach((record) => {
-                                    const mainRow = document.createElement("tr");
-                                    const checkInOptions = record.checkIn.length > 0
+                            employeeRecords.forEach((record) => {
+                                const mainRow = document.createElement("tr");
+                                const checkInOptions = record.checkIn.length > 0
                                     ? record.checkIn
                                         .sort((a, b) => timeToMinutes(a) - timeToMinutes(b)) // Sort times chronologically
-                                        .map(time => 
+                                        .map(time =>
                                             `<option value="${time}" ${record.checkIn[0] === time ? 'selected' : ''}>${time}</option>`
                                         ).join('')
-                                        : '<option value="">-</option>';
-                                    const checkOutOptions = record.checkOut.length > 0
+                                    : '<option value="">-</option>';
+                                const checkOutOptions = record.checkOut.length > 0
                                     ? record.checkOut
                                         .sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
-                                        .map(time => 
+                                        .map(time =>
                                             `<option value="${time}" ${record.checkOut[0] === time ? 'selected' : ''}>${time}</option>`
                                         ).join('')
-                                        : '<option value="">-</option>';
-                                    const lateCheckIns = JSON.parse(localStorage.getItem('lateCheckIns')) || [];
+                                    : '<option value="">-</option>';
+                                const lateCheckIns = JSON.parse(localStorage.getItem('lateCheckIns')) || [];
                                 const recordLateCheckIns = lateCheckIns
                                     .filter(late => late.employee === record.employee && late.date === record.date)
                                     .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
-                                    const lateCheckInOptions = recordLateCheckIns.length > 0
-                                        ? recordLateCheckIns.map(late => 
-                                            `<option value="${late.time}" ${recordLateCheckIns[0].time === late.time ? 'selected' : ''}>${late.time}</option>`
-                                        ).join('')
-                                        : '<option value="">-</option>';
-                                    mainRow.innerHTML = `
+                                const lateCheckInOptions = recordLateCheckIns.length > 0
+                                    ? recordLateCheckIns.map(late =>
+                                        `<option value="${late.time}" ${recordLateCheckIns[0].time === late.time ? 'selected' : ''}>${late.time}</option>`
+                                    ).join('')
+                                    : '<option value="">-</option>';
+                                mainRow.innerHTML = `
                                         <td>${record.date}</td>
                                         <td>${record.day}</td>
                                         <td>
@@ -3913,31 +3996,31 @@
                                             </select>
                                         </td>
                                     `;
-                                    tableBody.appendChild(mainRow);
-                                });
-                            }
-                            if (adminTableBody) {
-                                adminTableBody.innerHTML = "";
+                                tableBody.appendChild(mainRow);
+                            });
+                        }
+                        if (adminTableBody) {
+                            adminTableBody.innerHTML = "";
                             const selectedEmployee = document.getElementById("adminUserSelect")?.value;
-                                const recordsToShow = selectedEmployee
+                            const recordsToShow = selectedEmployee
                                 ? attendanceRecords.filter((record) => record.employee === selectedEmployee)
-                                    : attendanceRecords;
-                                recordsToShow.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((record) => {
-                                        const mainRow = document.createElement("tr");
-                                    const checkIns = (Array.isArray(record.checkIn) ? record.checkIn : [record.checkIn]).filter((time) => time)
-                                        .map((time) => convertTo24Hour(time))
-                                        .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
-                                    const checkOuts = (Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut])
-                                            .filter((time) => time)
-                                        .map((time) => convertTo24Hour(time))
-                                        .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
-                                    const checkInOptions = checkIns.length > 0
-                                        ? checkIns.map((time) => `<option value="${time}">${time}</option>`).join("")
-                                                : '<option value="">-</option>';
-                                    const checkOutOptions = checkOuts.length > 0
-                                        ? checkOuts.map((time) => `<option value="${time}">${time}</option>`).join("")
-                                                : '<option value="">-</option>';
-                                        mainRow.innerHTML = `
+                                : attendanceRecords;
+                            recordsToShow.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((record) => {
+                                const mainRow = document.createElement("tr");
+                                const checkIns = (Array.isArray(record.checkIn) ? record.checkIn : [record.checkIn]).filter((time) => time)
+                                    .map((time) => convertTo24Hour(time))
+                                    .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+                                const checkOuts = (Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut])
+                                    .filter((time) => time)
+                                    .map((time) => convertTo24Hour(time))
+                                    .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+                                const checkInOptions = checkIns.length > 0
+                                    ? checkIns.map((time) => `<option value="${time}">${time}</option>`).join("")
+                                    : '<option value="">-</option>';
+                                const checkOutOptions = checkOuts.length > 0
+                                    ? checkOuts.map((time) => `<option value="${time}">${time}</option>`).join("")
+                                    : '<option value="">-</option>';
+                                mainRow.innerHTML = `
                                     <td>${record.employee}</td>
                                     <td>${record.date}</td>
                                     <td>${record.day}</td>
@@ -3955,9 +4038,9 @@
                                     <td>${record.isLate ? "Yes" : "No"}</td>
                                         <td>${calculateWorkingHours(checkIns, checkOuts, record.isLate ? checkIns : [])}</td>
                                 `;
-                                        adminTableBody.appendChild(mainRow);
-                                    });
-                            }
+                                adminTableBody.appendChild(mainRow);
+                            });
+                        }
                     });
                 }
                 function calculateWorkingHours(checkIn, checkOut, lateCheckIns = []) {
@@ -4382,7 +4465,7 @@
                         const attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem("attendanceRecords")) || [];
                         const tableBody = document.getElementById("weeklyAttendanceTable");
                         if (!tableBody) return;
-                        while (tableBody.rows.length > 1) { tableBody.deleteRow(1);}
+                        while (tableBody.rows.length > 1) { tableBody.deleteRow(1); }
                         const employees = [...new Set(attendanceRecords.map(record => record.employee))];
                         const today = new Date();
                         const weekStart = new Date(today);
@@ -4395,16 +4478,16 @@
                                 currentDate.setDate(weekStart.getDate() + i);
                                 const dateStr = currentDate.toLocaleDateString();
                                 const dayStr = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][i];
-                                const record = attendanceRecords.find(r => 
-                                    r.employee === employee && 
+                                const record = attendanceRecords.find(r =>
+                                    r.employee === employee &&
                                     r.date === dateStr
                                 );
                                 if (record) {
-                                    const checkIn = record.checkIn ? 
-                                        (Array.isArray(record.checkIn) ? record.checkIn[0] : record.checkIn) : 
+                                    const checkIn = record.checkIn ?
+                                        (Array.isArray(record.checkIn) ? record.checkIn[0] : record.checkIn) :
                                         "-";
-                                    const checkOut = record.checkOut ? 
-                                        (Array.isArray(record.checkOut) ? record.checkOut[0] : record.checkOut) : 
+                                    const checkOut = record.checkOut ?
+                                        (Array.isArray(record.checkOut) ? record.checkOut[0] : record.checkOut) :
                                         "-";
                                     let workingHours = "-";
                                     if (checkIn !== "-" && checkOut !== "-") {
@@ -4538,33 +4621,32 @@
                 }
                 function checkTimetable(employee, date, day, time) {
                     const currentTime = time;
-                    const timetable = JSON.parse(localStorage.getItem("timetable")) || {};
-                    const employeeTimetable = timetable[employee] || {};
-                    const daySlots = employeeTimetable[day] || [];
-                    const matchingSlot = daySlots.find(slot => {
-                        const slotStart = new Date(`1970-01-01T${slot.start}`);
-                        const slotEnd = new Date(`1970-01-01T${slot.end}`);
+                    getFirebaseData("timeTables", (firebaseTimeTables) => {
+                        const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
+                        const employeeSchedule = timeTables.find(t => t.employee === employee);
+                        
+                        if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) {
+                            return false;
+                        }
+
+                        const daySlots = employeeSchedule[day.toLowerCase()].slots;
                         const currentTimeDate = new Date(`1970-01-01T${currentTime}`);
-                        const earlyCheckIn = new Date(slotStart.getTime() - 30 * 60 * 1000);
-                        const lateCheckIn = new Date(slotEnd.getTime() + 2 * 60 * 60 * 1000);   
-                        return currentTimeDate >= earlyCheckIn && currentTimeDate <= lateCheckIn;
-                    });
-                    if (matchingSlot) {
-                        const slotStart = new Date(`1970-01-01T${matchingSlot.start}`);
-                        const slotEnd = new Date(`1970-01-01T${matchingSlot.end}`);
-                        const currentTimeDate = new Date(`1970-01-01T${currentTime}`);
-                        const earlyCheckIn = new Date(slotStart.getTime() - 30 * 60 * 1000);
-                        const lateCheckIn = new Date(slotEnd.getTime() + 2 * 60 * 60 * 1000);
-                        if (currentTimeDate >= earlyCheckIn && currentTimeDate <= lateCheckIn) {
-                            recordCheckIn(employee, date, day, time, false);
-                        } else if (currentTimeDate > lateCheckIn && currentTimeDate <= new Date(slotEnd.getTime() + 2 * 60 * 60 * 1000)) {
-                            if (confirm("You are checking in late. This will be recorded as a late check-in. Continue?")) {
-                                recordCheckIn(employee, date, day, time, true);
+                        
+                        // Check all slots for the day
+                        for (const slot of daySlots) {
+                            const slotStart = new Date(`1970-01-01T${slot.checkIn}`);
+                            const slotEnd = new Date(`1970-01-01T${slot.checkOut}`);
+                            
+                            // More flexible time windows
+                            const earlyCheckIn = new Date(slotStart.getTime() - 45 * 60 * 1000);
+                            const lateCheckIn = new Date(slotStart.getTime() + 90 * 60 * 1000);
+                            
+                            if (currentTimeDate >= earlyCheckIn && currentTimeDate <= lateCheckIn) {
+                                return true;
                             }
                         }
-                    } else {
-                        alert("You are outside the allowed check-in window for any slot today.");
-                    }
+                        return false;
+                    });
                 }
                 function loadAdminTimeTable(selectedUser = "") {
                     const tableBody = document.getElementById("adminTimeTableBody");
@@ -4665,7 +4747,7 @@
                     let hasValidDay = false;
                     for (const day of days) {
                         if (day in timeTable) {
-                            if (!Array.isArray(timeTable[day]?.slots)) return false;                           
+                            if (!Array.isArray(timeTable[day]?.slots)) return false;
                             for (const slot of timeTable[day].slots) {
                                 if (!slot.checkIn || !slot.checkOut) return false;
                             }
@@ -4685,7 +4767,7 @@
                     const existingIndex = timeTables.findIndex(t => t.employee === timeTable.employee);
                     if (existingIndex >= 0) {
                         const existingTimeTable = timeTables[existingIndex];
-                        const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];     
+                        const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
                         days.forEach(day => {
                             if (!timeTable[day] && existingTimeTable[day]) {
                                 timeTable[day] = existingTimeTable[day];
@@ -4728,8 +4810,76 @@
                         });
                     }
                 });
+                function getTimeSlots(day, convertToUTC = false) {
+                    const daySlots = document.getElementById(`${day}Slots`);
+                    const slots = [];
+                    
+                    daySlots.querySelectorAll('.time-slot-row').forEach(row => {
+                        const inputs = row.querySelectorAll('input[type="time"]');
+                        const checkIn = inputs[0].value;
+                        const checkOut = inputs[1].value;
+                        
+                        if (checkIn && checkOut) {
+                            if (convertToUTC) {
+                                // Convert local time to UTC
+                                const localCheckIn = new Date(`1970-01-01T${checkIn}`);
+                                const localCheckOut = new Date(`1970-01-01T${checkOut}`);
+                                
+                                const utcCheckIn = new Date(localCheckIn.getTime() - localCheckIn.getTimezoneOffset() * 60000);
+                                const utcCheckOut = new Date(localCheckOut.getTime() - localCheckOut.getTimezoneOffset() * 60000);
+                                
+                                slots.push({
+                                    checkIn: utcCheckIn.toISOString().split('T')[1].split('.')[0],
+                                    checkOut: utcCheckOut.toISOString().split('T')[1].split('.')[0]
+                                });
+                            } else {
+                                slots.push({ checkIn, checkOut });
+                            }
+                        }
+                    });
+                    
+                    return slots;
+                }
+                function displayLocalTime(utcTime) {
+                    const date = new Date(`1970-01-01T${utcTime}`);
+                    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+                function loadTimeTable() {
+                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
+                    
+                    getFirebaseData("timeTables", (firebaseTimeTables) => {
+                        const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
+                        const employeeSchedule = timeTables.find(t => t.employee === employee);
+                        
+                        if (employeeSchedule) {
+                            const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                            days.forEach(day => {
+                                const slots = employeeSchedule[day]?.slots || [];
+                                const daySlots = document.getElementById(`${day}Slots`);
+                                daySlots.innerHTML = '';
+                                
+                                slots.forEach(slot => {
+                                    const row = document.createElement('div');
+                                    row.className = 'time-slot-row';
+                                    
+                                    // Convert UTC times to local time for display
+                                    const localCheckIn = displayLocalTime(slot.checkIn);
+                                    const localCheckOut = displayLocalTime(slot.checkOut);
+                                    
+                                    row.innerHTML = `
+                                        <input type="time" class="time-input" value="${localCheckIn}" />
+                                        <input type="time" class="time-input" value="${localCheckOut}" />
+                                        <button class="remove-slot" onclick="removeTimeSlot(this)">×</button>
+                                    `;
+                                    daySlots.appendChild(row);
+                                });
+                            });
+                        }
+                    });
+                }
             </script>
         </div>
     </div>
 </body>
+
 </html>
