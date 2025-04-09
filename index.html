@@ -1727,8 +1727,8 @@
                             if (todayRecord && todayRecord.checkIn) {
                                 if (confirm("You have already checked in today. Do you want to add another check-in?")) {
                                     recordCheckIn(employee, localDate, day, localTime, isLate);
-                                }
-                            } else {
+                                        }
+                                    } else {
                                 recordCheckIn(employee, localDate, day, localTime, isLate);
                             }
                         });
@@ -2729,7 +2729,7 @@
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     
                     // Get all time slots and convert to UTC
-                    const timeTable = {
+                        const timeTable = {
                         employee: employee,
                         weekStart: new Date().toISOString(),
                         sunday: { slots: getTimeSlots("sunday") },
@@ -2989,41 +2989,63 @@
                             return dateB - dateA;
                         });
 
-                        attendanceRecords = attendanceRecords.map((record) => ({
+                        // Group records by date
+                        const groupedRecords = attendanceRecords.reduce((acc, record) => {
+                            if (!acc[record.date]) {
+                                acc[record.date] = {
+                                    employee: record.employee,
+                                    date: record.date,
+                                    day: record.day,
+                                    checkIns: [],
+                                    checkOuts: [],
+                                    isLate: false
+                                };
+                            }
+                            
+                            // Add check-ins
+                            if (record.checkIn) {
+                                const checkIns = Array.isArray(record.checkIn) ? record.checkIn : [record.checkIn];
+                                acc[record.date].checkIns.push(...checkIns);
+                            }
+                            
+                            // Add check-outs
+                            if (record.checkOut) {
+                                const checkOuts = Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut];
+                                acc[record.date].checkOuts.push(...checkOuts);
+                            }
+                            
+                            // Mark as late if any check-in was late
+                            if (record.isLate) {
+                                acc[record.date].isLate = true;
+                            }
+                            
+                            return acc;
+                        }, {});
+
+                        // Convert grouped records back to array
+                        const processedRecords = Object.values(groupedRecords).map(record => ({
                             ...record,
-                            checkIn: record.checkIn
-                                ? Array.isArray(record.checkIn)
-                                    ? [...new Set(record.checkIn)]
-                                    : [record.checkIn]
-                                : [],
-                            checkOut: record.checkOut
-                                ? Array.isArray(record.checkOut)
-                                    ? [...new Set(record.checkOut)]
-                                    : [record.checkOut]
-                                : [],
-                            isLate: record.isLate || false
+                            checkIns: [...new Set(record.checkIns)].sort((a, b) => timeToMinutes(a) - timeToMinutes(b)),
+                            checkOuts: [...new Set(record.checkOuts)].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
                         }));
-                        
-                        localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+
+                        localStorage.setItem("attendanceRecords", JSON.stringify(processedRecords));
                         const tableBody = document.getElementById("attendanceTable");
                         const adminTableBody = document.getElementById("adminAttendanceTable");
                         
                         if (tableBody) {
                             tableBody.innerHTML = '';
-                            attendanceRecords
+                            processedRecords
                                 .filter(record => record.employee === employee)
                                 .forEach(record => {
                                     const row = document.createElement('tr');
-                                    const checkIns = record.checkIn || [];
-                                    const checkOuts = record.checkOut || [];
-                                    
                                     row.innerHTML = `
                                         <td>${record.date}</td>
                                         <td>${record.day}</td>
-                                        <td>${checkIns.join(', ')}</td>
-                                        <td>${checkOuts.join(', ')}</td>
+                                        <td>${record.checkIns.join(', ')}</td>
+                                        <td>${record.checkOuts.join(', ')}</td>
                                         <td>${record.isLate ? "Yes" : "No"}</td>
-                                        <td>${calculateWorkingHours(checkIns, checkOuts, record.isLate ? checkIns : [])}</td>
+                                        <td>${calculateWorkingHours(record.checkIns, record.checkOuts, record.isLate ? record.checkIns : [])}</td>
                                     `;
                                     tableBody.appendChild(row);
                                 });
@@ -3031,19 +3053,16 @@
 
                         if (adminTableBody) {
                             adminTableBody.innerHTML = '';
-                            attendanceRecords.forEach(record => {
+                            processedRecords.forEach(record => {
                                 const row = document.createElement('tr');
-                                const checkIns = record.checkIn || [];
-                                const checkOuts = record.checkOut || [];
-                                
                                 row.innerHTML = `
                                     <td>${record.employee}</td>
                                     <td>${record.date}</td>
                                     <td>${record.day}</td>
-                                    <td>${checkIns.join(', ')}</td>
-                                    <td>${checkOuts.join(', ')}</td>
+                                    <td>${record.checkIns.join(', ')}</td>
+                                    <td>${record.checkOuts.join(', ')}</td>
                                     <td>${record.isLate ? "Yes" : "No"}</td>
-                                    <td>${calculateWorkingHours(checkIns, checkOuts, record.isLate ? checkIns : [])}</td>
+                                    <td>${calculateWorkingHours(record.checkIns, record.checkOuts, record.isLate ? record.checkIns : [])}</td>
                                 `;
                                 adminTableBody.appendChild(row);
                             });
@@ -4598,7 +4617,7 @@
                             const earlyCheckIn = new Date(slotStart.getTime() - 45 * 60 * 1000);
                             const lateCheckIn = new Date(slotStart.getTime() + 90 * 60 * 1000);
                             
-                            if (currentTimeDate >= earlyCheckIn && currentTimeDate <= lateCheckIn) {
+                        if (currentTimeDate >= earlyCheckIn && currentTimeDate <= lateCheckIn) {
                                 return true;
                             }
                         }
