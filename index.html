@@ -1678,10 +1678,10 @@
                     const now = new Date();
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     
-                    // Use UTC time for all operations
-                    const utcDate = now.toISOString().split('T')[0];
-                    const utcTime = now.toISOString().split('T')[1].split('.')[0];
-                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getUTCDay()];
+                    // Get local time and convert to ISO string for consistent storage
+                    const localDate = now.toLocaleDateString();
+                    const localTime = now.toLocaleTimeString();
+                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
                         const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
@@ -1693,7 +1693,9 @@
                         }
 
                         const todaySlots = employeeSchedule[day.toLowerCase()].slots;
-                        const currentTime = new Date(`1970-01-01T${utcTime}`);
+                        
+                        // Convert local time to Date object for comparison
+                        const currentTime = new Date(`1970-01-01T${localTime}`);
                         
                         // Sort slots by check-in time
                         const sortedSlots = [...todaySlots].sort((a, b) => {
@@ -1719,15 +1721,15 @@
                         getFirebaseData("attendanceRecords", (firebaseRecords) => {
                             const attendanceRecords = firebaseRecords || [];
                             const todayRecord = attendanceRecords.find(
-                                record => record.employee === employee && record.date === utcDate
+                                record => record.employee === employee && record.date === localDate
                             );
                             
                             if (todayRecord && todayRecord.checkIn) {
                                 if (confirm("You have already checked in today. Do you want to add another check-in?")) {
-                                    recordCheckIn(employee, utcDate, day, utcTime, isLate);
+                                    recordCheckIn(employee, localDate, day, localTime, isLate);
                                 }
                             } else {
-                                recordCheckIn(employee, utcDate, day, utcTime, isLate);
+                                recordCheckIn(employee, localDate, day, localTime, isLate);
                             }
                         });
                     });
@@ -2980,10 +2982,10 @@
                     getFirebaseData("attendanceRecords", (firebaseAttendanceRecords) => {
                         let attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem("attendanceRecords")) || [];
                         
-                        // Sort records by timestamp in descending order (newest first)
+                        // Sort records by date in descending order (newest first)
                         attendanceRecords.sort((a, b) => {
-                            const dateA = new Date(a.timestamp || a.date);
-                            const dateB = new Date(b.timestamp || b.date);
+                            const dateA = new Date(a.date);
+                            const dateB = new Date(b.date);
                             return dateB - dateA;
                         });
 
@@ -2999,7 +3001,7 @@
                                     ? [...new Set(record.checkOut)]
                                     : [record.checkOut]
                                 : [],
-                            isLate: record.isLate || false // Ensure isLate is always defined
+                            isLate: record.isLate || false
                         }));
                         
                         localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
