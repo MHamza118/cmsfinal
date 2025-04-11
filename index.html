@@ -1224,6 +1224,16 @@
                 </div>
             </div>
             <script>
+                // Add this utility function at the beginning of the script section
+                function standardizeDate(date) {
+                    // Convert any date format to YYYY-MM-DD
+                    const d = new Date(date);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+
                 function toggleMobileMenu() {
                     const sidebar = document.querySelector("#employeePage .left-sidebar");
                     const hamburger = document.querySelector("#employeePage .hamburger-menu");
@@ -1296,13 +1306,25 @@
                     document.getElementById("modalOverlay").style.display = "block";
                     const deleteEmployeeSelect = document.getElementById("deleteEmployeeSelect");
                     deleteEmployeeSelect.innerHTML = '<option value="">Select an employee</option>';
-                    Object.keys(users).forEach((username) => {
+                    
+                    // First get local users
+                    const localUsers = { ...users };
+                    
+                    // Then fetch all users from Firebase
+                    database.ref("users").once('value', (snapshot) => {
+                        const firebaseUsers = snapshot.val() || {};
+                        
+                        // Combine local and Firebase users, excluding admin
+                        const allUsers = { ...localUsers, ...firebaseUsers };
+                        
+                        Object.keys(allUsers).forEach((username) => {
                         if (username !== "admin") {
                             const option = document.createElement("option");
                             option.value = username;
                             option.textContent = username;
                             deleteEmployeeSelect.appendChild(option);
                         }
+                        });
                     });
                 }
                 function closeAddEmployeeModal() {
@@ -1343,50 +1365,84 @@
                         return;
                     }
                     if (confirm(`Are you sure you want to delete the employee "${username}"? This cannot be undone.`)) {
+                        // Remove from local users
                         delete users[username];
                         localStorage.setItem("users", JSON.stringify(users));
-                        database.ref(`users/${username}`).remove().then(() => {
-                            console.log("Employee removed from Firebase successfully");
+                        
+                        // Remove from Firebase users
+                        database.ref(`users/${username}`).remove()
+                            .then(() => {
+                                console.log("Employee removed from Firebase users successfully");
+                                
+                                // Remove all associated data from Firebase
                             const promises = [
+                                    // Remove attendance records
                                 database.ref('attendanceRecords').once('value').then(snapshot => {
-                                    const records = snapshot.val() || {};
-                                    const updatedRecords = Object.values(records).filter(record => record.employee !== username);
+                                        const records = snapshot.val() || [];
+                                        const updatedRecords = records.filter(record => record.employee !== username);
                                     return database.ref('attendanceRecords').set(updatedRecords);
                                 }),
+                                    
+                                    // Remove late check-ins
                                 database.ref('lateCheckIns').once('value').then(snapshot => {
-                                    const records = snapshot.val() || {};
-                                    const updatedRecords = Object.values(records).filter(record => record.employee !== username);
+                                        const records = snapshot.val() || [];
+                                        const updatedRecords = records.filter(record => record.employee !== username);
                                     return database.ref('lateCheckIns').set(updatedRecords);
                                 }),
+                                    
+                                    // Remove holiday requests
                                 database.ref('holidayRequests').once('value').then(snapshot => {
-                                    const records = snapshot.val() || {};
-                                    const updatedRecords = Object.values(records).filter(record => record.employee !== username && record.employeeName !== username);
+                                        const records = snapshot.val() || [];
+                                        const updatedRecords = records.filter(record => record.employee !== username);
                                     return database.ref('holidayRequests').set(updatedRecords);
                                 }),
+                                    
+                                    // Remove progress reports
                                 database.ref('progressReports').once('value').then(snapshot => {
-                                    const records = snapshot.val() || {};
-                                    const updatedRecords = Object.values(records).filter(record => record.employee !== username);
+                                        const records = snapshot.val() || [];
+                                        const updatedRecords = records.filter(record => record.employee !== username);
                                     return database.ref('progressReports').set(updatedRecords);
                                 }),
+                                    
+                                    // Remove employee tasks
                                 database.ref('employeeTasks').once('value').then(snapshot => {
-                                    const records = snapshot.val() || {};
-                                    const updatedRecords = Object.values(records).filter(record => record.assignedTo !== username);
+                                        const records = snapshot.val() || [];
+                                        const updatedRecords = records.filter(record => record.assignedTo !== username);
                                     return database.ref('employeeTasks').set(updatedRecords);
-                                })
-                            ];
-                            Promise.all(promises).then(() => {
+                                    }),
+                                    
+                                    // Remove time tables
+                                    database.ref('timeTables').once('value').then(snapshot => {
+                                        const records = snapshot.val() || [];
+                                        const updatedRecords = records.filter(record => record.employee !== username);
+                                        return database.ref('timeTables').set(updatedRecords);
+                                    })
+                                ];
+                                
+                                Promise.all(promises)
+                                    .then(() => {
+                                        // Clear local storage
                                 localStorage.setItem("attendanceRecords", JSON.stringify([]));
                                 localStorage.setItem("lateCheckIns", JSON.stringify([]));
                                 localStorage.setItem("holidayRequests", JSON.stringify([]));
                                 localStorage.setItem("progressReports", JSON.stringify([]));
                                 localStorage.setItem("employeeTasks", JSON.stringify([]));
+                                        localStorage.setItem("timeTables", JSON.stringify([]));
+                                        
+                                        // Update UI
                                 const adminUserSelect = document.getElementById("adminUserSelect");
                                 const optionToRemove = Array.from(adminUserSelect.options).find((option) => option.value === username);
-                                if (optionToRemove) { adminUserSelect.removeChild(optionToRemove); }
+                                        if (optionToRemove) {
+                                            adminUserSelect.removeChild(optionToRemove);
+                                        }
+                                        
                                 const deleteEmployeeSelect = document.getElementById("deleteEmployeeSelect");
                                 const deleteOptionToRemove = Array.from(deleteEmployeeSelect.options).find((option) => option.value === username);
-                                if (deleteOptionToRemove) { deleteEmployeeSelect.removeChild(deleteOptionToRemove); }
+                                        if (deleteOptionToRemove) {
+                                            deleteEmployeeSelect.removeChild(deleteOptionToRemove);
+                                        }
                                 deleteEmployeeSelect.value = "";
+                                        
                                 alert(`Employee "${username}" and all associated data have been deleted successfully.`);
                             })
                                 .catch(error => {
@@ -1678,8 +1734,8 @@
                     const now = new Date();
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     
-                    // Get local time and convert to ISO string for consistent storage
-                    const localDate = now.toLocaleDateString();
+                    // Use standardized date format
+                    const date = standardizeDate(now);
                     const localTime = now.toLocaleTimeString();
                     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     
@@ -1721,15 +1777,15 @@
                         getFirebaseData("attendanceRecords", (firebaseRecords) => {
                             const attendanceRecords = firebaseRecords || [];
                             const todayRecord = attendanceRecords.find(
-                                record => record.employee === employee && record.date === localDate
+                                record => record.employee === employee && record.date === date
                             );
                             
                             if (todayRecord && todayRecord.checkIn) {
                                 if (confirm("You have already checked in today. Do you want to add another check-in?")) {
-                                    recordCheckIn(employee, localDate, day, localTime, isLate);
+                                    recordCheckIn(employee, date, day, localTime, isLate);
                                         }
                                     } else {
-                                recordCheckIn(employee, localDate, day, localTime, isLate);
+                                recordCheckIn(employee, date, day, localTime, isLate);
                             }
                         });
                     });
@@ -1782,54 +1838,15 @@
                 }
                 function handleCheckOut() {
                     const now = new Date();
-                    const employee = document
-                        .getElementById("employeeDetails")
-                        .textContent.split("|")[0]
-                        .trim();
-                    const date = now.toLocaleDateString();
-                    const day = [
-                        "Sunday",
-                        "Monday",
-                        "Tuesday",
-                        "Wednesday",
-                        "Thursday",
-                        "Friday",
-                        "Saturday",
-                    ][now.getDay()];
+                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
+                    
+                    // Use standardized date format
+                    const date = standardizeDate(now);
+                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     const time = now.toLocaleTimeString();
-                    getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables = firebaseTimeTables;
-                        const employeeSchedule = timeTables.find(
-                            (t) => t.employee === employee
-                        );
-                        if (
-                            !employeeSchedule ||
-                            !employeeSchedule[day.toLowerCase()]?.slots
-                        ) {
-                            alert("Please set up your schedule for today first.");
-                            return;
-                        }
-                        const todaySlots = employeeSchedule[day.toLowerCase()].slots;
-                        const currentTime = new Date(`1970-01-01T${time}`);
-                        const currentSlot = todaySlots.find((slot) => {
-                            const slotStart = new Date(`1970-01-01T${slot.checkIn}`);
-                            const slotEnd = new Date(`1970-01-01T${slot.checkOut}`);
-                            return currentTime >= slotStart && currentTime <= slotEnd;
-                        });
-                        if (!currentSlot) {
-                            alert("You are not scheduled to work at this time.");
-                            return;
-                        }
-                        const slotEnd = new Date(`1970-01-01T${currentSlot.checkOut}`);
-                        if (currentTime > slotEnd) {
-                            alert("You are checking out after your scheduled end time.");
-                        }
-                        recordCheckOut(employee, date, day, time);
-                    });
-                }
-                function recordCheckOut(employee, date, day, time) {
+                    
                     getFirebaseData("attendanceRecords", (firebaseRecords) => {
-                        const attendanceRecords = firebaseRecords || [];
+                        let attendanceRecords = firebaseRecords || JSON.parse(localStorage.getItem("attendanceRecords")) || [];
                         const recordIndex = attendanceRecords.findIndex(
                             (record) => record.employee === employee && record.date === date
                         );
@@ -1840,7 +1857,7 @@
                                 date: date,
                                 day: day,
                                 checkOut: time,
-                                timestamp: new Date().toISOString() // Add timestamp for sorting
+                                timestamp: new Date().toISOString()
                             };
                             attendanceRecords.push(newRecord);
                         } else {
@@ -1854,18 +1871,107 @@
                             } else {
                                 attendanceRecords[recordIndex].checkOut = time;
                             }
-                            attendanceRecords[recordIndex].timestamp = new Date().toISOString(); // Update timestamp
+                            attendanceRecords[recordIndex].timestamp = new Date().toISOString();
                         }
 
                         saveToFirebase("attendanceRecords", attendanceRecords)
                             .then(() => {
-                                alert("Check-out recorded successfully!");
+                                localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+                                alert("Check-out successful! Time recorded: " + time);
                                 loadAttendanceTable();
                                 updateSummaryValues();
                             })
                             .catch((error) => {
                                 console.error("Error saving attendance record to Firebase:", error);
-                                alert("Error recording check-out. Please try again.");
+                                localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
+                                alert("Check-out successful! Time recorded: " + time);
+                                loadAttendanceTable();
+                                updateSummaryValues();
+                            });
+                    });
+                }
+                function handleLateCheckIn() {
+                    const now = new Date();
+                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
+                    
+                    // Use standardized date format
+                    const date = standardizeDate(now);
+                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
+                    const time = now.toLocaleTimeString();
+                    
+                    // First, get existing late check-ins from Firebase
+                    database.ref("lateCheckIns").once('value', (snapshot) => {
+                        let lateCheckIns = snapshot.val() || [];
+                        
+                        const newLateCheckIn = {
+                            employee: employee,
+                            date: date,
+                            day: day,
+                            time: time,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        // Check if there's already a late check-in for this date
+                        const existingIndex = lateCheckIns.findIndex(
+                            checkIn => checkIn.employee === employee && standardizeDate(checkIn.date) === date
+                        );
+                        
+                        if (existingIndex === -1) {
+                            lateCheckIns.push(newLateCheckIn);
+                        } else {
+                            if (Array.isArray(lateCheckIns[existingIndex].time)) {
+                                lateCheckIns[existingIndex].time.push(time);
+                            } else if (lateCheckIns[existingIndex].time) {
+                                lateCheckIns[existingIndex].time = [
+                                    lateCheckIns[existingIndex].time,
+                                    time
+                                ];
+                            } else {
+                                lateCheckIns[existingIndex].time = time;
+                            }
+                            lateCheckIns[existingIndex].timestamp = new Date().toISOString();
+                        }
+
+                        // Save to Firebase
+                        database.ref("lateCheckIns").set(lateCheckIns)
+                            .then(() => {
+                                // Update attendance records to include late check-in
+                                database.ref("attendanceRecords").once('value', (snapshot) => {
+                                    let attendanceRecords = snapshot.val() || [];
+                                    const recordIndex = attendanceRecords.findIndex(
+                                        record => record.employee === employee && standardizeDate(record.date) === date
+                                    );
+                                    
+                                    if (recordIndex === -1) {
+                                        const newRecord = {
+                                            employee: employee,
+                                            date: date,
+                                            day: day,
+                                            isLate: true,
+                                            timestamp: new Date().toISOString()
+                                        };
+                                        attendanceRecords.push(newRecord);
+                                    } else {
+                                        attendanceRecords[recordIndex].isLate = true;
+                                        attendanceRecords[recordIndex].timestamp = new Date().toISOString();
+                                    }
+                                    
+                                    // Save updated attendance records to Firebase
+                                    database.ref("attendanceRecords").set(attendanceRecords)
+                                        .then(() => {
+                                            alert("Late check-in recorded successfully!");
+                                            loadAttendanceTable();
+                                            updateSummaryValues();
+                                        })
+                                        .catch(error => {
+                                            console.error("Error saving attendance records:", error);
+                                            alert("Error saving attendance records. Please try again.");
+                                        });
+                                });
+                            })
+                            .catch((error) => {
+                                console.error("Error saving late check-in to Firebase:", error);
+                                alert("Error saving late check-in. Please try again.");
                             });
                     });
                 }
@@ -1995,90 +2101,91 @@
                     );
                 }
                 function loadAdminData(selectedUser = "") {
-                    getFirebaseData("attendanceRecords", (firebaseAttendanceRecords) => {
-                        const attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+                    // First get attendance records from Firebase
+                    database.ref("attendanceRecords").once('value', (snapshot) => {
+                        const attendanceRecords = snapshot.val() || [];
                         const tableBody = document.getElementById("adminAttendanceTable");
                         if (!tableBody) return;
                         tableBody.innerHTML = "";
+                        
                         const filteredRecords = attendanceRecords.filter(
                             (record) => !selectedUser || record.employee === selectedUser
                         );
+                        
+                        // Sort records by date in descending order
+                        filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        
                         if (selectedUser && filteredRecords.length === 0) {
                             const row = document.createElement("tr");
                             row.innerHTML = '<td colspan="7" style="text-align: center;">No attendance records found for this employee</td>';
                             tableBody.appendChild(row);
                             return;
                         }
-                        function parseDate(dateStr) {
-                            let parts = dateStr.split('/');
-                            if (parts.length === 3) {
-                                if (parseInt(parts[0]) <= 31) {
-                                    return new Date(parts[2], parts[1] - 1, parts[0]);
-                                }
-                                return new Date(parts[2], parts[0] - 1, parts[1]);
-                            }
-                            return new Date(dateStr);
-                        }
-                        filteredRecords.sort((a, b) => {
-                            const dateA = parseDate(a.date);
-                            const dateB = parseDate(b.date);
-                            return dateB - dateA;
-                        });
-                        filteredRecords.forEach((record) => {
-                            const checkOutTimes = Array.isArray(record.checkOut)
-                                ? record.checkOut
-                                : record.checkOut
-                                    ? [record.checkOut]
-                                    : [];
-                            const lateCheckIns = JSON.parse(localStorage.getItem("lateCheckIns")) || [];
-                            const lateCheckInTimes = lateCheckIns
-                                .filter(
-                                    (late) =>
-                                        late.employee === record.employee &&
-                                        late.date === record.date
-                                )
-                                .map((late) => late.time)
-                                .sort((a, b) => {
-                                    const timeA = new Date(`1970-01-01T${a}`);
-                                    const timeB = new Date(`1970-01-01T${b}`);
-                                    return timeB - timeA;
-                                });
-                            const workingHours = calculateWorkingHours(
-                                record.checkIn,
-                                checkOutTimes,
-                                lateCheckInTimes
-                            );
-                            const row = document.createElement("tr");
-                            row.innerHTML = `
-                            <td>${record.employee}</td>
-                           <td>${record.date}</td>
-                           <td>${record.day}</td>
-                           <td>${record.checkIn || "-"}</td>
+
+                        // Then get late check-ins from Firebase
+                        database.ref("lateCheckIns").once('value', (snapshot) => {
+                            const lateCheckIns = snapshot.val() || [];
+
+                            filteredRecords.forEach((record) => {
+                                const checkOutTimes = Array.isArray(record.checkOut)
+                                    ? record.checkOut
+                                    : record.checkOut
+                                        ? [record.checkOut]
+                                        : [];
+
+                                // Filter late check-ins for this employee and date
+                                const lateCheckInTimes = lateCheckIns
+                                    .filter(
+                                        (late) =>
+                                            late.employee === record.employee &&
+                                            standardizeDate(late.date) === standardizeDate(record.date)
+                                    )
+                                    .map((late) => late.time)
+                                    .sort((a, b) => {
+                                        const timeA = new Date(`1970-01-01T${a}`);
+                                        const timeB = new Date(`1970-01-01T${b}`);
+                                        return timeB - timeA;
+                                    });
+
+                                const workingHours = calculateWorkingHours(
+                                    record.checkIn,
+                                    checkOutTimes,
+                                    lateCheckInTimes
+                                );
+
+                                const row = document.createElement("tr");
+                                row.innerHTML = `
+                                <td>${record.employee}</td>
+                                <td>${record.date}</td>
+                                <td>${record.day}</td>
+                                <td>${record.checkIn || "-"}</td>
                                 <td>
                                     <select onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
                                         ${checkOutTimes.length > 0
-                                    ? checkOutTimes.map(time =>
-                                        `<option ${checkOutTimes[0] === time ? "selected" : ""}>${time}</option>`
-                                    ).join("")
-                                    : '<option value="-">-</option>'
-                                }
-                </select>
-            </td>
-            <td>
-                                    <select onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
-                                        ${lateCheckInTimes.length > 0
-                                    ? lateCheckInTimes.map(time =>
-                                        `<option ${lateCheckInTimes[0] === time ? "selected" : ""}>${time}</option>`
-                                    ).join("")
-                                    : '<option value="-">-</option>'
-                                }
-                </select>
-            </td>
-                                <td id="workingHours_${record.date}_${record.employee}">${workingHours}</td>`;
-                            tableBody.appendChild(row);
+                                        ? checkOutTimes.map(time =>
+                                            `<option ${checkOutTimes[0] === time ? "selected" : ""}>${time}</option>`
+                                        ).join("")
+                                        : '<option value="-">-</option>'
+                                    }
+                                </select>
+                            </td>
+                            <td>
+                                <select onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
+                                    ${lateCheckInTimes.length > 0
+                                        ? lateCheckInTimes.map(time =>
+                                            `<option ${lateCheckInTimes[0] === time ? "selected" : ""}>${time}</option>`
+                                        ).join("")
+                                        : '<option value="-">-</option>'
+                                    }
+                                </select>
+                            </td>
+                            <td id="workingHours_${record.date}_${record.employee}">${workingHours}</td>`;
+                                tableBody.appendChild(row);
+                            });
+                            
+                            loadMissedCheckIns(selectedUser);
+                            updateMissedCheckInsSummary();
                         });
-                        loadMissedCheckIns(selectedUser);
-                        updateMissedCheckInsSummary();
                     });
                 }
                 function loadMissedCheckIns(selectedUser = "") {
@@ -2727,40 +2834,50 @@
                 }
                 function saveTimeTable() {
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
+                    const currentDate = new Date();
+                    const weekStart = getWeekStart(currentDate);
                     
-                    // Get all time slots and convert to UTC
+                    // Get all time slots
                         const timeTable = {
                         employee: employee,
-                        weekStart: new Date().toISOString(),
-                        sunday: { slots: getTimeSlots("sunday") },
-                        monday: { slots: getTimeSlots("monday") },
-                        tuesday: { slots: getTimeSlots("tuesday") },
-                        wednesday: { slots: getTimeSlots("wednesday") },
-                        thursday: { slots: getTimeSlots("thursday") },
-                        friday: { slots: getTimeSlots("friday") },
-                        saturday: { slots: getTimeSlots("saturday") }
+                        weekStart: weekStart.toISOString(),
+                        lastSaved: new Date().toISOString()
                     };
 
-                    // Convert all times to UTC before saving
-                    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-                    days.forEach(day => {
-                        if (timeTable[day]?.slots) {
-                            timeTable[day].slots = timeTable[day].slots.map(slot => {
-                                const localCheckIn = new Date(`1970-01-01T${slot.checkIn}`);
-                                const localCheckOut = new Date(`1970-01-01T${slot.checkOut}`);
-                                
-                                return {
-                                    checkIn: new Date(localCheckIn.getTime() - localCheckIn.getTimezoneOffset() * 60000)
-                                        .toISOString().split('T')[1].split('.')[0],
-                                    checkOut: new Date(localCheckOut.getTime() - localCheckOut.getTimezoneOffset() * 60000)
-                                        .toISOString().split('T')[1].split('.')[0]
-                                };
-                            });
-                        }
-                    });
+                    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                    let hasValidSlots = false;
 
-                    getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        let timeTables = firebaseTimeTables || [];
+                    for (const day of days) {
+                        const daySlots = document.getElementById(`${day}Slots`);
+                        const slots = [];
+                        daySlots.querySelectorAll('.time-slot-row').forEach(row => {
+                            const inputs = row.querySelectorAll('input[type="time"]');
+                            const checkIn = inputs[0].value;
+                            const checkOut = inputs[1].value;
+                            if (checkIn && checkOut) {
+                                const checkInTime = new Date(`1970-01-01T${checkIn}`);
+                                const checkOutTime = new Date(`1970-01-01T${checkOut}`);
+                                if (checkInTime >= checkOutTime) {
+                                    alert(`Check-out time must be after check-in time for ${day}`);
+                                    return;
+                                }
+                                slots.push({ checkIn, checkOut });
+                                hasValidSlots = true;
+                            }
+                        });
+                        if (slots.length > 0) {
+                            timeTable[day] = { slots };
+                        }
+                    }
+
+                    if (!hasValidSlots) {
+                        alert("Please add at least one valid time slot");
+                        return;
+                    }
+
+                    // Save to Firebase
+                    database.ref("timeTables").once('value', (snapshot) => {
+                        let timeTables = snapshot.val() || [];
                         const existingIndex = timeTables.findIndex(t => t.employee === employee);
                         
                         if (existingIndex !== -1) {
@@ -2769,11 +2886,11 @@
                             timeTables.push(timeTable);
                         }
 
-                        // Save to Firebase first
-                        saveToFirebase("timeTables", timeTables)
+                        database.ref("timeTables").set(timeTables)
                             .then(() => {
                                 localStorage.setItem("timeTables", JSON.stringify(timeTables));
                                 alert("Schedule saved successfully!");
+                                closeTimeTableModal();
                             })
                             .catch(error => {
                                 console.error("Error saving timetable to Firebase:", error);
@@ -2978,95 +3095,56 @@
                     document.getElementById("userPassword").value = "";
                 }
                 function loadAttendanceTable() {
+                    const tableBody = document.getElementById("attendanceTable");
+                    if (!tableBody) return;
+                    tableBody.innerHTML = "";
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
-                    getFirebaseData("attendanceRecords", (firebaseAttendanceRecords) => {
-                        let attendanceRecords = firebaseAttendanceRecords || JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+                    
+                    // First get attendance records from Firebase
+                    database.ref("attendanceRecords").once('value', (snapshot) => {
+                        const attendanceRecords = snapshot.val() || [];
+                        const filteredRecords = attendanceRecords.filter(record => record.employee === employee);
                         
-                        // Sort records by date in descending order (newest first)
-                        attendanceRecords.sort((a, b) => {
-                            const dateA = new Date(a.date);
-                            const dateB = new Date(b.date);
-                            return dateB - dateA;
+                        // Sort records by date in descending order
+                        filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        
+                        if (filteredRecords.length === 0) {
+                            const row = document.createElement("tr");
+                            row.innerHTML = '<td colspan="6" style="text-align: center;">No attendance records found</td>';
+                            tableBody.appendChild(row);
+                            return;
+                        }
+
+                        filteredRecords.forEach((record) => {
+                            const checkOutTimes = Array.isArray(record.checkOut)
+                                ? record.checkOut
+                                : record.checkOut
+                                    ? [record.checkOut]
+                                    : [];
+
+                            const row = document.createElement("tr");
+                            row.innerHTML = `
+                                <td>${record.date}</td>
+                                <td>${record.day}</td>
+                                <td>${record.checkIn || "-"}</td>
+                                <td>
+                                    <select onchange="updateWorkingHours(this, '${record.date}')">
+                                        ${checkOutTimes.length > 0
+                                            ? checkOutTimes.map(time =>
+                                                `<option ${checkOutTimes[0] === time ? "selected" : ""}>${time}</option>`
+                                            ).join("")
+                                            : '<option value="-">-</option>'
+                                        }
+                                    </select>
+                                </td>
+                                <td>${record.isLate ? "Yes" : "No"}</td>
+                                <td id="workingHours_${record.date}">${calculateWorkingHours(
+                                    record.checkIn,
+                                    checkOutTimes,
+                                    record.isLate ? [record.checkIn] : []
+                                )}</td>`;
+                            tableBody.appendChild(row);
                         });
-
-                        // Group records by date
-                        const groupedRecords = attendanceRecords.reduce((acc, record) => {
-                            if (!acc[record.date]) {
-                                acc[record.date] = {
-                                    employee: record.employee,
-                                    date: record.date,
-                                    day: record.day,
-                                    checkIns: [],
-                                    checkOuts: [],
-                                    isLate: false
-                                };
-                            }
-                            
-                            // Add check-ins
-                            if (record.checkIn) {
-                                const checkIns = Array.isArray(record.checkIn) ? record.checkIn : [record.checkIn];
-                                acc[record.date].checkIns.push(...checkIns);
-                            }
-                            
-                            // Add check-outs
-                            if (record.checkOut) {
-                                const checkOuts = Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut];
-                                acc[record.date].checkOuts.push(...checkOuts);
-                            }
-                            
-                            // Mark as late if any check-in was late
-                            if (record.isLate) {
-                                acc[record.date].isLate = true;
-                            }
-                            
-                            return acc;
-                        }, {});
-
-                        // Convert grouped records back to array
-                        const processedRecords = Object.values(groupedRecords).map(record => ({
-                            ...record,
-                            checkIns: [...new Set(record.checkIns)].sort((a, b) => timeToMinutes(a) - timeToMinutes(b)),
-                            checkOuts: [...new Set(record.checkOuts)].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
-                        }));
-
-                        localStorage.setItem("attendanceRecords", JSON.stringify(processedRecords));
-                        const tableBody = document.getElementById("attendanceTable");
-                        const adminTableBody = document.getElementById("adminAttendanceTable");
-                        
-                        if (tableBody) {
-                            tableBody.innerHTML = '';
-                            processedRecords
-                                .filter(record => record.employee === employee)
-                                .forEach(record => {
-                                    const row = document.createElement('tr');
-                                    row.innerHTML = `
-                                        <td>${record.date}</td>
-                                        <td>${record.day}</td>
-                                        <td>${record.checkIns.join(', ')}</td>
-                                        <td>${record.checkOuts.join(', ')}</td>
-                                        <td>${record.isLate ? "Yes" : "No"}</td>
-                                        <td>${calculateWorkingHours(record.checkIns, record.checkOuts, record.isLate ? record.checkIns : [])}</td>
-                                    `;
-                                    tableBody.appendChild(row);
-                                });
-                        }
-
-                        if (adminTableBody) {
-                            adminTableBody.innerHTML = '';
-                            processedRecords.forEach(record => {
-                                const row = document.createElement('tr');
-                                row.innerHTML = `
-                                    <td>${record.employee}</td>
-                                    <td>${record.date}</td>
-                                    <td>${record.day}</td>
-                                    <td>${record.checkIns.join(', ')}</td>
-                                    <td>${record.checkOuts.join(', ')}</td>
-                                    <td>${record.isLate ? "Yes" : "No"}</td>
-                                    <td>${calculateWorkingHours(record.checkIns, record.checkOuts, record.isLate ? record.checkIns : [])}</td>
-                                `;
-                                adminTableBody.appendChild(row);
-                            });
-                        }
                     });
                 }
                 function calculateWorkingHours(checkIn, checkOut, lateCheckIns = []) {
@@ -3147,26 +3225,19 @@
                 }
                 function addAttendanceRecord(type) {
                     const now = new Date();
-                    const employee = document
-                        .getElementById("employeeDetails")
-                        .textContent.split("|")[0]
-                        .trim();
-                    const date = now.toLocaleDateString();
-                    const day = [
-                        "Sunday",
-                        "Monday",
-                        "Tuesday",
-                        "Wednesday",
-                        "Thursday",
-                        "Friday",
-                        "Saturday",
-                    ][now.getDay()];
+                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
+                    
+                    // Use standardized date format
+                    const date = standardizeDate(now);
+                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     const time = now.toLocaleTimeString();
+                    
                     getFirebaseData("attendanceRecords", (firebaseRecords) => {
                         let attendanceRecords = firebaseRecords || JSON.parse(localStorage.getItem("attendanceRecords")) || [];
                         const recordIndex = attendanceRecords.findIndex(
                             (record) => record.employee === employee && record.date === date
                         );
+                        
                         if (recordIndex === -1) {
                             const newRecord = {
                                 employee: employee,
@@ -3241,19 +3312,18 @@
                 function updateSummaryValues() {
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     const attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
+                    
+                    // Convert all dates to standardized format
+                    const standardizedRecords = attendanceRecords.map(record => ({
+                        ...record,
+                        date: standardizeDate(record.date)
+                    }));
+                    
+                    const employeeRecords = standardizedRecords.filter(
+                        (record) => record.employee === employee
+                    );
                     const lateCheckIns = JSON.parse(localStorage.getItem("lateCheckIns")) || [];
                     const holidayRequests = JSON.parse(localStorage.getItem("holidayRequests")) || [];
-                    const employeeRecords = attendanceRecords.filter(
-                        (record) => record.employee === employee
-                    );
-                    const employeeLateCheckins = lateCheckIns.filter(
-                        (record) => record.employee === employee
-                    );
-                    const employeeHolidays = holidayRequests.filter(
-                        (request) =>
-                            request.employeeName === employee ||
-                            request.employee === employee
-                    );
                     const totalCheckIns = employeeRecords.filter(
                         (record) => record.checkIn
                     ).length;
@@ -3267,7 +3337,7 @@
                         }
                         return total;
                     }, 0);
-                    const totalLateCheckIns = employeeLateCheckins.length;
+                    const totalLateCheckIns = lateCheckIns.length;
                     const today = new Date();
                     const startOfMonth = new Date(
                         today.getFullYear(),
@@ -3284,7 +3354,7 @@
                         const hasAttendance = employeeRecords.some(
                             (record) => record.date === dateString
                         );
-                        const hasApprovedLeave = employeeHolidays.some((leave) => {
+                        const hasApprovedLeave = holidayRequests.some((leave) => {
                             const startDate = new Date(leave.startDate);
                             const endDate = new Date(leave.endDate);
                             return (
@@ -3296,7 +3366,7 @@
                             totalAbsences++;
                         }
                     }
-                    const unapprovedLeaves = employeeHolidays.filter((request) =>
+                    const unapprovedLeaves = holidayRequests.filter((request) =>
                         equest.status && request.status.toLowerCase() === "rejected").length;
                     document.getElementById("totalCheckIns").textContent = totalCheckIns;
                     document.getElementById("totalCheckOuts").textContent = totalCheckOuts;
@@ -3827,196 +3897,58 @@
                     link.click();
                     document.body.removeChild(link);
                 }
-                function handleCheckOut() {
-                    const now = new Date();
-                    getFirebaseData("attendanceRecords", (firebaseRecords) => {
-                        let attendanceRecords =
-                            firebaseRecords ||
-                            JSON.parse(localStorage.getItem("attendanceRecords")) ||
-                            [];
-                        const employee = document
-                            .getElementById("employeeDetails")
-                            .textContent.split("|")[0]
-                            .trim();
-                        const date = now.toLocaleDateString();
-                        const day = [
-                            "Sunday",
-                            "Monday",
-                            "Tuesday",
-                            "Wednesday",
-                            "Thursday",
-                            "Friday",
-                            "Saturday",
-                        ][now.getDay()];
-                        const time = now.toLocaleTimeString();
-                        const recordIndex = attendanceRecords.findIndex(
-                            (record) => record.employee === employee && record.date === date
-                        );
-                        if (recordIndex === -1) {
-                            const newRecord = {
-                                employee: employee,
-                                date: date,
-                                day: day,
-                                checkOut: time,
-                            };
-                            attendanceRecords.push(newRecord);
-                        } else {
-                            if (Array.isArray(attendanceRecords[recordIndex].checkOut)) {
-                                attendanceRecords[recordIndex].checkOut.push(time);
-                            } else if (attendanceRecords[recordIndex].checkOut) {
-                                attendanceRecords[recordIndex].checkOut = [
-                                    attendanceRecords[recordIndex].checkOut,
-                                    time,
-                                ];
-                            } else {
-                                attendanceRecords[recordIndex].checkOut = time;
-                            }
-                        }
-                        saveToFirebase("attendanceRecords", attendanceRecords)
-                            .then(() => {
-                                localStorage.setItem(
-                                    "attendanceRecords",
-                                    JSON.stringify(attendanceRecords)
-                                );
-                                alert("Check-out successful! Time recorded: " + time);
-                                loadAttendanceTable();
-                                updateSummaryValues();
-                            })
-                            .catch((error) => {
-                                console.error(
-                                    "Error saving attendance record to Firebase:",
-                                    error
-                                );
-                                localStorage.setItem(
-                                    "attendanceRecords",
-                                    JSON.stringify(attendanceRecords)
-                                );
-                                alert("Check-out successful! Time recorded: " + time);
-                                loadAttendanceTable();
-                                updateSummaryValues();
-                            });
-                    });
-                }
+                
                 function loadAttendanceTable() {
-                    const employee = document
-                        .getElementById("employeeDetails")
-                        .textContent.split("|")[0]
-                        .trim();
-                    getFirebaseData("attendanceRecords", (firebaseAttendanceRecords) => {
-                        let attendanceRecords =
-                            firebaseAttendanceRecords ||
-                            JSON.parse(localStorage.getItem("attendanceRecords")) ||
-                            [];
-                        attendanceRecords = attendanceRecords.map((record) => ({
-                            ...record,
-                            checkIn: record.checkIn
-                                ? Array.isArray(record.checkIn)
-                                    ? [...new Set(record.checkIn)]
-                                    : [record.checkIn]
-                                : [],
-                            checkOut: record.checkOut
-                                ? Array.isArray(record.checkOut)
-                                    ? [...new Set(record.checkOut)]
-                                    : [record.checkOut] : [],
-                        }));
-                        localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
-                        const tableBody = document.getElementById("attendanceTable");
-                        const adminTableBody = document.getElementById("adminAttendanceTable");
-                        if (tableBody) {
-                            tableBody.innerHTML = "";
-                            const employeeRecords = attendanceRecords
-                                .filter((record) => record.employee === employee)
-                                .sort((a, b) => new Date(b.date) - new Date(a.date));
-                            employeeRecords.forEach((record) => {
-                                const mainRow = document.createElement("tr");
-                                const checkInOptions = record.checkIn.length > 0
-                                    ? record.checkIn
-                                        .sort((a, b) => timeToMinutes(a) - timeToMinutes(b)) // Sort times chronologically
-                                        .map(time =>
-                                            `<option value="${time}" ${record.checkIn[0] === time ? 'selected' : ''}>${time}</option>`
-                                        ).join('')
-                                    : '<option value="">-</option>';
-                                const checkOutOptions = record.checkOut.length > 0
-                                    ? record.checkOut
-                                        .sort((a, b) => timeToMinutes(a) - timeToMinutes(b)) // Sort times chronologically
-                                        .map(time =>
-                                            `<option value="${time}" ${record.checkOut[0] === time ? 'selected' : ''}>${time}</option>`
-                                        ).join('')
-                                    : '<option value="">-</option>';
-                                const lateCheckIns = JSON.parse(localStorage.getItem('lateCheckIns')) || [];
-                                const recordLateCheckIns = lateCheckIns
-                                    .filter(late => late.employee === record.employee && late.date === record.date)
-                                    .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
-                                const lateCheckInOptions = recordLateCheckIns.length > 0
-                                    ? recordLateCheckIns.map(late =>
-                                        `<option value="${late.time}" ${recordLateCheckIns[0].time === late.time ? 'selected' : ''}>${late.time}</option>`
-                                    ).join('')
-                                    : '<option value="">-</option>';
-                                mainRow.innerHTML = `
-                                        <td>${record.date}</td>
-                                        <td>${record.day}</td>
-                                        <td>
-                                            <select class="time-select" onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
-                                                ${checkInOptions}
-                                            </select>
-                                            ${record.isLate ? '<span class="late-badge">Late</span>' : ''}
-                                        </td>
-                                        <td>
-                                            <select class="time-select" onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
-                                                ${checkOutOptions}
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <select class="time-select" onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
-                                                ${lateCheckInOptions}
-                                            </select>
-                                        </td>
-                                    `;
-                                tableBody.appendChild(mainRow);
-                            });
+                    const tableBody = document.getElementById("attendanceTable");
+                    if (!tableBody) return;
+                    tableBody.innerHTML = "";
+                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
+                    
+                    // First get attendance records from Firebase
+                    database.ref("attendanceRecords").once('value', (snapshot) => {
+                        const attendanceRecords = snapshot.val() || [];
+                        const filteredRecords = attendanceRecords.filter(record => record.employee === employee);
+                        
+                        // Sort records by date in descending order
+                        filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        
+                        if (filteredRecords.length === 0) {
+                            const row = document.createElement("tr");
+                            row.innerHTML = '<td colspan="6" style="text-align: center;">No attendance records found</td>';
+                            tableBody.appendChild(row);
+                            return;
                         }
-                        if (adminTableBody) {
-                            adminTableBody.innerHTML = "";
-                            const selectedEmployee = document.getElementById("adminUserSelect")?.value;
-                            const recordsToShow = selectedEmployee
-                                ? attendanceRecords.filter((record) => record.employee === selectedEmployee)
-                                : attendanceRecords;
-                            recordsToShow.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach((record) => {
-                                const mainRow = document.createElement("tr");
-                                const checkIns = (Array.isArray(record.checkIn) ? record.checkIn : [record.checkIn]).filter((time) => time)
-                                    .map((time) => convertTo24Hour(time))
-                                    .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
-                                const checkOuts = (Array.isArray(record.checkOut) ? record.checkOut : [record.checkOut])
-                                    .filter((time) => time)
-                                    .map((time) => convertTo24Hour(time))
-                                    .sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
-                                const checkInOptions = checkIns.length > 0
-                                    ? checkIns.map((time) => `<option value="${time}">${time}</option>`).join("")
-                                    : '<option value="">-</option>';
-                                const checkOutOptions = checkOuts.length > 0
-                                    ? checkOuts.map((time) => `<option value="${time}">${time}</option>`).join("")
-                                    : '<option value="">-</option>';
-                                mainRow.innerHTML = `
-                                    <td>${record.employee}</td>
-                                    <td>${record.date}</td>
-                                    <td>${record.day}</td>
-                                    <td>
-                                            <select class="time-select" onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
-                                            ${checkInOptions}
-                                        </select>
-                                            ${record.isLate ? '<span class="late-badge">Late</span>' : ''}
-                                    </td>
-                                    <td>
-                                            <select class="time-select" onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
-                                            ${checkOutOptions}
-                                        </select>
-                                    </td>
-                                    <td>${record.isLate ? "Yes" : "No"}</td>
-                                        <td>${calculateWorkingHours(checkIns, checkOuts, record.isLate ? checkIns : [])}</td>
-                                `;
-                                adminTableBody.appendChild(mainRow);
-                            });
-                        }
+
+                        filteredRecords.forEach((record) => {
+                            const checkOutTimes = Array.isArray(record.checkOut)
+                                ? record.checkOut
+                                : record.checkOut
+                                    ? [record.checkOut]
+                                    : [];
+
+                            const row = document.createElement("tr");
+                            row.innerHTML = `
+                                <td>${record.date}</td>
+                                <td>${record.day}</td>
+                                <td>${record.checkIn || "-"}</td>
+                                <td>
+                                    <select onchange="updateWorkingHours(this, '${record.date}')">
+                                        ${checkOutTimes.length > 0
+                                            ? checkOutTimes.map(time =>
+                                                `<option ${checkOutTimes[0] === time ? "selected" : ""}>${time}</option>`
+                                            ).join("")
+                                            : '<option value="-">-</option>'
+                                        }
+                                    </select>
+                                </td>
+                                <td>${record.isLate ? "Yes" : "No"}</td>
+                                <td id="workingHours_${record.date}">${calculateWorkingHours(
+                                    record.checkIn,
+                                    checkOutTimes,
+                                    record.isLate ? [record.checkIn] : []
+                                )}</td>`;
+                            tableBody.appendChild(row);
+                        });
                     });
                 }
                 function calculateWorkingHours(checkIn, checkOut, lateCheckIns = []) {
@@ -4039,7 +3971,6 @@
                             const checkOutTime = timeToMinutes(checkOut);
                             return checkInTime < checkOutTime;
                         });
-
                         if (!validCheckIn) {
                             return "Invalid: Check-out time is earlier than check-in time";
                         }
@@ -4564,39 +4495,12 @@
                         toggleIcon.classList.add('fa-eye');
                     }
                 }
-                function handleLateCheckIn() {
-                    const now = new Date();
-                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
-                    const date = now.toLocaleDateString();
-                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
-                    const time = now.toLocaleTimeString();
-                    getFirebaseData("lateCheckIns", (firebaseLateCheckIns) => {
-                        let lateCheckIns = firebaseLateCheckIns || JSON.parse(localStorage.getItem("lateCheckIns")) || [];
-                        const newLateCheckIn = {
-                            employee: employee,
-                            date: date,
-                            day: day,
-                            time: time
-                        };
-                        lateCheckIns.push(newLateCheckIn);
-                        saveToFirebase("lateCheckIns", lateCheckIns)
-                            .then(() => {
-                                localStorage.setItem("lateCheckIns", JSON.stringify(lateCheckIns));
-                                alert("Late check-in recorded successfully!");
-                                loadAttendanceTable();
-                                updateSummaryValues();
-                            })
-                            .catch((error) => {
-                                console.error("Error saving late check-in to Firebase:", error);
-                                localStorage.setItem("lateCheckIns", JSON.stringify(lateCheckIns));
-                                alert("Late check-in recorded successfully!");
-                                loadAttendanceTable();
-                                updateSummaryValues();
-                            });
-                    });
-                }
+                
                 function checkTimetable(employee, date, day, time) {
+                    // Convert input date to standardized format
+                    const standardizedDate = standardizeDate(date);
                     const currentTime = time;
+                    
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
                         const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
                         const employeeSchedule = timeTables.find(t => t.employee === employee);
