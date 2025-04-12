@@ -781,6 +781,20 @@
                 <div id="employeeTasks-section" class="section" style="display: none">
                     <h2>My Tasks:</h2>
                     <h4>Complete the Assigned Tasks for the Day.</h4>
+                    <div class="task-filters">
+                        <select id="taskStatusFilter" onchange="filterEmployeeTasks()" style="padding: 5px; margin-right: 10px;">
+                            <option value="all">All Tasks</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Not Achieved">Not Achieved</option>
+                        </select>
+                        <select id="taskDateFilter" onchange="filterEmployeeTasks()" style="padding: 5px;">
+                            <option value="all">All Dates</option>
+                            <option value="today">Today</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                        </select>
+                    </div>
                     <table>
                         <thead>
                             <tr>
@@ -1200,10 +1214,10 @@
                                 <option value="Sunday">Sunday</option>
                             </select>
                             <label for="taskDescription">Description:</label>
-                            <input type="text" id="taskDescription" style="padding: 5px" />
+                            <textarea id="taskDescription" style="padding: 5px; width: 100%; min-height: 100px; resize: vertical;"></textarea>
                             <label for="taskFile"> Upload File:</label>
                             <input type="file" id="taskFile" />
-                            <button onclick="addNewTask()">Add Task</button>
+                            <button onclick="addNewTask()" style="background-color: #1c7593; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Add Task</button>
                         </div>
                         <h2 style="padding: 10px; margin: 10px">Assigned Tasks History</h2>
                         <table>
@@ -2112,8 +2126,10 @@
                             (record) => !selectedUser || record.employee === selectedUser
                         );
                         
-                        // Sort records by date in descending order
-                        filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        // Sort records by date in descending order (newest first)
+                        filteredRecords.sort((a, b) => {
+                            return new Date(b.date) - new Date(a.date);
+                        });
                         
                         if (selectedUser && filteredRecords.length === 0) {
                             const row = document.createElement("tr");
@@ -2126,65 +2142,65 @@
                         database.ref("lateCheckIns").once('value', (snapshot) => {
                             const lateCheckIns = snapshot.val() || [];
 
-                            filteredRecords.forEach((record) => {
-                                const checkOutTimes = Array.isArray(record.checkOut)
-                                    ? record.checkOut
-                                    : record.checkOut
-                                        ? [record.checkOut]
-                                        : [];
+                        filteredRecords.forEach((record) => {
+                            const checkOutTimes = Array.isArray(record.checkOut)
+                                ? record.checkOut
+                                : record.checkOut
+                                    ? [record.checkOut]
+                                    : [];
 
                                 // Filter late check-ins for this employee and date
-                                const lateCheckInTimes = lateCheckIns
-                                    .filter(
-                                        (late) =>
-                                            late.employee === record.employee &&
+                            const lateCheckInTimes = lateCheckIns
+                                .filter(
+                                    (late) =>
+                                        late.employee === record.employee &&
                                             standardizeDate(late.date) === standardizeDate(record.date)
-                                    )
-                                    .map((late) => late.time)
-                                    .sort((a, b) => {
-                                        const timeA = new Date(`1970-01-01T${a}`);
-                                        const timeB = new Date(`1970-01-01T${b}`);
-                                        return timeB - timeA;
-                                    });
+                                )
+                                .map((late) => late.time)
+                                .sort((a, b) => {
+                                    const timeA = new Date(`1970-01-01T${a}`);
+                                    const timeB = new Date(`1970-01-01T${b}`);
+                                    return timeB - timeA;
+                                });
 
-                                const workingHours = calculateWorkingHours(
-                                    record.checkIn,
-                                    checkOutTimes,
-                                    lateCheckInTimes
-                                );
+                            const workingHours = calculateWorkingHours(
+                                record.checkIn,
+                                checkOutTimes,
+                                lateCheckInTimes
+                            );
 
-                                const row = document.createElement("tr");
-                                row.innerHTML = `
-                                <td>${record.employee}</td>
-                                <td>${record.date}</td>
-                                <td>${record.day}</td>
-                                <td>${record.checkIn || "-"}</td>
+                            const row = document.createElement("tr");
+                            row.innerHTML = `
+                            <td>${record.employee}</td>
+                           <td>${record.date}</td>
+                           <td>${record.day}</td>
+                           <td>${record.checkIn || "-"}</td>
                                 <td>
                                     <select onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
                                         ${checkOutTimes.length > 0
-                                        ? checkOutTimes.map(time =>
-                                            `<option ${checkOutTimes[0] === time ? "selected" : ""}>${time}</option>`
-                                        ).join("")
-                                        : '<option value="-">-</option>'
-                                    }
-                                </select>
-                            </td>
-                            <td>
-                                <select onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
-                                    ${lateCheckInTimes.length > 0
-                                        ? lateCheckInTimes.map(time =>
-                                            `<option ${lateCheckInTimes[0] === time ? "selected" : ""}>${time}</option>`
-                                        ).join("")
-                                        : '<option value="-">-</option>'
-                                    }
-                                </select>
-                            </td>
-                            <td id="workingHours_${record.date}_${record.employee}">${workingHours}</td>`;
-                                tableBody.appendChild(row);
-                            });
+                                    ? checkOutTimes.map(time =>
+                                        `<option ${checkOutTimes[0] === time ? "selected" : ""}>${time}</option>`
+                                    ).join("")
+                                    : '<option value="-">-</option>'
+                                }
+                </select>
+            </td>
+            <td>
+                                    <select onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
+                                        ${lateCheckInTimes.length > 0
+                                    ? lateCheckInTimes.map(time =>
+                                        `<option ${lateCheckInTimes[0] === time ? "selected" : ""}>${time}</option>`
+                                    ).join("")
+                                    : '<option value="-">-</option>'
+                                }
+                </select>
+            </td>
+                                <td id="workingHours_${record.date}_${record.employee}">${workingHours}</td>`;
+                            tableBody.appendChild(row);
+                        });
                             
-                            loadMissedCheckIns(selectedUser);
-                            updateMissedCheckInsSummary();
+                        loadMissedCheckIns(selectedUser);
+                        updateMissedCheckInsSummary();
                         });
                     });
                 }
@@ -3095,55 +3111,82 @@
                     document.getElementById("userPassword").value = "";
                 }
                 function loadAttendanceTable() {
-                    const tableBody = document.getElementById("attendanceTable");
-                    if (!tableBody) return;
-                    tableBody.innerHTML = "";
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
-                    
-                    // First get attendance records from Firebase
-                    database.ref("attendanceRecords").once('value', (snapshot) => {
-                        const attendanceRecords = snapshot.val() || [];
-                        const filteredRecords = attendanceRecords.filter(record => record.employee === employee);
+                    getFirebaseData("attendanceRecords", (firebaseAttendanceRecords) => {
+                        let attendanceRecords = firebaseAttendanceRecords || [];
                         
-                        // Sort records by date in descending order
-                        filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        // Filter records for current employee
+                        const employeeRecords = attendanceRecords.filter(record => record.employee === employee);
                         
-                        if (filteredRecords.length === 0) {
-                            const row = document.createElement("tr");
-                            row.innerHTML = '<td colspan="6" style="text-align: center;">No attendance records found</td>';
-                            tableBody.appendChild(row);
-                            return;
-                        }
+                        // Sort records by date in descending order (newest first)
+                        employeeRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-                        filteredRecords.forEach((record) => {
-                            const checkOutTimes = Array.isArray(record.checkOut)
-                                ? record.checkOut
-                                : record.checkOut
-                                    ? [record.checkOut]
-                                    : [];
+                        // Group records by date
+                        const groupedRecords = employeeRecords.reduce((acc, record) => {
+                            if (!acc[record.date]) {
+                                acc[record.date] = {
+                                    employee: record.employee,
+                                    date: record.date,
+                                    day: record.day,
+                                    checkIns: [],
+                                    checkOuts: [],
+                                    lateCheckIns: []
+                                };
+                            }
+                            if (record.checkIn) {
+                                acc[record.date].checkIns.push(record.checkIn);
+                            }
+                            if (record.checkOut) {
+                                acc[record.date].checkOuts.push(record.checkOut);
+                            }
+                            return acc;
+                        }, {});
 
-                            const row = document.createElement("tr");
-                            row.innerHTML = `
-                                <td>${record.date}</td>
-                                <td>${record.day}</td>
-                                <td>${record.checkIn || "-"}</td>
-                                <td>
-                                    <select onchange="updateWorkingHours(this, '${record.date}')">
-                                        ${checkOutTimes.length > 0
-                                            ? checkOutTimes.map(time =>
-                                                `<option ${checkOutTimes[0] === time ? "selected" : ""}>${time}</option>`
-                                            ).join("")
-                                            : '<option value="-">-</option>'
-                                        }
-                                    </select>
-                                </td>
-                                <td>${record.isLate ? "Yes" : "No"}</td>
-                                <td id="workingHours_${record.date}">${calculateWorkingHours(
-                                    record.checkIn,
+                        // Get late check-ins
+                        getFirebaseData("lateCheckIns", (firebaseLateCheckIns) => {
+                            const lateCheckIns = firebaseLateCheckIns || [];
+                            lateCheckIns.forEach(late => {
+                                if (late.employee === employee && groupedRecords[late.date]) {
+                                    groupedRecords[late.date].lateCheckIns.push(late.time);
+                                }
+                            });
+
+                        const tableBody = document.getElementById("attendanceTable");
+                            if (!tableBody) return;
+                            tableBody.innerHTML = "";
+
+                            // Sort dates in descending order
+                            const sortedDates = Object.keys(groupedRecords).sort((a, b) => new Date(b) - new Date(a));
+
+                            sortedDates.forEach(date => {
+                                const record = groupedRecords[date];
+                                const checkInTimes = record.checkIns.sort((a, b) => new Date(`1970-01-01T${a}`) - new Date(`1970-01-01T${b}`));
+                                const checkOutTimes = record.checkOuts.sort((a, b) => new Date(`1970-01-01T${b}`) - new Date(`1970-01-01T${a}`));
+                                const lateCheckInTimes = record.lateCheckIns.sort((a, b) => new Date(`1970-01-01T${b}`) - new Date(`1970-01-01T${a}`));
+
+                                const workingHours = calculateWorkingHours(
+                                    checkInTimes,
                                     checkOutTimes,
-                                    record.isLate ? [record.checkIn] : []
-                                )}</td>`;
-                            tableBody.appendChild(row);
+                                    lateCheckInTimes
+                                );
+
+                                const row = document.createElement("tr");
+                                    row.innerHTML = `
+                                        <td>${record.date}</td>
+                                        <td>${record.day}</td>
+                                    <td>${checkInTimes[0] || "-"}</td>
+                                    <td>${checkOutTimes[0] || "-"}</td>
+                                    <td>${lateCheckInTimes[0] || "-"}</td>
+                                    <td>${workingHours}</td>
+                                    `;
+                                    tableBody.appendChild(row);
+                                });
+
+                            if (sortedDates.length === 0) {
+                                const row = document.createElement("tr");
+                                row.innerHTML = '<td colspan="6" style="text-align: center;">No attendance records found</td>';
+                                tableBody.appendChild(row);
+                            }
                         });
                     });
                 }
@@ -3475,55 +3518,43 @@
                 }
                 function loadAdminTasks(selectedUser = "") {
                     getFirebaseData("employeeTasks", (firebaseTasks) => {
-                        const tasks =
-                            firebaseTasks ||
-                            JSON.parse(localStorage.getItem("employeeTasks")) ||
-                            [];
-                        if (firebaseTasks) {
-                            localStorage.setItem(
-                                "employeeTasks",
-                                JSON.stringify(firebaseTasks)
-                            );
-                        }
+                        const tasks = firebaseTasks || [];
                         const tableBody = document.getElementById("adminTasksTable");
                         if (!tableBody) return;
                         tableBody.innerHTML = "";
+                        
                         if (!selectedUser) {
-                            tableBody.innerHTML =
-                                '<tr><td colspan="7" style="text-align: center;">Please select an employee first</td></tr>';
+                            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">Please select an employee first</td></tr>';
                             return;
                         }
-                        const filteredTasks = tasks.filter(
-                            (task) => task.employee === selectedUser
-                        );
+
+                        const filteredTasks = tasks.filter(task => task.employee === selectedUser)
+                            .sort((a, b) => new Date(b.date) - new Date(a.date));
+
                         if (filteredTasks.length === 0) {
-                            tableBody.innerHTML =
-                                '<tr><td colspan="7" style="text-align: center;">No tasks assigned yet</td></tr>';
+                            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No tasks assigned yet</td></tr>';
                             return;
                         }
-                        filteredTasks.forEach((task) => {
+
+                        filteredTasks.forEach(task => {
                             const row = document.createElement("tr");
                             row.innerHTML = `
-                <td>${task.date}</td>
-                <td>${task.day}</td>
-                <td>${task.description}</td>
-                <td>${task.fileName
-                                    ? `<span class="file-icon">📎</span> ${task.fileName}`
-                                    : "No file"
-                                }</td>
-                <td>${task.status}</td>
-                <td>${task.comment}</td>
-                <td>
-                    <button onclick="deleteTask(${task.id})">Delete</button>
-                </td>
-            `;
+                                <td>${task.date}</td>
+                                <td>${task.day}</td>
+                                <td>${task.description}</td>
+                                <td>${task.fileName ? `<span class="file-icon">📎</span> ${task.fileName}` : "No file"}</td>
+                                <td>${task.status}</td>
+                                <td>${task.comment || ""}</td>
+                                <td>
+                                    <button onclick="deleteTask(${task.id})" style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Delete</button>
+                                </td>
+                            `;
                             tableBody.appendChild(row);
                         });
                     });
                 }
                 function addNewTask() {
-                    const selectedUser =
-                        document.getElementById("adminUserSelect").value;
+                    const selectedUser = document.getElementById("adminUserSelect").value;
                     if (!selectedUser) {
                         alert("Please select an employee first");
                         return;
@@ -3533,15 +3564,16 @@
                     const taskDescription = document.getElementById("taskDescription").value;
                     const taskFileInput = document.getElementById("taskFile");
                     const taskFile = taskFileInput.files[0];
+
                     if (!taskDate || !taskDescription) {
-                        alert("Please fill in all fields");
+                        alert("Please fill in all required fields");
                         return;
                     }
+
                     const reader = new FileReader();
                     reader.onload = function (e) {
                         getFirebaseData("employeeTasks", (firebaseTasks) => {
-                            let tasks = firebaseTasks || JSON.parse(localStorage.getItem("employeeTasks")) ||
-                                [];
+                            let tasks = firebaseTasks || [];
                             const newTask = {
                                 id: Date.now(),
                                 employee: selectedUser,
@@ -3553,35 +3585,25 @@
                                 status: "Pending",
                                 comment: "",
                                 saved: true,
+                                lastModified: new Date().toISOString()
                             };
                             tasks.push(newTask);
                             saveToFirebase("employeeTasks", tasks)
                                 .then(() => {
-                                    localStorage.setItem(
-                                        "employeeTasks",
-                                        JSON.stringify(tasks)
-                                    );
                                     loadAdminTasks(selectedUser);
                                     document.getElementById("taskDate").value = "";
                                     document.getElementById("taskDay").value = "";
                                     document.getElementById("taskDescription").value = "";
                                     taskFileInput.value = "";
+                                    alert("Task assigned successfully!");
                                 })
                                 .catch((error) => {
-                                    console.error("Error saving new task to Firebase:", error);
-                                    localStorage.setItem(
-                                        "employeeTasks",
-                                        JSON.stringify(tasks)
-                                    );
-                                    loadAdminTasks(selectedUser);
-                                    document.getElementById("taskDate").value = "";
-                                    document.getElementById("taskDay").value = "";
-                                    document.getElementById("taskDescription").value = "";
-                                    taskFileInput.value = "";
-                                    alert("Task added and saved locally. There was an issue syncing with the cloud.");
+                                    console.error("Error saving task to Firebase:", error);
+                                    alert("Failed to assign task. Please try again.");
                                 });
                         });
                     };
+
                     if (taskFile) {
                         reader.readAsDataURL(taskFile);
                     } else {
@@ -3727,47 +3749,31 @@
                     }
                 });
                 function loadEmployeeTasks() {
-                    const employee = document
-                        .getElementById("employeeDetails")
-                        .textContent.split("|")[0]
-                        .trim();
+                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     getFirebaseData("employeeTasks", (firebaseTasks) => {
-                        const tasks =
-                            firebaseTasks ||
-                            JSON.parse(localStorage.getItem("employeeTasks")) ||
-                            [];
-                        if (firebaseTasks) {
-                            localStorage.setItem(
-                                "employeeTasks",
-                                JSON.stringify(firebaseTasks)
-                            );
-                        }
+                        const tasks = firebaseTasks || [];
                         const tableBody = document.getElementById("employeeTasksTable");
                         if (!tableBody) return;
                         tableBody.innerHTML = "";
+
                         const employeeTasks = tasks
-                            .filter(
-                                (task) =>
-                                    task.employee.trim() === employee.trim() && task.saved
-                            )
+                            .filter(task => task.employee.trim() === employee.trim())
                             .sort((a, b) => new Date(b.date) - new Date(a.date));
+
                         if (employeeTasks.length === 0) {
-                            tableBody.innerHTML =
-                                '<tr><td colspan="6" style="text-align: center;">No tasks assigned</td></tr>';
+                            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No tasks assigned</td></tr>';
                             return;
                         }
-                        employeeTasks.forEach((task) => {
+
+                        employeeTasks.forEach(task => {
                             const row = document.createElement("tr");
                             row.innerHTML = `
-                <td>${new Date(task.date).toLocaleDateString()}</td>
-                <td>${new Date(task.date).toLocaleString("en-US", { weekday: "long", })}</td>
+                <td>${task.date}</td>
+                <td>${task.day}</td>
                 <td>${task.description}</td>
-                <td>${task.fileName
-                                    ? `<button onclick="downloadTaskFile('${task.fileName}', '${task.fileData}')">Download</button>`
-                                    : "No file"
-                                }</td>
+                <td>${task.fileName ? `<button onclick="downloadTaskFile('${task.fileName}', '${task.fileData}')" style="background-color: #1c7593; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Download</button>` : "No file"}</td>
                 <td>
-                    <select onchange="updateEmployeeTaskStatus(${task.id}, this.value)">
+                    <select onchange="updateEmployeeTaskStatus(${task.id}, this.value)" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
                         <option value="Pending" ${task.status === "Pending" ? "selected" : ""}>Pending</option>
                         <option value="Completed" ${task.status === "Completed" ? "selected" : ""}>Completed</option>
                         <option value="Not Achieved" ${task.status === "Not Achieved" ? "selected" : ""}>Not Achieved</option>
@@ -3776,11 +3782,10 @@
                 <td>
                     <input type="text" value="${task.comment || ""}" 
                         onchange="updateEmployeeTaskComment(${task.id}, this.value)" 
-                        placeholder="Add comment here">
+                        placeholder="Add comment here"
+                        style="padding: 5px; border-radius: 4px; border: 1px solid #ddd; width: 100%;">
                 </td>
-                <td>
-                    <button onclick="saveEmployeeTaskChanges(${task.id})">Save Changes</button>
-                </td>
+                <td></td>
             `;
                             tableBody.appendChild(row);
                         });
@@ -3899,55 +3904,82 @@
                 }
                 
                 function loadAttendanceTable() {
-                    const tableBody = document.getElementById("attendanceTable");
-                    if (!tableBody) return;
-                    tableBody.innerHTML = "";
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
-                    
-                    // First get attendance records from Firebase
-                    database.ref("attendanceRecords").once('value', (snapshot) => {
-                        const attendanceRecords = snapshot.val() || [];
-                        const filteredRecords = attendanceRecords.filter(record => record.employee === employee);
+                    getFirebaseData("attendanceRecords", (firebaseAttendanceRecords) => {
+                        let attendanceRecords = firebaseAttendanceRecords || [];
                         
-                        // Sort records by date in descending order
-                        filteredRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+                        // Filter records for current employee
+                        const employeeRecords = attendanceRecords.filter(record => record.employee === employee);
                         
-                        if (filteredRecords.length === 0) {
-                            const row = document.createElement("tr");
-                            row.innerHTML = '<td colspan="6" style="text-align: center;">No attendance records found</td>';
-                            tableBody.appendChild(row);
-                            return;
-                        }
+                        // Sort records by date in descending order (newest first)
+                        employeeRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-                        filteredRecords.forEach((record) => {
-                            const checkOutTimes = Array.isArray(record.checkOut)
-                                ? record.checkOut
-                                : record.checkOut
-                                    ? [record.checkOut]
-                                    : [];
+                        // Group records by date
+                        const groupedRecords = employeeRecords.reduce((acc, record) => {
+                            if (!acc[record.date]) {
+                                acc[record.date] = {
+                                    employee: record.employee,
+                                    date: record.date,
+                                    day: record.day,
+                                    checkIns: [],
+                                    checkOuts: [],
+                                    lateCheckIns: []
+                                };
+                            }
+                            if (record.checkIn) {
+                                acc[record.date].checkIns.push(record.checkIn);
+                            }
+                            if (record.checkOut) {
+                                acc[record.date].checkOuts.push(record.checkOut);
+                            }
+                            return acc;
+                        }, {});
 
-                            const row = document.createElement("tr");
-                            row.innerHTML = `
-                                <td>${record.date}</td>
-                                <td>${record.day}</td>
-                                <td>${record.checkIn || "-"}</td>
-                                <td>
-                                    <select onchange="updateWorkingHours(this, '${record.date}')">
-                                        ${checkOutTimes.length > 0
-                                            ? checkOutTimes.map(time =>
-                                                `<option ${checkOutTimes[0] === time ? "selected" : ""}>${time}</option>`
-                                            ).join("")
-                                            : '<option value="-">-</option>'
-                                        }
-                                    </select>
-                                </td>
-                                <td>${record.isLate ? "Yes" : "No"}</td>
-                                <td id="workingHours_${record.date}">${calculateWorkingHours(
-                                    record.checkIn,
+                        // Get late check-ins
+                        getFirebaseData("lateCheckIns", (firebaseLateCheckIns) => {
+                            const lateCheckIns = firebaseLateCheckIns || [];
+                            lateCheckIns.forEach(late => {
+                                if (late.employee === employee && groupedRecords[late.date]) {
+                                    groupedRecords[late.date].lateCheckIns.push(late.time);
+                                }
+                            });
+
+                        const tableBody = document.getElementById("attendanceTable");
+                            if (!tableBody) return;
+                            tableBody.innerHTML = "";
+
+                            // Sort dates in descending order
+                            const sortedDates = Object.keys(groupedRecords).sort((a, b) => new Date(b) - new Date(a));
+
+                            sortedDates.forEach(date => {
+                                const record = groupedRecords[date];
+                                const checkInTimes = record.checkIns.sort((a, b) => new Date(`1970-01-01T${a}`) - new Date(`1970-01-01T${b}`));
+                                const checkOutTimes = record.checkOuts.sort((a, b) => new Date(`1970-01-01T${b}`) - new Date(`1970-01-01T${a}`));
+                                const lateCheckInTimes = record.lateCheckIns.sort((a, b) => new Date(`1970-01-01T${b}`) - new Date(`1970-01-01T${a}`));
+
+                                const workingHours = calculateWorkingHours(
+                                    checkInTimes,
                                     checkOutTimes,
-                                    record.isLate ? [record.checkIn] : []
-                                )}</td>`;
-                            tableBody.appendChild(row);
+                                    lateCheckInTimes
+                                );
+
+                                const row = document.createElement("tr");
+                                row.innerHTML = `
+                                        <td>${record.date}</td>
+                                        <td>${record.day}</td>
+                                    <td>${checkInTimes[0] || "-"}</td>
+                                    <td>${checkOutTimes[0] || "-"}</td>
+                                    <td>${lateCheckInTimes[0] || "-"}</td>
+                                    <td>${workingHours}</td>
+                                `;
+                                tableBody.appendChild(row);
+                            });
+
+                            if (sortedDates.length === 0) {
+                                const row = document.createElement("tr");
+                                row.innerHTML = '<td colspan="6" style="text-align: center;">No attendance records found</td>';
+                                tableBody.appendChild(row);
+                            }
                         });
                     });
                 }
@@ -3971,6 +4003,7 @@
                             const checkOutTime = timeToMinutes(checkOut);
                             return checkInTime < checkOutTime;
                         });
+
                         if (!validCheckIn) {
                             return "Invalid: Check-out time is earlier than check-in time";
                         }
@@ -4741,6 +4774,82 @@
                                 });
                             });
                         }
+                    });
+                }
+                function filterEmployeeTasks() {
+                    const statusFilter = document.getElementById("taskStatusFilter").value;
+                    const dateFilter = document.getElementById("taskDateFilter").value;
+                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
+                    
+                    getFirebaseData("employeeTasks", (firebaseTasks) => {
+                        const tasks = firebaseTasks || [];
+                        const tableBody = document.getElementById("employeeTasksTable");
+                        if (!tableBody) return;
+                        tableBody.innerHTML = "";
+
+                        let filteredTasks = tasks.filter(task => task.employee.trim() === employee.trim());
+
+                        // Apply status filter
+                        if (statusFilter !== "all") {
+                            filteredTasks = filteredTasks.filter(task => task.status === statusFilter);
+                        }
+
+                        // Apply date filter
+                        if (dateFilter !== "all") {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            
+                            filteredTasks = filteredTasks.filter(task => {
+                                const taskDate = new Date(task.date);
+                                taskDate.setHours(0, 0, 0, 0);
+                                
+                                switch (dateFilter) {
+                                    case "today":
+                                        return taskDate.getTime() === today.getTime();
+                                    case "week":
+                                        const weekStart = new Date(today);
+                                        weekStart.setDate(today.getDate() - today.getDay());
+                                        return taskDate >= weekStart && taskDate <= today;
+                                    case "month":
+                                        return taskDate.getMonth() === today.getMonth() && 
+                                               taskDate.getFullYear() === today.getFullYear();
+                                    default:
+                                        return true;
+                                }
+                            });
+                        }
+
+                        filteredTasks.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                        if (filteredTasks.length === 0) {
+                            tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No tasks found</td></tr>';
+                            return;
+                        }
+
+                        filteredTasks.forEach(task => {
+                            const row = document.createElement("tr");
+                            row.innerHTML = `
+                                <td>${task.date}</td>
+                                <td>${task.day}</td>
+                                <td>${task.description}</td>
+                                <td>${task.fileName ? `<button onclick="downloadTaskFile('${task.fileName}', '${task.fileData}')" style="background-color: #1c7593; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Download</button>` : "No file"}</td>
+                                <td>
+                                    <select onchange="updateEmployeeTaskStatus(${task.id}, this.value)" style="padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                                        <option value="Pending" ${task.status === "Pending" ? "selected" : ""}>Pending</option>
+                                        <option value="Completed" ${task.status === "Completed" ? "selected" : ""}>Completed</option>
+                                        <option value="Not Achieved" ${task.status === "Not Achieved" ? "selected" : ""}>Not Achieved</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="text" value="${task.comment || ""}" 
+                                        onchange="updateEmployeeTaskComment(${task.id}, this.value)" 
+                                        placeholder="Add comment here"
+                                        style="padding: 5px; border-radius: 4px; border: 1px solid #ddd; width: 100%;">
+                                </td>
+                                <td></td>
+                            `;
+                            tableBody.appendChild(row);
+                        });
                     });
                 }
             </script>
