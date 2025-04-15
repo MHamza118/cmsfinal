@@ -718,6 +718,7 @@
                                 <th>Check-In Time</th>
                                 <th>Check-Out Time</th>
                                 <th>Late Check-Ins</th>
+                                <th>Working Hours</th>
                             </tr>
                         </thead>
                         <tbody id="attendanceTable"></tbody>
@@ -1925,27 +1926,9 @@
                             timestamp: new Date().toISOString()
                         };
                         
-                        // Check if there's already a late check-in for this date
-                        const existingIndex = lateCheckIns.findIndex(
-                            checkIn => checkIn.employee === employee && standardizeDate(checkIn.date) === date
-                        );
+                        // Add the new late check-in
+                        lateCheckIns.push(newLateCheckIn);
                         
-                        if (existingIndex === -1) {
-                            lateCheckIns.push(newLateCheckIn);
-                        } else {
-                            if (Array.isArray(lateCheckIns[existingIndex].time)) {
-                                lateCheckIns[existingIndex].time.push(time);
-                            } else if (lateCheckIns[existingIndex].time) {
-                                lateCheckIns[existingIndex].time = [
-                                    lateCheckIns[existingIndex].time,
-                                    time
-                                ];
-                            } else {
-                                lateCheckIns[existingIndex].time = time;
-                            }
-                            lateCheckIns[existingIndex].timestamp = new Date().toISOString();
-                        }
-
                         // Save to Firebase
                         database.ref("lateCheckIns").set(lateCheckIns)
                             .then(() => {
@@ -1974,7 +1957,17 @@
                                     database.ref("attendanceRecords").set(attendanceRecords)
                                         .then(() => {
                                             alert("Late check-in recorded successfully!");
-                                            loadAttendanceTable();
+                                            // Add smooth refresh animation
+                                            const tableBody = document.getElementById("attendanceTable");
+                                            if (tableBody) {
+                                                tableBody.style.opacity = "0";
+                                                setTimeout(() => {
+                                                    loadAttendanceTable();
+                                                    tableBody.style.opacity = "1";
+                                                }, 300);
+                                            } else {
+                                                loadAttendanceTable();
+                                            }
                                             updateSummaryValues();
                                         })
                                         .catch(error => {
@@ -3134,10 +3127,18 @@
                                 };
                             }
                             if (record.checkIn) {
-                                acc[record.date].checkIns.push(record.checkIn);
+                                if (Array.isArray(record.checkIn)) {
+                                    acc[record.date].checkIns.push(...record.checkIn);
+                                } else {
+                                    acc[record.date].checkIns.push(record.checkIn);
+                                }
                             }
                             if (record.checkOut) {
-                                acc[record.date].checkOuts.push(record.checkOut);
+                                if (Array.isArray(record.checkOut)) {
+                                    acc[record.date].checkOuts.push(...record.checkOut);
+                                } else {
+                                    acc[record.date].checkOuts.push(record.checkOut);
+                                }
                             }
                             return acc;
                         }, {});
@@ -3174,19 +3175,21 @@
                                     row.innerHTML = `
                                         <td>${record.date}</td>
                                         <td>${record.day}</td>
-                                    <td>${checkInTimes[0] || "-"}</td>
-                                    <td>${checkOutTimes[0] || "-"}</td>
+                                    <td>
+                                        <select class="check-in-select" onchange="updateWorkingHours(this)">
+                                            ${checkInTimes.map(time => `<option value="${time}">${time}</option>`).join('')}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <select class="check-out-select" onchange="updateWorkingHours(this)">
+                                            ${checkOutTimes.map(time => `<option value="${time}">${time}</option>`).join('')}
+                                        </select>
+                                    </td>
                                     <td>${lateCheckInTimes[0] || "-"}</td>
                                     <td>${workingHours}</td>
                                     `;
                                     tableBody.appendChild(row);
                                 });
-
-                            if (sortedDates.length === 0) {
-                                const row = document.createElement("tr");
-                                row.innerHTML = '<td colspan="6" style="text-align: center;">No attendance records found</td>';
-                                tableBody.appendChild(row);
-                            }
                         });
                     });
                 }
@@ -3354,68 +3357,106 @@
                 }
                 function updateSummaryValues() {
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
-                    const attendanceRecords = JSON.parse(localStorage.getItem("attendanceRecords")) || [];
                     
-                    // Convert all dates to standardized format
-                    const standardizedRecords = attendanceRecords.map(record => ({
-                        ...record,
-                        date: standardizeDate(record.date)
-                    }));
-                    
-                    const employeeRecords = standardizedRecords.filter(
-                        (record) => record.employee === employee
-                    );
-                    const lateCheckIns = JSON.parse(localStorage.getItem("lateCheckIns")) || [];
-                    const holidayRequests = JSON.parse(localStorage.getItem("holidayRequests")) || [];
-                    const totalCheckIns = employeeRecords.filter(
-                        (record) => record.checkIn
-                    ).length;
-                    const totalCheckOuts = employeeRecords.reduce((total, record) => {
-                        // If checkOut is an array, add its length
-                        if (Array.isArray(record.checkOut)) {
-                            return total + record.checkOut.length;
-                        }
-                        else if (record.checkOut) {
-                            return total + 1;
-                        }
-                        return total;
-                    }, 0);
-                    const totalLateCheckIns = lateCheckIns.length;
-                    const today = new Date();
-                    const startOfMonth = new Date(
-                        today.getFullYear(),
-                        today.getMonth(), 1);
-                    const daysInMonth = new Date(
-                        today.getFullYear(),
-                        today.getMonth() + 1, 0).getDate();
-                    let totalAbsences = 0;
-                    for (let day = 1; day <= daysInMonth; day++) {
-                        const date = new Date(today.getFullYear(), today.getMonth(), day);
-                        if (date > today) break;
-                        if (date.getDay() === 0 || date.getDay() === 6) continue;
-                        const dateString = date.toLocaleDateString();
-                        const hasAttendance = employeeRecords.some(
-                            (record) => record.date === dateString
+                    // Fetch attendance records from Firebase
+                    database.ref("attendanceRecords").once('value', (snapshot) => {
+                        const attendanceRecords = snapshot.val() || [];
+                        
+                        // Convert all dates to standardized format
+                        const standardizedRecords = attendanceRecords.map(record => ({
+                            ...record,
+                            date: standardizeDate(record.date)
+                        }));
+                        
+                        const employeeRecords = standardizedRecords.filter(
+                            (record) => record.employee === employee
                         );
-                        const hasApprovedLeave = holidayRequests.some((leave) => {
-                            const startDate = new Date(leave.startDate);
-                            const endDate = new Date(leave.endDate);
-                            return (
-                                startDate <= date &&
-                                endDate >= date &&
-                                leave.status === "approved");
+                        
+                        // Fetch late check-ins from Firebase
+                        database.ref("lateCheckIns").once('value', (snapshot) => {
+                            const lateCheckIns = snapshot.val() || [];
+                            const employeeLateCheckIns = lateCheckIns.filter(
+                                checkIn => checkIn.employee === employee
+                            );
+                            
+                            // Fetch holiday requests from Firebase
+                            database.ref("holidayRequests").once('value', (snapshot) => {
+                                const holidayRequests = snapshot.val() || [];
+                                const employeeHolidayRequests = holidayRequests.filter(
+                                    request => request.employee === employee
+                                );
+                                
+                                // Calculate summary values
+                                const totalCheckIns = employeeRecords.filter(
+                                    (record) => record.checkIn
+                                ).length;
+                                
+                                const totalCheckOuts = employeeRecords.reduce((total, record) => {
+                                    if (Array.isArray(record.checkOut)) {
+                                        return total + record.checkOut.length;
+                                    } else if (record.checkOut) {
+                                        return total + 1;
+                                    }
+                                    return total;
+                                }, 0);
+                                
+                                const totalLateCheckIns = employeeLateCheckIns.length;
+                                
+                                const today = new Date();
+                                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                                const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+                                
+                                let totalAbsences = 0;
+                                let unapprovedLeaves = 0;
+                                
+                                for (let day = 1; day <= daysInMonth; day++) {
+                                    const date = new Date(today.getFullYear(), today.getMonth(), day);
+                                    if (date > today) break;
+                                    if (date.getDay() === 0 || date.getDay() === 6) continue;
+                                    
+                                    const dateString = standardizeDate(date);
+                                    const hasAttendance = employeeRecords.some(
+                                        (record) => record.date === dateString
+                                    );
+                                    
+                                    const hasApprovedLeave = employeeHolidayRequests.some((leave) => {
+                                        const startDate = new Date(leave.startDate);
+                                        const endDate = new Date(leave.endDate);
+                                        return (
+                                            startDate <= date &&
+                                            endDate >= date &&
+                                            leave.status === "approved"
+                                        );
+                                    });
+                                    
+                                    const hasUnapprovedLeave = employeeHolidayRequests.some((leave) => {
+                                        const startDate = new Date(leave.startDate);
+                                        const endDate = new Date(leave.endDate);
+                                        return (
+                                            startDate <= date &&
+                                            endDate >= date &&
+                                            leave.status === "pending"
+                                        );
+                                    });
+                                    
+                                    if (!hasAttendance && !hasApprovedLeave) {
+                                        totalAbsences++;
+                                    }
+                                    
+                                    if (hasUnapprovedLeave) {
+                                        unapprovedLeaves++;
+                                    }
+                                }
+                                
+                                // Update the UI
+                                document.getElementById("totalCheckIns").textContent = totalCheckIns;
+                                document.getElementById("totalCheckOuts").textContent = totalCheckOuts;
+                                document.getElementById("lateCheckIns").textContent = totalLateCheckIns;
+                                document.getElementById("totalAbsences").textContent = totalAbsences;
+                                document.getElementById("unapprovedLeaves").textContent = unapprovedLeaves;
+                            });
                         });
-                        if (!hasAttendance && !hasApprovedLeave) {
-                            totalAbsences++;
-                        }
-                    }
-                    const unapprovedLeaves = holidayRequests.filter((request) =>
-                        equest.status && request.status.toLowerCase() === "rejected").length;
-                    document.getElementById("totalCheckIns").textContent = totalCheckIns;
-                    document.getElementById("totalCheckOuts").textContent = totalCheckOuts;
-                    document.getElementById("lateCheckIns").textContent = totalLateCheckIns;
-                    document.getElementById("totalAbsences").textContent = totalAbsences;
-                    document.getElementById("unapprovedLeaves").textContent = unapprovedLeaves;
+                    });
                 }
                 function handleFileSelect(input) {
                     const file = input.files[0];
@@ -3539,16 +3580,16 @@
                         filteredTasks.forEach(task => {
                             const row = document.createElement("tr");
                             row.innerHTML = `
-                                <td>${task.date}</td>
-                                <td>${task.day}</td>
-                                <td>${task.description}</td>
+                <td>${task.date}</td>
+                <td>${task.day}</td>
+                <td>${task.description}</td>
                                 <td>${task.fileName ? `<span class="file-icon">📎</span> ${task.fileName}` : "No file"}</td>
-                                <td>${task.status}</td>
+                <td>${task.status}</td>
                                 <td>${task.comment || ""}</td>
-                                <td>
+                <td>
                                     <button onclick="deleteTask(${task.id})" style="background-color: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Delete</button>
-                                </td>
-                            `;
+                </td>
+            `;
                             tableBody.appendChild(row);
                         });
                     });
@@ -3927,10 +3968,18 @@
                                 };
                             }
                             if (record.checkIn) {
-                                acc[record.date].checkIns.push(record.checkIn);
+                                if (Array.isArray(record.checkIn)) {
+                                    acc[record.date].checkIns.push(...record.checkIn);
+                        } else {
+                                    acc[record.date].checkIns.push(record.checkIn);
+                                }
                             }
                             if (record.checkOut) {
-                                acc[record.date].checkOuts.push(record.checkOut);
+                                if (Array.isArray(record.checkOut)) {
+                                    acc[record.date].checkOuts.push(...record.checkOut);
+                            } else {
+                                    acc[record.date].checkOuts.push(record.checkOut);
+                                }
                             }
                             return acc;
                         }, {});
@@ -3967,19 +4016,21 @@
                                 row.innerHTML = `
                                         <td>${record.date}</td>
                                         <td>${record.day}</td>
-                                    <td>${checkInTimes[0] || "-"}</td>
-                                    <td>${checkOutTimes[0] || "-"}</td>
+                                        <td>
+                                        <select class="check-in-select" onchange="updateWorkingHours(this)">
+                                            ${checkInTimes.map(time => `<option value="${time}">${time}</option>`).join('')}
+                                            </select>
+                                        </td>
+                                        <td>
+                                        <select class="check-out-select" onchange="updateWorkingHours(this)">
+                                            ${checkOutTimes.map(time => `<option value="${time}">${time}</option>`).join('')}
+                                            </select>
+                                        </td>
                                     <td>${lateCheckInTimes[0] || "-"}</td>
                                     <td>${workingHours}</td>
                                 `;
                                 tableBody.appendChild(row);
                             });
-
-                            if (sortedDates.length === 0) {
-                                const row = document.createElement("tr");
-                                row.innerHTML = '<td colspan="6" style="text-align: center;">No attendance records found</td>';
-                                tableBody.appendChild(row);
-                            }
                         });
                     });
                 }
