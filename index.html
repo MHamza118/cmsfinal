@@ -3369,8 +3369,8 @@
                         }));
                         
                         const employeeRecords = standardizedRecords.filter(
-                        (record) => record.employee === employee
-                    );
+                            (record) => record.employee === employee
+                        );
                         
                         // Fetch late check-ins from Firebase
                         database.ref("lateCheckIns").once('value', (snapshot) => {
@@ -3387,44 +3387,44 @@
                                 );
                                 
                                 // Calculate summary values
-                    const totalCheckIns = employeeRecords.filter(
-                        (record) => record.checkIn
-                    ).length;
+                                const totalCheckIns = employeeRecords.filter(
+                                    (record) => record.checkIn
+                                ).length;
                                 
-                    const totalCheckOuts = employeeRecords.reduce((total, record) => {
-                        if (Array.isArray(record.checkOut)) {
-                            return total + record.checkOut.length;
+                                const totalCheckOuts = employeeRecords.reduce((total, record) => {
+                                    if (Array.isArray(record.checkOut)) {
+                                        return total + record.checkOut.length;
                                     } else if (record.checkOut) {
-                            return total + 1;
-                        }
-                        return total;
-                    }, 0);
+                                        return total + 1;
+                                    }
+                                    return total;
+                                }, 0);
                                 
                                 const totalLateCheckIns = employeeLateCheckIns.length;
                                 
-                    const today = new Date();
+                                const today = new Date();
                                 const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
                                 const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
                                 
-                    let totalAbsences = 0;
+                                let totalAbsences = 0;
                                 let unapprovedLeaves = 0;
                                 
-                    for (let day = 1; day <= daysInMonth; day++) {
-                        const date = new Date(today.getFullYear(), today.getMonth(), day);
-                        if (date > today) break;
-                        if (date.getDay() === 0 || date.getDay() === 6) continue;
+                                for (let day = 1; day <= daysInMonth; day++) {
+                                    const date = new Date(today.getFullYear(), today.getMonth(), day);
+                                    if (date > today) break;
+                                    if (date.getDay() === 0 || date.getDay() === 6) continue;
                                     
                                     const dateString = standardizeDate(date);
-                        const hasAttendance = employeeRecords.some(
-                            (record) => record.date === dateString
-                        );
+                                    const hasAttendance = employeeRecords.some(
+                                        (record) => record.date === dateString
+                                    );
                                     
                                     const hasApprovedLeave = employeeHolidayRequests.some((leave) => {
-                            const startDate = new Date(leave.startDate);
-                            const endDate = new Date(leave.endDate);
-                            return (
-                                startDate <= date &&
-                                endDate >= date &&
+                                        const startDate = new Date(leave.startDate);
+                                        const endDate = new Date(leave.endDate);
+                                        return (
+                                            startDate <= date &&
+                                            endDate >= date &&
                                             leave.status === "approved"
                                         );
                                     });
@@ -3439,21 +3439,21 @@
                                         );
                                     });
                                     
-                        if (!hasAttendance && !hasApprovedLeave) {
-                            totalAbsences++;
-                        }
+                                    if (!hasAttendance && !hasApprovedLeave) {
+                                        totalAbsences++;
+                                    }
                                     
                                     if (hasUnapprovedLeave) {
                                         unapprovedLeaves++;
-                    }
+                                    }
                                 }
                                 
                                 // Update the UI
-                    document.getElementById("totalCheckIns").textContent = totalCheckIns;
-                    document.getElementById("totalCheckOuts").textContent = totalCheckOuts;
-                    document.getElementById("lateCheckIns").textContent = totalLateCheckIns;
-                    document.getElementById("totalAbsences").textContent = totalAbsences;
-                    document.getElementById("unapprovedLeaves").textContent = unapprovedLeaves;
+                                document.getElementById("totalCheckIns").textContent = totalCheckIns;
+                                document.getElementById("totalCheckOuts").textContent = totalCheckOuts;
+                                document.getElementById("lateCheckIns").textContent = totalLateCheckIns;
+                                document.getElementById("totalAbsences").textContent = totalAbsences;
+                                document.getElementById("unapprovedLeaves").textContent = unapprovedLeaves;
                             });
                         });
                     });
