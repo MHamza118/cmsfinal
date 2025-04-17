@@ -628,7 +628,7 @@
                 <div class="employee-header" id="employeeHeader">
                     <p id="employeeDetails">Hamza | ID: 118</p>
                     <div class="action-buttons">
-                        <button onclick="handleCheckIn()">Check In</button>
+                        <button id="checkInBtn" onclick="handleCheckIn()">Check In</button>
                         <button onclick="handleCheckOut()">Check Out</button>
                         <button id="lateCheckInBtn" onclick="handleLateCheckIn()">Add Late Check-In</button>
                     </div>
@@ -1759,7 +1759,7 @@
                         const employeeSchedule = timeTables.find((t) => t.employee === employee);
 
                         if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) {
-                            alert("No schedule found for today. Please contact your administrator.");
+                            alert("Please set up your schedule for today first.");
                             return;
                         }
 
@@ -1775,30 +1775,36 @@
                             return timeA - timeB;
                         });
 
+                        // Check if there's any schedule for today
+                        if (sortedSlots.length === 0) {
+                            alert("No schedule found for today.");
+                            return;
+                        }
+
                         // Get the earliest slot for today
                         const earliestSlot = sortedSlots[0];
                         const slotStart = new Date(`1970-01-01T${earliestSlot.checkIn}`);
                         
-                        // Calculate time difference from earliest slot
-                        const timeDiff = (currentTime - slotStart) / (1000 * 60); // Difference in minutes
+                        // Calculate time windows
+                        const earlyWindow = new Date(slotStart.getTime() - 30 * 60 * 1000); // 30 minutes before
+                        const lateWindow = new Date(slotStart.getTime() + 30 * 60 * 1000); // 30 minutes after
                         
-                        // Check if 30 minutes have passed since earliest slot
-                        if (timeDiff > 30) {
-                            alert("Regular check-in time has passed. Please use the late check-in option.");
-                            return;
+                        // Check if current time is within any valid slot
+                        let isValidTime = false;
+                        for (const slot of sortedSlots) {
+                            const slotStartTime = new Date(`1970-01-01T${slot.checkIn}`);
+                            const slotEndTime = new Date(`1970-01-01T${slot.checkOut}`);
+                            const earlySlotWindow = new Date(slotStartTime.getTime() - 30 * 60 * 1000);
+                            const lateSlotWindow = new Date(slotStartTime.getTime() + 30 * 60 * 1000);
+                            
+                            if (currentTime >= earlySlotWindow && currentTime <= lateSlotWindow) {
+                                isValidTime = true;
+                                break;
+                            }
                         }
 
-                        // Check if current time is within valid check-in window
-                        const earlyCheckIn = new Date(slotStart.getTime() - 30 * 60 * 1000); // 30 minutes before
-                        const lateCheckIn = new Date(slotStart.getTime() + 30 * 60 * 1000); // 30 minutes after
-                        
-                        if (currentTime < earlyCheckIn) {
-                            alert("It's too early to check in. Please wait until " + earlyCheckIn.toLocaleTimeString());
-                            return;
-                        }
-
-                        if (currentTime > lateCheckIn) {
-                            alert("Regular check-in time has passed. Please use the late check-in option.");
+                        if (!isValidTime) {
+                            alert("You can only check in 30 minutes before or after your scheduled time. Please use late check-in if you're checking in outside this window.");
                             return;
                         }
 
@@ -1820,46 +1826,54 @@
                     });
                 }
 
-                // Add function to update check-in button state
+                // Add function to check and update check-in button state
                 function updateCheckInButtonState() {
                     const checkInBtn = document.getElementById("checkInBtn");
-                    if (!checkInBtn) return;
+                    const lateCheckInBtn = document.getElementById("lateCheckInBtn");
+                    if (!checkInBtn || !lateCheckInBtn) return;
 
                     const now = new Date();
                     const employee = document.getElementById("employeeDetails")?.textContent.split("|")[0].trim();
                     if (!employee) return;
 
-                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
-                    
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
+                        const timeTables = firebaseTimeTables || [];
                         const employeeSchedule = timeTables.find((t) => t.employee === employee);
+                        const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
 
                         if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) {
                             checkInBtn.disabled = true;
-                            checkInBtn.title = "No schedule found for today";
+                            lateCheckInBtn.disabled = true;
                             return;
                         }
 
                         const todaySlots = employeeSchedule[day.toLowerCase()].slots;
+                        const currentTime = new Date(`1970-01-01T${now.toLocaleTimeString()}`);
+                        
+                        // Sort slots by check-in time
                         const sortedSlots = [...todaySlots].sort((a, b) => {
                             const timeA = new Date(`1970-01-01T${a.checkIn}`);
                             const timeB = new Date(`1970-01-01T${b.checkIn}`);
                             return timeA - timeB;
                         });
 
+                        if (sortedSlots.length === 0) {
+                            checkInBtn.disabled = true;
+                            lateCheckInBtn.disabled = true;
+                            return;
+                        }
+
                         const earliestSlot = sortedSlots[0];
                         const slotStart = new Date(`1970-01-01T${earliestSlot.checkIn}`);
-                        const currentTime = new Date(`1970-01-01T${now.toLocaleTimeString()}`);
-                        
-                        const timeDiff = (currentTime - slotStart) / (1000 * 60); // Difference in minutes
-                        
-                        if (timeDiff > 30) {
+                        const lateWindow = new Date(slotStart.getTime() + 30 * 60 * 1000);
+
+                        // Check if 30 minutes have passed since the earliest slot
+                        if (currentTime > lateWindow) {
                             checkInBtn.disabled = true;
-                            checkInBtn.title = "Regular check-in time has passed. Please use late check-in.";
+                            lateCheckInBtn.disabled = false;
                         } else {
                             checkInBtn.disabled = false;
-                            checkInBtn.title = "Check in";
+                            lateCheckInBtn.disabled = true;
                         }
                     });
                 }
