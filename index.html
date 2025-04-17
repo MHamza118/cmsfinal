@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,6 +17,7 @@
             border-top: 1px solid #ccc;
             padding-top: 20px;
         }
+
         .notification-btn {
             background-color: #4CAF50;
             color: white;
@@ -24,50 +26,62 @@
             border-radius: 4px;
             cursor: pointer;
         }
+
         .notification-btn:hover {
             background-color: #45a049;
         }
+
         .status-sent {
             color: #666;
             font-style: italic;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
+
         th,
         td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
+
         th {
             background-color: #f2f2f2;
         }
+
         tr:nth-child(even) {
             background-color: #f9f9f9;
         }
+
         tr:hover {
             background-color: #f5f5f5;
         }
+
         .status-pending {
             color: #f39c12;
             font-weight: bold;
         }
+
         .status-approved {
             color: #27ae60;
             font-weight: bold;
         }
+
         .status-rejected {
             color: #c0392b;
             font-weight: bold;
         }
+
         .status-uninformed {
             color: #e74c3c;
             font-weight: bold;
             text-decoration: underline;
         }
+
         .filter-section {
             margin: 20px 0;
             padding: 15px;
@@ -77,10 +91,12 @@
             align-items: center;
             gap: 10px;
         }
+
         .filter-section span {
             font-weight: bold;
             color: #333;
         }
+
         .filter-section select {
             padding: 8px;
             border: 1px solid #ddd;
@@ -89,18 +105,22 @@
             min-width: 120px;
             cursor: pointer;
         }
+
         .filter-section select:hover {
             border-color: #aaa;
         }
+
         .filter-section select:focus {
             outline: none;
             border-color: #4CAF50;
             box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
         }
+
         .action-buttons {
             display: flex;
             gap: 8px;
         }
+
         .approve-btn,
         .reject-btn {
             padding: 6px 12px;
@@ -110,10 +130,12 @@
             font-size: 14px;
             transition: background-color 0.2s;
         }
+
         .approve-btn {
             background-color: #27ae60;
             color: white;
         }
+
         .reject-btn {
             background-color: #e74c3c;
             color: white;
@@ -122,26 +144,31 @@
         .approve-btn:hover {
             background-color: #219a52;
         }
+
         .reject-btn:hover {
             background-color: #c0392b;
         }
+
         #adminHolidays h2 {
             color: #2c3e50;
             margin-bottom: 20px;
             font-size: 24px;
         }
+
         .no-requests {
             text-align: center;
             color: #666;
             padding: 20px;
             font-style: italic;
         }
+
         .notification-icon {
             font-size: 24px;
             cursor: pointer;
             position: relative;
             margin-left: 20px;
         }
+
         .notification-icon .badge {
             position: absolute;
             top: -5px;
@@ -152,6 +179,7 @@
             padding: 2px 6px;
             font-size: 12px;
         }
+
         #notificationPopup {
             display: none;
             position: absolute;
@@ -162,6 +190,7 @@
             z-index: 1000;
             width: 200px;
         }
+
         .summary-section {
             display: flex;
             flex-direction: column;
@@ -171,26 +200,31 @@
             border-radius: 8px;
             margin-bottom: 20px;
         }
+
         .summary-row {
             display: flex;
             justify-content: space-between;
             gap: 20px;
         }
+
         .summary-item {
             flex: 1;
             text-align: center;
         }
+
         .summary-item h4 {
             margin: 0;
             color: #495057;
             font-size: 14px;
         }
+
         .summary-item p {
             margin: 0;
             font-size: 24px;
             font-weight: bold;
             color: #0d6efd;
         }
+
         .summary-row.values .summary-item {
             padding: 10px;
             background-color: white;
@@ -1717,7 +1751,6 @@
                     
                     // Use standardized date format
                     const date = standardizeDate(now);
-                    const localTime = now.toLocaleTimeString();
                     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
@@ -1730,9 +1763,6 @@
                         }
 
                         const todaySlots = employeeSchedule[day.toLowerCase()].slots;
-                        
-                        // Convert local time to Date object for comparison
-                        const currentTime = new Date(`1970-01-01T${localTime}`);
                         
                         // Sort slots by check-in time
                         const sortedSlots = [...todaySlots].sort((a, b) => {
@@ -1752,23 +1782,29 @@
                         let nextValidTime = null;
 
                         for (const slot of sortedSlots) {
-                            const slotStart = new Date(`1970-01-01T${slot.checkIn}`);
-                            const earlyCheckIn = new Date(slotStart.getTime() - 45 * 60 * 1000);
-                            const lateCheckIn = new Date(slotStart.getTime() + 60 * 60 * 1000);
+                            const [slotHour, slotMinute] = slot.checkIn.split(':').map(Number);
+                            const slotTimeInMinutes = slotHour * 60 + slotMinute;
+                            
+                            const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+                            
+                            const earlyCheckInMinutes = slotTimeInMinutes - 45;
+                            const lateCheckInMinutes = slotTimeInMinutes + 60;
 
-                            if (currentTime >= earlyCheckIn && currentTime <= lateCheckIn) {
+                            if (currentTimeInMinutes >= earlyCheckInMinutes && currentTimeInMinutes <= lateCheckInMinutes) {
                                 isValidTime = true;
                                 break;
                             }
 
-                            if (currentTime < earlyCheckIn && (!nextValidTime || earlyCheckIn < nextValidTime)) {
-                                nextValidTime = earlyCheckIn;
+                            if (currentTimeInMinutes < earlyCheckInMinutes && (!nextValidTime || earlyCheckInMinutes < nextValidTime)) {
+                                nextValidTime = earlyCheckInMinutes;
                             }
                         }
 
                         if (!isValidTime) {
                             if (nextValidTime) {
-                                alert("Too early to check in. Please wait until " + nextValidTime.toLocaleTimeString());
+                                const nextHour = Math.floor(nextValidTime / 60);
+                                const nextMinute = nextValidTime % 60;
+                                alert(`Too early to check in. Please wait until ${nextHour.toString().padStart(2, '0')}:${nextMinute.toString().padStart(2, '0')}`);
                             } else {
                                 alert("Regular check-in window has expired. Please use the Late Check-in option.");
                             }
@@ -1784,10 +1820,10 @@
                             
                             if (todayRecord && todayRecord.checkIn) {
                                 if (confirm("You have already checked in today. Do you want to add another check-in?")) {
-                                    recordCheckIn(employee, date, day, localTime, false);
+                                    recordCheckIn(employee, date, day, now.toLocaleTimeString(), false);
                                 }
                             } else {
-                                recordCheckIn(employee, date, day, localTime, false);
+                                recordCheckIn(employee, date, day, now.toLocaleTimeString(), false);
                             }
                         });
                     });
@@ -1827,28 +1863,30 @@
                             return timeA - timeB;
                         });
 
-                        const currentTime = new Date(`1970-01-01T${now.toLocaleTimeString()}`);
+                        const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
                         let isValidTime = false;
                         let nextValidTime = null;
                         let isTooLate = true;
 
                         for (const slot of sortedSlots) {
-                            const slotStart = new Date(`1970-01-01T${slot.checkIn}`);
-                            const earlyCheckIn = new Date(slotStart.getTime() - 45 * 60 * 1000);
-                            const lateCheckIn = new Date(slotStart.getTime() + 60 * 60 * 1000);
+                            const [slotHour, slotMinute] = slot.checkIn.split(':').map(Number);
+                            const slotTimeInMinutes = slotHour * 60 + slotMinute;
+                            
+                            const earlyCheckInMinutes = slotTimeInMinutes - 45;
+                            const lateCheckInMinutes = slotTimeInMinutes + 60;
 
-                            if (currentTime >= earlyCheckIn && currentTime <= lateCheckIn) {
+                            if (currentTimeInMinutes >= earlyCheckInMinutes && currentTimeInMinutes <= lateCheckInMinutes) {
                                 isValidTime = true;
                                 isTooLate = false;
                                 break;
                             }
 
-                            if (currentTime < earlyCheckIn && (!nextValidTime || earlyCheckIn < nextValidTime)) {
-                                nextValidTime = earlyCheckIn;
+                            if (currentTimeInMinutes < earlyCheckInMinutes && (!nextValidTime || earlyCheckInMinutes < nextValidTime)) {
+                                nextValidTime = earlyCheckInMinutes;
                                 isTooLate = false;
                             }
 
-                            if (currentTime <= lateCheckIn) {
+                            if (currentTimeInMinutes <= lateCheckInMinutes) {
                                 isTooLate = false;
                             }
                         }
@@ -1857,8 +1895,10 @@
                             checkInBtn.disabled = false;
                             checkInBtn.title = "Check in now";
                         } else if (nextValidTime) {
+                            const nextHour = Math.floor(nextValidTime / 60);
+                            const nextMinute = nextValidTime % 60;
                             checkInBtn.disabled = true;
-                            checkInBtn.title = `Too early to check in. Please wait until ${nextValidTime.toLocaleTimeString()}`;
+                            checkInBtn.title = `Too early to check in. Please wait until ${nextHour.toString().padStart(2, '0')}:${nextMinute.toString().padStart(2, '0')}`;
                         } else if (isTooLate) {
                             checkInBtn.disabled = true;
                             checkInBtn.title = "Regular check-in window has expired. Please use Late Check-in";
