@@ -1754,8 +1754,9 @@
                     const localTime = now.toLocaleTimeString();
                     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     
-                    getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
+                    // Get latest data directly from Firebase
+                    database.ref("timeTables").once('value', (snapshot) => {
+                        const timeTables = snapshot.val() || [];
                         const employeeSchedule = timeTables.find((t) => t.employee === employee);
 
                         if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) {
@@ -1797,11 +1798,11 @@
                             return;
                         }
 
-                        // Check if already checked in today
-                        getFirebaseData("attendanceRecords", (firebaseRecords) => {
-                            const attendanceRecords = firebaseRecords || [];
+                        // Get latest attendance records from Firebase
+                        database.ref("attendanceRecords").once('value', (snapshot) => {
+                            const attendanceRecords = snapshot.val() || [];
                             const todayRecord = attendanceRecords.find(
-                                record => record.employee === employee && record.date === date
+                                record => record.employee === employee && standardizeDate(record.date) === date
                             );
                             
                             if (todayRecord && todayRecord.checkIn) {
@@ -1815,62 +1816,8 @@
                     });
                 }
 
-                // Add this function to update check-in button state
-                function updateCheckInButtonState() {
-                    const checkInBtn = document.getElementById("checkInBtn");
-                    if (!checkInBtn) return;
-
-                    const now = new Date();
-                    const employee = document.getElementById("employeeDetails")?.textContent.split("|")[0].trim();
-                    if (!employee) return;
-
-                    getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
-                        const employeeSchedule = timeTables.find((t) => t.employee === employee);
-
-                        if (!employeeSchedule) {
-                            checkInBtn.disabled = true;
-                            checkInBtn.title = "No schedule found for today";
-                            return;
-                        }
-
-                        const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
-                        const todaySlots = employeeSchedule[day.toLowerCase()]?.slots || [];
-
-                        if (todaySlots.length === 0) {
-                            checkInBtn.disabled = true;
-                            checkInBtn.title = "No schedule found for today";
-                            return;
-                        }
-
-                        const sortedSlots = [...todaySlots].sort((a, b) => {
-                            const timeA = new Date(`1970-01-01T${a.checkIn}`);
-                            const timeB = new Date(`1970-01-01T${b.checkIn}`);
-                            return timeA - timeB;
-                        });
-
-                        const earliestSlot = sortedSlots[0];
-                        const slotStart = new Date(`1970-01-01T${earliestSlot.checkIn}`);
-                        const currentTime = new Date(`1970-01-01T${now.toLocaleTimeString()}`);
-                        
-                        const earlyCheckIn = new Date(slotStart.getTime() - 60 * 60 * 1000);
-                        const lateCheckIn = new Date(slotStart.getTime() + 30 * 60 * 1000);
-
-                        if (currentTime < earlyCheckIn) {
-                            checkInBtn.disabled = true;
-                            checkInBtn.title = "Cannot check in more than 60 minutes before scheduled time";
-                        } else if (currentTime > lateCheckIn) {
-                            checkInBtn.disabled = true;
-                            checkInBtn.title = "Regular check-in time has passed. Please use late check-in";
-                        } else {
-                            checkInBtn.disabled = false;
-                            checkInBtn.title = "Check in";
-                        }
-                    });
-                }
-
-                // Add this to your existing setInterval calls
-                setInterval(updateCheckInButtonState, 60000); // Update every minute
+                // Update the interval to be more frequent
+                setInterval(updateCheckInButtonState, 30000); // Update every 30 seconds
                 function recordCheckIn(employee, date, day, time, isLate) {
                     getFirebaseData("attendanceRecords", (firebaseRecords) => {
                         const attendanceRecords = firebaseRecords || [];
@@ -4966,6 +4913,74 @@
                                 <td></td>
                             `;
                             tableBody.appendChild(row);
+                        });
+                    });
+                }
+                function updateCheckInButtonState() {
+                    const checkInBtn = document.getElementById("checkInBtn");
+                    if (!checkInBtn) return;
+
+                    const now = new Date();
+                    const employee = document.getElementById("employeeDetails")?.textContent.split("|")[0].trim();
+                    if (!employee) return;
+
+                    // Get the latest data directly from Firebase
+                    database.ref("timeTables").once('value', (snapshot) => {
+                        const timeTables = snapshot.val() || [];
+                        const employeeSchedule = timeTables.find((t) => t.employee === employee);
+
+                        if (!employeeSchedule) {
+                            checkInBtn.disabled = true;
+                            checkInBtn.title = "No schedule found for today";
+                            return;
+                        }
+
+                        const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
+                        const todaySlots = employeeSchedule[day.toLowerCase()]?.slots || [];
+
+                        if (todaySlots.length === 0) {
+                            checkInBtn.disabled = true;
+                            checkInBtn.title = "No schedule found for today";
+                            return;
+                        }
+
+                        // Get latest attendance records
+                        database.ref("attendanceRecords").once('value', (snapshot) => {
+                            const attendanceRecords = snapshot.val() || [];
+                            const todayRecord = attendanceRecords.find(
+                                record => record.employee === employee && standardizeDate(record.date) === standardizeDate(now)
+                            );
+
+                            const sortedSlots = [...todaySlots].sort((a, b) => {
+                                const timeA = new Date(`1970-01-01T${a.checkIn}`);
+                                const timeB = new Date(`1970-01-01T${b.checkIn}`);
+                                return timeA - timeB;
+                            });
+
+                            const earliestSlot = sortedSlots[0];
+                            const slotStart = new Date(`1970-01-01T${earliestSlot.checkIn}`);
+                            const currentTime = new Date(`1970-01-01T${now.toLocaleTimeString()}`);
+                            
+                            const earlyCheckIn = new Date(slotStart.getTime() - 60 * 60 * 1000);
+                            const lateCheckIn = new Date(slotStart.getTime() + 30 * 60 * 1000);
+
+                            // If already checked in today, disable regular check-in
+                            if (todayRecord && todayRecord.checkIn) {
+                                checkInBtn.disabled = true;
+                                checkInBtn.title = "You have already checked in today";
+                                return;
+                            }
+
+                            if (currentTime < earlyCheckIn) {
+                                checkInBtn.disabled = true;
+                                checkInBtn.title = "Cannot check in more than 60 minutes before scheduled time";
+                            } else if (currentTime > lateCheckIn) {
+                                checkInBtn.disabled = true;
+                                checkInBtn.title = "Regular check-in time has passed. Please use late check-in";
+                            } else {
+                                checkInBtn.disabled = false;
+                                checkInBtn.title = "Check in";
+                            }
                         });
                     });
                 }
