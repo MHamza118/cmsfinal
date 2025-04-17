@@ -1751,6 +1751,7 @@
                     
                     // Use standardized date format
                     const date = standardizeDate(now);
+                    const localTime = now.toLocaleTimeString();
                     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
@@ -1763,6 +1764,9 @@
                         }
 
                         const todaySlots = employeeSchedule[day.toLowerCase()].slots;
+                        
+                        // Convert local time to Date object for comparison
+                        const currentTime = new Date(`1970-01-01T${localTime}`);
                         
                         // Sort slots by check-in time
                         const sortedSlots = [...todaySlots].sort((a, b) => {
@@ -1777,37 +1781,23 @@
                             return;
                         }
 
-                        // Check all slots for valid check-in window
-                        let isValidTime = false;
-                        let nextValidTime = null;
-
-                        for (const slot of sortedSlots) {
-                            const [slotHour, slotMinute] = slot.checkIn.split(':').map(Number);
-                            const slotTimeInMinutes = slotHour * 60 + slotMinute;
-                            
-                            const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
-                            
-                            const earlyCheckInMinutes = slotTimeInMinutes - 45;
-                            const lateCheckInMinutes = slotTimeInMinutes + 60;
-
-                            if (currentTimeInMinutes >= earlyCheckInMinutes && currentTimeInMinutes <= lateCheckInMinutes) {
-                                isValidTime = true;
-                                break;
-                            }
-
-                            if (currentTimeInMinutes < earlyCheckInMinutes && (!nextValidTime || earlyCheckInMinutes < nextValidTime)) {
-                                nextValidTime = earlyCheckInMinutes;
-                            }
+                        // Get the earliest slot for today
+                        const earliestSlot = sortedSlots[0];
+                        const slotStart = new Date(`1970-01-01T${earliestSlot.checkIn}`);
+                        
+                        // Calculate the valid check-in window (45 minutes before to 60 minutes after)
+                        const earlyCheckIn = new Date(slotStart.getTime() - 45 * 60 * 1000);
+                        const lateCheckIn = new Date(slotStart.getTime() + 60 * 60 * 1000);
+                        
+                        // Check if current time is within the valid check-in window
+                        if (currentTime < earlyCheckIn) {
+                            alert("Too early to check in. Please wait until " + earlyCheckIn.toLocaleTimeString());
+                            return;
                         }
-
-                        if (!isValidTime) {
-                            if (nextValidTime) {
-                                const nextHour = Math.floor(nextValidTime / 60);
-                                const nextMinute = nextValidTime % 60;
-                                alert(`Too early to check in. Please wait until ${nextHour.toString().padStart(2, '0')}:${nextMinute.toString().padStart(2, '0')}`);
-                            } else {
-                                alert("Regular check-in window has expired. Please use the Late Check-in option.");
-                            }
+                        
+                        // If more than 60 minutes late, disable regular check-in and suggest late check-in
+                        if (currentTime > lateCheckIn) {
+                            alert("Regular check-in window has expired. Please use the Late Check-in option.");
                             return;
                         }
 
@@ -1820,10 +1810,10 @@
                             
                             if (todayRecord && todayRecord.checkIn) {
                                 if (confirm("You have already checked in today. Do you want to add another check-in?")) {
-                                    recordCheckIn(employee, date, day, now.toLocaleTimeString(), false);
+                                    recordCheckIn(employee, date, day, localTime, false);
                                 }
                             } else {
-                                recordCheckIn(employee, date, day, now.toLocaleTimeString(), false);
+                                recordCheckIn(employee, date, day, localTime, false);
                             }
                         });
                     });
@@ -1863,48 +1853,22 @@
                             return timeA - timeB;
                         });
 
-                        const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
-                        let isValidTime = false;
-                        let nextValidTime = null;
-                        let isTooLate = true;
+                        const earliestSlot = sortedSlots[0];
+                        const slotStart = new Date(`1970-01-01T${earliestSlot.checkIn}`);
+                        const currentTime = new Date(`1970-01-01T${now.toLocaleTimeString()}`);
+                        
+                        const earlyCheckIn = new Date(slotStart.getTime() - 45 * 60 * 1000);
+                        const lateCheckIn = new Date(slotStart.getTime() + 60 * 60 * 1000);
 
-                        for (const slot of sortedSlots) {
-                            const [slotHour, slotMinute] = slot.checkIn.split(':').map(Number);
-                            const slotTimeInMinutes = slotHour * 60 + slotMinute;
-                            
-                            const earlyCheckInMinutes = slotTimeInMinutes - 45;
-                            const lateCheckInMinutes = slotTimeInMinutes + 60;
-
-                            if (currentTimeInMinutes >= earlyCheckInMinutes && currentTimeInMinutes <= lateCheckInMinutes) {
-                                isValidTime = true;
-                                isTooLate = false;
-                                break;
-                            }
-
-                            if (currentTimeInMinutes < earlyCheckInMinutes && (!nextValidTime || earlyCheckInMinutes < nextValidTime)) {
-                                nextValidTime = earlyCheckInMinutes;
-                                isTooLate = false;
-                            }
-
-                            if (currentTimeInMinutes <= lateCheckInMinutes) {
-                                isTooLate = false;
-                            }
-                        }
-
-                        if (isValidTime) {
-                            checkInBtn.disabled = false;
-                            checkInBtn.title = "Check in now";
-                        } else if (nextValidTime) {
-                            const nextHour = Math.floor(nextValidTime / 60);
-                            const nextMinute = nextValidTime % 60;
+                        if (currentTime < earlyCheckIn) {
                             checkInBtn.disabled = true;
-                            checkInBtn.title = `Too early to check in. Please wait until ${nextHour.toString().padStart(2, '0')}:${nextMinute.toString().padStart(2, '0')}`;
-                        } else if (isTooLate) {
+                            checkInBtn.title = `Too early to check in. Please wait until ${earlyCheckIn.toLocaleTimeString()}`;
+                        } else if (currentTime > lateCheckIn) {
                             checkInBtn.disabled = true;
                             checkInBtn.title = "Regular check-in window has expired. Please use Late Check-in";
                         } else {
-                            checkInBtn.disabled = true;
-                            checkInBtn.title = "No valid check-in window available";
+                            checkInBtn.disabled = false;
+                            checkInBtn.title = "Check in now";
                         }
                     });
                 }
