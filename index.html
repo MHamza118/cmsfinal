@@ -4681,7 +4681,7 @@
                             
                             // More flexible time windows
                             const earlyCheckIn = new Date(slotStart.getTime() - 45 * 60 * 1000);
-                            const lateCheckIn = new Date(slotStart.getTime() + 90 * 60 * 1000);
+                            const lateCheckIn = new Date(slotStart.getTime() + 30 * 60 * 1000);
                             
                         if (currentTimeDate >= earlyCheckIn && currentTimeDate <= lateCheckIn) {
                                 return true;
