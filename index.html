@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -3306,10 +3307,12 @@
                     const lateChecks = Array.isArray(lateCheckIns) ? lateCheckIns : lateCheckIns ? [lateCheckIns] : [];
 
                     let totalMinutes = 0;
+                    let regularMinutes = 0;
+                    let lateMinutes = 0;
 
-                    // Process regular check-ins
-                    for (let i = 0; i < Math.max(checkIns.length, checkOuts.length); i++) {
-                        const checkInTime = checkIns[i] || lateChecks[i];
+                    // Process regular check-ins first
+                    for (let i = 0; i < checkIns.length; i++) {
+                        const checkInTime = checkIns[i];
                         const checkOutTime = checkOuts[i];
                         
                         if (checkInTime && checkOutTime) {
@@ -3317,47 +3320,60 @@
                             const checkOutMinutes = timeToMinutes(checkOutTime);
                             
                             if (checkOutMinutes > checkInMinutes) {
-                                totalMinutes += (checkOutMinutes - checkInMinutes);
+                                regularMinutes += (checkOutMinutes - checkInMinutes);
                             }
                         }
                     }
 
-                    // Process remaining late check-ins
-                    for (let i = checkIns.length; i < lateChecks.length; i++) {
-                        const checkInTime = lateChecks[i];
-                        const checkOutTime = checkOuts[i];
-                        
-                        if (checkInTime && checkOutTime) {
-                            const checkInMinutes = timeToMinutes(checkInTime);
+                    // Process late check-ins
+                    for (let i = 0; i < lateChecks.length; i++) {
+                        const lateCheckIn = lateChecks[i];
+                        // Find the next available check-out after the late check-in
+                        const checkOutTime = checkOuts.find(out => {
+                            const outMinutes = timeToMinutes(out);
+                            const lateCheckInMinutes = timeToMinutes(lateCheckIn);
+                            return outMinutes > lateCheckInMinutes;
+                        });
+
+                        if (lateCheckIn && checkOutTime) {
+                            const lateCheckInMinutes = timeToMinutes(lateCheckIn);
                             const checkOutMinutes = timeToMinutes(checkOutTime);
                             
-                            if (checkOutMinutes > checkInMinutes) {
-                                totalMinutes += (checkOutMinutes - checkInMinutes);
+                            if (checkOutMinutes > lateCheckInMinutes) {
+                                lateMinutes += (checkOutMinutes - lateCheckInMinutes);
                             }
                         }
                     }
+
+                    totalMinutes = regularMinutes + lateMinutes;
 
                     const hours = Math.floor(totalMinutes / 60);
                     const minutes = totalMinutes % 60;
-                    return `${hours}h ${minutes}m`;
+
+                    if (regularMinutes > 0 && lateMinutes > 0) {
+                        const regularHours = Math.floor(regularMinutes / 60);
+                        const regularMins = regularMinutes % 60;
+                        const lateHours = Math.floor(lateMinutes / 60);
+                        const lateMins = lateMinutes % 60;
+                        return `${regularHours}h ${regularMins}m + ${lateHours}h ${lateMins}m (late) = ${hours}h ${minutes}m`;
+                    } else if (lateMinutes > 0) {
+                        return `${hours}h ${minutes}m (late)`;
+                    } else {
+                        return `${hours}h ${minutes}m`;
+                    }
                 }
 
                 function timeToMinutes(timeStr) {
                     if (!timeStr) return 0;
                     try {
-                        // First try parsing as a Date object
+                        // Ensure consistent time format
                         const time = new Date(`1970-01-01T${timeStr}`);
-                        if (!isNaN(time.getTime())) {
-                            return time.getHours() * 60 + time.getMinutes();
+                        if (isNaN(time.getTime())) {
+                            // Fallback to string parsing if Date parsing fails
+                            const [hours, minutes] = timeStr.split(':').map(Number);
+                            return (hours || 0) * 60 + (minutes || 0);
                         }
-                        
-                        // If that fails, try direct string parsing
-                        const [hours, minutes] = timeStr.split(':').map(num => parseInt(num, 10));
-                        if (!isNaN(hours) && !isNaN(minutes)) {
-                            return hours * 60 + minutes;
-                        }
-                        
-                        return 0;
+                        return time.getHours() * 60 + time.getMinutes();
                     } catch (e) {
                         return 0;
                     }
@@ -4139,10 +4155,12 @@
                     const lateChecks = Array.isArray(lateCheckIns) ? lateCheckIns : lateCheckIns ? [lateCheckIns] : [];
 
                     let totalMinutes = 0;
+                    let regularMinutes = 0;
+                    let lateMinutes = 0;
 
-                    // Process regular check-ins
-                    for (let i = 0; i < Math.max(checkIns.length, checkOuts.length); i++) {
-                        const checkInTime = checkIns[i] || lateChecks[i];
+                    // Process regular check-ins first
+                    for (let i = 0; i < checkIns.length; i++) {
+                        const checkInTime = checkIns[i];
                         const checkOutTime = checkOuts[i];
                         
                         if (checkInTime && checkOutTime) {
@@ -4150,47 +4168,60 @@
                             const checkOutMinutes = timeToMinutes(checkOutTime);
                             
                             if (checkOutMinutes > checkInMinutes) {
-                                totalMinutes += (checkOutMinutes - checkInMinutes);
+                                regularMinutes += (checkOutMinutes - checkInMinutes);
                             }
                         }
                     }
 
-                    // Process remaining late check-ins
-                    for (let i = checkIns.length; i < lateChecks.length; i++) {
-                        const checkInTime = lateChecks[i];
-                        const checkOutTime = checkOuts[i];
-                        
-                        if (checkInTime && checkOutTime) {
-                            const checkInMinutes = timeToMinutes(checkInTime);
+                    // Process late check-ins
+                    for (let i = 0; i < lateChecks.length; i++) {
+                        const lateCheckIn = lateChecks[i];
+                        // Find the next available check-out after the late check-in
+                        const checkOutTime = checkOuts.find(out => {
+                            const outMinutes = timeToMinutes(out);
+                            const lateCheckInMinutes = timeToMinutes(lateCheckIn);
+                            return outMinutes > lateCheckInMinutes;
+                        });
+
+                        if (lateCheckIn && checkOutTime) {
+                            const lateCheckInMinutes = timeToMinutes(lateCheckIn);
                             const checkOutMinutes = timeToMinutes(checkOutTime);
                             
-                            if (checkOutMinutes > checkInMinutes) {
-                                totalMinutes += (checkOutMinutes - checkInMinutes);
+                            if (checkOutMinutes > lateCheckInMinutes) {
+                                lateMinutes += (checkOutMinutes - lateCheckInMinutes);
                             }
                         }
                     }
+
+                    totalMinutes = regularMinutes + lateMinutes;
 
                     const hours = Math.floor(totalMinutes / 60);
                     const minutes = totalMinutes % 60;
-                    return `${hours}h ${minutes}m`;
+
+                    if (regularMinutes > 0 && lateMinutes > 0) {
+                        const regularHours = Math.floor(regularMinutes / 60);
+                        const regularMins = regularMinutes % 60;
+                        const lateHours = Math.floor(lateMinutes / 60);
+                        const lateMins = lateMinutes % 60;
+                        return `${regularHours}h ${regularMins}m + ${lateHours}h ${lateMins}m (late) = ${hours}h ${minutes}m`;
+                    } else if (lateMinutes > 0) {
+                        return `${hours}h ${minutes}m (late)`;
+                    } else {
+                        return `${hours}h ${minutes}m`;
+                    }
                 }
 
                 function timeToMinutes(timeStr) {
                     if (!timeStr) return 0;
                     try {
-                        // First try parsing as a Date object
+                        // Ensure consistent time format
                         const time = new Date(`1970-01-01T${timeStr}`);
-                        if (!isNaN(time.getTime())) {
-                            return time.getHours() * 60 + time.getMinutes();
+                        if (isNaN(time.getTime())) {
+                            // Fallback to string parsing if Date parsing fails
+                            const [hours, minutes] = timeStr.split(':').map(Number);
+                            return (hours || 0) * 60 + (minutes || 0);
                         }
-                        
-                        // If that fails, try direct string parsing
-                        const [hours, minutes] = timeStr.split(':').map(num => parseInt(num, 10));
-                        if (!isNaN(hours) && !isNaN(minutes)) {
-                            return hours * 60 + minutes;
-                        }
-                        
-                        return 0;
+                        return time.getHours() * 60 + time.getMinutes();
                     } catch (e) {
                         return 0;
                     }
