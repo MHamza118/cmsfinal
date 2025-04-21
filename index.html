@@ -1770,7 +1770,6 @@
                     const now = new Date();
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     const date = standardizeDate(now);
-                    // Use consistent time format
                     const localTime = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
                     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     
@@ -1786,21 +1785,23 @@
                         const todaySlots = employeeSchedule[day.toLowerCase()].slots;
                         const currentTime = new Date(`1970-01-01T${localTime}`);
                         
-                        // Find any available slot for today
+                        // Find any available slot with consistent time windows
                         const availableSlot = todaySlots.find(slot => {
                             const slotTime = new Date(`1970-01-01T${slot.checkIn}`);
-                            const slotEnd = new Date(`1970-01-01T${slot.checkOut}`);
-                            return currentTime < slotEnd && Math.abs(currentTime - slotTime) < (2 * 60 * 60 * 1000);
+                            const earlyWindow = new Date(slotTime.getTime() - 60 * 60 * 1000); // 60 minutes before
+                            const lateWindow = new Date(slotTime.getTime() + 30 * 60 * 1000);  // 30 minutes after
+                            return currentTime >= earlyWindow && currentTime <= lateWindow;
                         });
 
                         if (!availableSlot) {
-                            const futureSlot = todaySlots.find(slot => {
+                            const nextSlot = todaySlots.find(slot => {
                                 const slotTime = new Date(`1970-01-01T${slot.checkIn}`);
-                                return currentTime < slotTime;
+                                const earlyWindow = new Date(slotTime.getTime() - 60 * 60 * 1000);
+                                return currentTime < earlyWindow;
                             });
 
-                            if (futureSlot) {
-                                alert(`No active check-in window currently. Next available slot is at ${futureSlot.checkIn}`);
+                            if (nextSlot) {
+                                alert(`No active check-in window currently. Next available slot is at ${nextSlot.checkIn}`);
                             } else {
                                 alert("No more available check-in slots for today.");
                             }
@@ -1810,7 +1811,6 @@
                         const slotTime = new Date(`1970-01-01T${availableSlot.checkIn}`);
                         const isLate = currentTime > slotTime;
                         
-                        // Check if already checked in for this slot
                         getFirebaseData("attendanceRecords", (firebaseRecords) => {
                             const attendanceRecords = firebaseRecords || [];
                             const todayRecord = attendanceRecords.find(
@@ -1845,7 +1845,7 @@
                     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
 
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables = firebaseTimeTables || [];  // Remove localStorage fallback
+                        const timeTables = firebaseTimeTables || [];
                         const employeeSchedule = timeTables.find((t) => t.employee === employee);
 
                         if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) return;
@@ -1853,11 +1853,11 @@
                         const todaySlots = employeeSchedule[day.toLowerCase()].slots;
                         const currentTime = new Date();
 
-                        // Check if any slot is currently active
+                        // Check if any slot is currently active with consistent time windows
                         const hasActiveSlot = todaySlots.some(slot => {
                             const slotTime = new Date(`1970-01-01T${slot.checkIn}`);
-                            const earlyWindow = new Date(slotTime.getTime() - 60 * 60 * 1000);
-                            const lateWindow = new Date(slotTime.getTime() + 30 * 60 * 1000);
+                            const earlyWindow = new Date(slotTime.getTime() - 60 * 60 * 1000); // 60 minutes before
+                            const lateWindow = new Date(slotTime.getTime() + 30 * 60 * 1000);  // 30 minutes after
                             return currentTime >= earlyWindow && currentTime <= lateWindow;
                         });
 
@@ -1867,6 +1867,33 @@
                         }
                     });
                 }
+
+                function isWithinCheckInWindow(currentTime, employee, day) {
+                    getFirebaseData("timeTables", (firebaseTimeTables) => {
+                        const timeTables = firebaseTimeTables || [];
+                        const employeeSchedule = timeTables.find(t => t.employee === employee);
+                        
+                        if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) {
+                            return false;
+                        }
+
+                        const daySlots = employeeSchedule[day.toLowerCase()].slots;
+                        const currentTimeDate = new Date(`1970-01-01T${currentTime}`);
+                        
+                        // Check all slots for the day with consistent time windows
+                        for (const slot of daySlots) {
+                            const slotStart = new Date(`1970-01-01T${slot.checkIn}`);
+                            const earlyWindow = new Date(slotStart.getTime() - 60 * 60 * 1000); // 60 minutes before
+                            const lateWindow = new Date(slotStart.getTime() + 30 * 60 * 1000);  // 30 minutes after
+                            
+                            if (currentTimeDate >= earlyWindow && currentTimeDate <= lateWindow) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    });
+                }
+
                 function recordCheckIn(employee, date, day, time, isLate, slotTime) {
                     getFirebaseData("attendanceRecords", (firebaseRecords) => {
                         const attendanceRecords = firebaseRecords || [];
