@@ -1774,7 +1774,7 @@
                     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables = firebaseTimeTables || [];  // Remove localStorage fallback
+                        const timeTables = firebaseTimeTables || [];
                         const employeeSchedule = timeTables.find((t) => t.employee === employee);
 
                         if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) {
@@ -1785,7 +1785,7 @@
                         const todaySlots = employeeSchedule[day.toLowerCase()].slots;
                         const currentTime = new Date(`1970-01-01T${localTime}`);
                         
-                        // Find the next available slot
+                        // Find the next available slot with consistent time windows
                         const availableSlot = todaySlots.find(slot => {
                             const slotTime = new Date(`1970-01-01T${slot.checkIn}`);
                             const earlyWindow = new Date(slotTime.getTime() - 60 * 60 * 1000); // 60 minutes before
