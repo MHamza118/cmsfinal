@@ -1770,10 +1770,8 @@
                     const now = new Date();
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     const date = standardizeDate(now);
-                    // Standardize time format to HH:MM:SS
-                    const localTime = now.getHours().toString().padStart(2, '0') + ':' + 
-                                     now.getMinutes().toString().padStart(2, '0') + ':' + 
-                                     now.getSeconds().toString().padStart(2, '0');
+                    // Use consistent 24-hour time format
+                    const localTime = now.toLocaleTimeString('en-GB', { hour12: false });
                     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
@@ -5017,4 +5015,5 @@
         </div>
     </div>
 </body>
+
 </html>
