@@ -1803,9 +1803,9 @@
                             });
 
                             if (nextSlot) {
-                                alert(`No active check-in window currently. Next available slot is at ${nextSlot.checkIn}`);
+                                alert(`You are more than 30 minutes LATE, Please consider using Late check-in option and your ext available slot is at ${nextSlot.checkIn}`);
                             } else {
-                                alert("No more available check-in slots for today.");
+                                alert("You are more than 30 minutes LATE, Please consider using Late Check-in option. Thank you!");
                             }
                             return;
                         }
@@ -1927,7 +1927,7 @@
 
                         saveToFirebase("attendanceRecords", attendanceRecords)
                             .then(() => {
-                                alert("Check-in recorded successfully!");
+                                alert("Check-in Time recorded successfully! Your Check-In Time: " + time);
                                 loadAttendanceTable();
                                 updateSummaryValues();
                             })
@@ -1978,14 +1978,14 @@
                         saveToFirebase("attendanceRecords", attendanceRecords)
                             .then(() => {
                                 localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
-                                alert("Check-out successful! Time recorded: " + time);
+                                alert("Check-out time recorder successfully! Your Check-out Time: " + time);
                                 loadAttendanceTable();
                                 updateSummaryValues();
                             })
                             .catch((error) => {
                                 console.error("Error saving attendance record to Firebase:", error);
                                 localStorage.setItem("attendanceRecords", JSON.stringify(attendanceRecords));
-                                alert("Check-out successful! Time recorded: " + time);
+                                alert("Check-out time recorded successfully! Your Check-out Time: " + time);
                                 loadAttendanceTable();
                                 updateSummaryValues();
                             });
@@ -2042,7 +2042,7 @@
                                     // Save updated attendance records to Firebase
                                     database.ref("attendanceRecords").set(attendanceRecords)
                                         .then(() => {
-                                            alert("Late check-in recorded successfully!");
+                                            alert("Late Check-in time recorded successfully! Your Late Check-in Time: " + time);
                                             // Add smooth refresh animation
                                             const tableBody = document.getElementById("attendanceTable");
                                             if (tableBody) {
@@ -2735,7 +2735,7 @@
                     const selectedUser =
                         document.getElementById("adminUserSelect").value;
                     if (!selectedUser) {
-                        alert("Please select an employee first");
+                        alert("Please select an employee first from the dropdown menu.");
                         return;
                     }
                     const today = new Date();
@@ -2768,9 +2768,7 @@
                         "holidayRequests",
                         JSON.stringify(holidayRequests)
                     );
-                    alert(
-                        `Uninformed leave has been recorded for ${selectedUser} on ${dateString}`
-                    );
+                    alert(`Uninformed leave has been recorded for ${selectedUser} on ${dateString}`);
                     loadAdminHolidayRequests(selectedUser);
                 }
                 function loadAdminHolidayRequests(selectedUser = "") {
@@ -2966,7 +2964,7 @@
                                 const checkInTime = new Date(`1970-01-01T${checkIn}`);
                                 const checkOutTime = new Date(`1970-01-01T${checkOut}`);
                                 if (checkInTime >= checkOutTime) {
-                                    alert(`Check-out time must be after check-in time for ${day}`);
+                                    alert(`Check-out time must be after Check-in time for ${day}`);
                                     return;
                                 }
                                 slots.push({ checkIn, checkOut });
@@ -2979,7 +2977,7 @@
                     }
 
                     if (!hasValidSlots) {
-                        alert("Please add at least one valid time slot");
+                        alert("Please review your added slots and add at least one valid time slot");
                         return;
                     }
 
@@ -3009,7 +3007,7 @@
                 function openEditTimeTableModal() {
                     const selectedUser = document.getElementById("adminUserSelect").value;
                     if (!selectedUser) {
-                        alert("Please select an employee first");
+                        alert("Please select an employee first to view the TimeTable");
                         return;
                     }
                     document.getElementById("modalOverlay").style.display = "block";
