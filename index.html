@@ -1770,7 +1770,8 @@
                     const now = new Date();
                     const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
                     const date = standardizeDate(now);
-                    const localTime = now.toLocaleTimeString();
+                    // Use consistent time format
+                    const localTime = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
                     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
                     
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
@@ -1785,23 +1786,21 @@
                         const todaySlots = employeeSchedule[day.toLowerCase()].slots;
                         const currentTime = new Date(`1970-01-01T${localTime}`);
                         
-                        // Find the next available slot with more flexible time windows
+                        // Find any available slot for today
                         const availableSlot = todaySlots.find(slot => {
                             const slotTime = new Date(`1970-01-01T${slot.checkIn}`);
-                            const earlyWindow = new Date(slotTime.getTime() - 90 * 60 * 1000); // 90 minutes before
-                            const lateWindow = new Date(slotTime.getTime() + 60 * 60 * 1000);  // 60 minutes after
-                            return currentTime >= earlyWindow && currentTime <= lateWindow;
+                            const slotEnd = new Date(`1970-01-01T${slot.checkOut}`);
+                            return currentTime < slotEnd && Math.abs(currentTime - slotTime) < (2 * 60 * 60 * 1000);
                         });
 
                         if (!availableSlot) {
-                            const nextSlot = todaySlots.find(slot => {
+                            const futureSlot = todaySlots.find(slot => {
                                 const slotTime = new Date(`1970-01-01T${slot.checkIn}`);
-                                const earlyWindow = new Date(slotTime.getTime() - 90 * 60 * 1000);
-                                return currentTime < earlyWindow;
+                                return currentTime < slotTime;
                             });
 
-                            if (nextSlot) {
-                                alert(`No active check-in window currently. Next available slot is at ${nextSlot.checkIn}`);
+                            if (futureSlot) {
+                                alert(`No active check-in window currently. Next available slot is at ${futureSlot.checkIn}`);
                             } else {
                                 alert("No more available check-in slots for today.");
                             }
@@ -1823,7 +1822,7 @@
                                 const alreadyCheckedInForSlot = checkIns.some(checkIn => {
                                     const checkInTime = new Date(`1970-01-01T${checkIn}`);
                                     const slotStart = new Date(`1970-01-01T${availableSlot.checkIn}`);
-                                    return Math.abs(checkInTime - slotStart) < (3 * 60 * 60 * 1000); // Within 3 hours of slot
+                                    return Math.abs(checkInTime - slotStart) < (2 * 60 * 60 * 1000);
                                 });
 
                                 if (alreadyCheckedInForSlot) {
@@ -3272,72 +3271,62 @@
                     if (!checkIn && !checkOut && !lateCheckIns.length) {
                         return "Incomplete";
                     }
+
+                    // Convert all times to consistent format
                     const checkIns = Array.isArray(checkIn) ? checkIn : checkIn ? [checkIn] : [];
                     const checkOuts = Array.isArray(checkOut) ? checkOut : checkOut ? [checkOut] : [];
                     const lateChecks = Array.isArray(lateCheckIns) ? lateCheckIns : lateCheckIns ? [lateCheckIns] : [];
-                    let regularHours = 0;
-                    let lateHours = 0;
+
+                    // Sort all times
                     const allCheckIns = [...checkIns].sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
                     const allCheckOuts = [...checkOuts].sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
                     const allLateChecks = [...lateChecks].sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+
+                    let totalMinutes = 0;
+
+                    // Process regular check-ins
                     for (let i = 0; i < allCheckOuts.length; i++) {
                         const checkOut = allCheckOuts[i];
-                        let foundValidCheckIn = false;
-                        const validCheckIn = [...allCheckIns, ...allLateChecks].find(checkIn => {
-                            const checkInTime = timeToMinutes(checkIn);
-                            const checkOutTime = timeToMinutes(checkOut);
-                            return checkInTime < checkOutTime;
-                        });
-                        if (!validCheckIn) {
-                            return "Invalid: Check-out time is earlier than check-in time";
+                        const checkIn = allCheckIns[i] || allLateChecks[i];
+                        
+                        if (checkIn && checkOut) {
+                            const checkInMinutes = timeToMinutes(checkIn);
+                            const checkOutMinutes = timeToMinutes(checkOut);
+                            
+                            if (checkOutMinutes > checkInMinutes) {
+                                totalMinutes += (checkOutMinutes - checkInMinutes);
+                            }
                         }
                     }
-                    let remainingCheckOuts = [...allCheckOuts];
-                    let processedCheckIns = new Set();
-                    for (let i = 0; i < allCheckIns.length; i++) {
-                        const currentCheckIn = allCheckIns[i];
-                        if (allLateChecks.some(late => Math.abs(timeToMinutes(late) - timeToMinutes(currentCheckIn)) < 5)) {
-                            continue;
-                        }
-                        const matchingCheckOutIndex = remainingCheckOuts.findIndex(
-                            out => timeToMinutes(out) > timeToMinutes(currentCheckIn)
-                        );
-                        if (matchingCheckOutIndex !== -1) {
-                            const matchingCheckOut = remainingCheckOuts[matchingCheckOutIndex];
-                            let minutesWorked = timeToMinutes(matchingCheckOut) - timeToMinutes(currentCheckIn);
-                            regularHours += minutesWorked / 60;
-                            processedCheckIns.add(currentCheckIn);
-                            remainingCheckOuts.splice(matchingCheckOutIndex, 1);
+
+                    // Process remaining late check-ins
+                    for (let i = allCheckOuts.length; i < allLateChecks.length; i++) {
+                        const checkIn = allLateChecks[i];
+                        const checkOut = allCheckOuts[i];
+                        
+                        if (checkIn && checkOut) {
+                            const checkInMinutes = timeToMinutes(checkIn);
+                            const checkOutMinutes = timeToMinutes(checkOut);
+                            
+                            if (checkOutMinutes > checkInMinutes) {
+                                totalMinutes += (checkOutMinutes - checkInMinutes);
+                            }
                         }
                     }
-                    for (let i = 0; i < allLateChecks.length; i++) {
-                        const lateCheckIn = allLateChecks[i];
-                        if (processedCheckIns.has(lateCheckIn)) continue;
-                        const matchingCheckOutIndex = remainingCheckOuts.findIndex(
-                            out => timeToMinutes(out) > timeToMinutes(lateCheckIn)
-                        );
-                        if (matchingCheckOutIndex !== -1) {
-                            const matchingCheckOut = remainingCheckOuts[matchingCheckOutIndex];
-                            let minutesWorked = timeToMinutes(matchingCheckOut) - timeToMinutes(lateCheckIn);
-                            lateHours += minutesWorked / 60;
-                            remainingCheckOuts.splice(matchingCheckOutIndex, 1);
-                        }
+
+                    if (totalMinutes === 0) {
+                        return "Incomplete";
                     }
-                    const totalHours = regularHours + lateHours;
-                    if (totalHours === 0) {
-                        return "0h 0m";
-                    } else if (regularHours > 0 && lateHours > 0) {
-                        return `${formatHours(regularHours)} + ${formatHours(lateHours)} (late) = ${formatHours(totalHours)}`;
-                    } else if (regularHours > 0) {
-                        return formatHours(regularHours);
-                    } else {
-                        return `${formatHours(lateHours)} (late)`;
-                    }
+
+                    const hours = Math.floor(totalMinutes / 60);
+                    const minutes = totalMinutes % 60;
+                    return `${hours}h ${minutes}m`;
                 }
                 function timeToMinutes(timeStr) {
                     if (!timeStr) return 0;
-                    const [hours, minutes] = timeStr.split(":").map(Number);
-                    return hours * 60 + minutes;
+                    // Ensure consistent time format
+                    const time = new Date(`1970-01-01T${timeStr}`);
+                    return time.getHours() * 60 + time.getMinutes();
                 }
                 function formatHours(hours) {
                     const wholeHours = Math.floor(hours);
@@ -4109,73 +4098,62 @@
                     if (!checkIn && !checkOut && !lateCheckIns.length) {
                         return "Incomplete";
                     }
+
+                    // Convert all times to consistent format
                     const checkIns = Array.isArray(checkIn) ? checkIn : checkIn ? [checkIn] : [];
                     const checkOuts = Array.isArray(checkOut) ? checkOut : checkOut ? [checkOut] : [];
                     const lateChecks = Array.isArray(lateCheckIns) ? lateCheckIns : lateCheckIns ? [lateCheckIns] : [];
-                    let regularHours = 0;
-                    let lateHours = 0;
+
+                    // Sort all times
                     const allCheckIns = [...checkIns].sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
                     const allCheckOuts = [...checkOuts].sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
                     const allLateChecks = [...lateChecks].sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+
+                    let totalMinutes = 0;
+
+                    // Process regular check-ins
                     for (let i = 0; i < allCheckOuts.length; i++) {
                         const checkOut = allCheckOuts[i];
-                        let foundValidCheckIn = false;
-                        const validCheckIn = [...allCheckIns, ...allLateChecks].find(checkIn => {
-                            const checkInTime = timeToMinutes(checkIn);
-                            const checkOutTime = timeToMinutes(checkOut);
-                            return checkInTime < checkOutTime;
-                        });
+                        const checkIn = allCheckIns[i] || allLateChecks[i];
+                        
+                        if (checkIn && checkOut) {
+                            const checkInMinutes = timeToMinutes(checkIn);
+                            const checkOutMinutes = timeToMinutes(checkOut);
+                            
+                            if (checkOutMinutes > checkInMinutes) {
+                                totalMinutes += (checkOutMinutes - checkInMinutes);
+                            }
+                        }
+                    }
 
-                        if (!validCheckIn) {
-                            return "Invalid: Check-out time is earlier than check-in time";
+                    // Process remaining late check-ins
+                    for (let i = allCheckOuts.length; i < allLateChecks.length; i++) {
+                        const checkIn = allLateChecks[i];
+                        const checkOut = allCheckOuts[i];
+                        
+                        if (checkIn && checkOut) {
+                            const checkInMinutes = timeToMinutes(checkIn);
+                            const checkOutMinutes = timeToMinutes(checkOut);
+                            
+                            if (checkOutMinutes > checkInMinutes) {
+                                totalMinutes += (checkOutMinutes - checkInMinutes);
+                            }
                         }
                     }
-                    let remainingCheckOuts = [...allCheckOuts];
-                    let processedCheckIns = new Set();
-                    for (let i = 0; i < allCheckIns.length; i++) {
-                        const currentCheckIn = allCheckIns[i];
-                        if (allLateChecks.some(late => Math.abs(timeToMinutes(late) - timeToMinutes(currentCheckIn)) < 5)) {
-                            continue;
-                        }
-                        const matchingCheckOutIndex = remainingCheckOuts.findIndex(
-                            out => timeToMinutes(out) > timeToMinutes(currentCheckIn)
-                        );
-                        if (matchingCheckOutIndex !== -1) {
-                            const matchingCheckOut = remainingCheckOuts[matchingCheckOutIndex];
-                            let minutesWorked = timeToMinutes(matchingCheckOut) - timeToMinutes(currentCheckIn);
-                            regularHours += minutesWorked / 60;
-                            processedCheckIns.add(currentCheckIn);
-                            remainingCheckOuts.splice(matchingCheckOutIndex, 1);
-                        }
+
+                    if (totalMinutes === 0) {
+                        return "Incomplete";
                     }
-                    for (let i = 0; i < allLateChecks.length; i++) {
-                        const lateCheckIn = allLateChecks[i];
-                        if (processedCheckIns.has(lateCheckIn)) continue;
-                        const matchingCheckOutIndex = remainingCheckOuts.findIndex(
-                            out => timeToMinutes(out) > timeToMinutes(lateCheckIn)
-                        );
-                        if (matchingCheckOutIndex !== -1) {
-                            const matchingCheckOut = remainingCheckOuts[matchingCheckOutIndex];
-                            let minutesWorked = timeToMinutes(matchingCheckOut) - timeToMinutes(lateCheckIn);
-                            lateHours += minutesWorked / 60;
-                            remainingCheckOuts.splice(matchingCheckOutIndex, 1);
-                        }
-                    }
-                    const totalHours = regularHours + lateHours;
-                    if (totalHours === 0) {
-                        return "0h 0m";
-                    } else if (regularHours > 0 && lateHours > 0) {
-                        return `${formatHours(regularHours)} + ${formatHours(lateHours)} (late) = ${formatHours(totalHours)}`;
-                    } else if (regularHours > 0) {
-                        return formatHours(regularHours);
-                    } else {
-                        return `${formatHours(lateHours)} (late)`;
-                    }
+
+                    const hours = Math.floor(totalMinutes / 60);
+                    const minutes = totalMinutes % 60;
+                    return `${hours}h ${minutes}m`;
                 }
                 function timeToMinutes(timeStr) {
                     if (!timeStr) return 0;
-                    const [hours, minutes] = timeStr.split(":").map(Number);
-                    return hours * 60 + minutes;
+                    // Ensure consistent time format
+                    const time = new Date(`1970-01-01T${timeStr}`);
+                    return time.getHours() * 60 + time.getMinutes();
                 }
                 function formatHours(hours) {
                     const wholeHours = Math.floor(hours);
