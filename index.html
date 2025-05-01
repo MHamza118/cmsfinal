@@ -191,6 +191,26 @@
             width: 200px;
         }
 
+        .late-checkin-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .late-checkin-actions button {
+            background: linear-gradient(135deg, #2596be 0%, #1c7593 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .late-checkin-actions button:hover {
+            background: linear-gradient(135deg, #1c7593 0%, #0d4e63 100%);
+        }
+
         .summary-section {
             display: flex;
             flex-direction: column;
@@ -555,6 +575,7 @@
             <div class="sidebar-overlay" onclick="closeMobileMenu()"></div>
             <div class="left-sidebar">
                 <button onclick="showSection('attendance'); closeMobileMenu()">Check In/Out</button>
+                <button onclick="showSection('lateCheckIn'); closeMobileMenu()">Late Check-in Records</button>
                 <button onclick="showSection('progress'); closeMobileMenu()">Daily Progress Report</button>
                 <button onclick="openHolidayRequest(); closeMobileMenu()">Request for Holiday</button>
                 <button onclick="openTimeTableModal(); closeMobileMenu()">Time Table</button>
@@ -630,9 +651,53 @@
                     <div class="action-buttons">
                         <button onclick="handleCheckIn()">Check In</button>
                         <button onclick="handleCheckOut()">Check Out</button>
-                        <button id="lateCheckInBtn" onclick="handleLateCheckIn()">Add Late Check-In</button>
                     </div>
                 </div>
+                <!-- Late Check-in Modal -->
+                <div id="lateCheckInModal" class="modal-content" style="display: none; max-width: 600px">
+                    <span class="close" onclick="closeLateCheckInModal()"><i class="fa-solid fa-xmark"></i></span>
+                    <h2>Late Check-in and Check-out</h2>
+                    <div class="section-header-small">
+                        <h3>Late Check-in Details</h3>
+                    </div>
+                    <div class="form-group">
+                        <label for="lateCheckInTime"></label>
+                        <input type="time" id="lateCheckInTime" required placeholder="Check-in Time" />
+                    </div>
+                    <div class="form-group">
+                        <label for="lateCheckInReason"></label>
+                        <textarea id="lateCheckInReason" rows="3" required
+                            placeholder="Please provide a reason for your late check-in"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button id="submitLateCheckInBtn" onclick="submitLateCheckIn()">Submit Late Check-in</button>
+                        <button id="lateCheckOutBtn" onclick="handleLateCheckOut()">Late Check-out</button>
+                    </div>
+                </div>
+
+                <!-- Late Check-in Records Section -->
+                <div id="lateCheckIn-section" class="section" style="display: none">
+                    <h2>Late Check-in Records</h2>
+                    <div class="late-checkin-actions">
+                        <button id="lateCheckInSectionBtn" onclick="handleLateCheckIn()">Late Check-In</button>
+                        <button id="lateCheckOutSectionBtn" onclick="handleLateCheckOut()">Late Check-Out</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Day</th>
+                                <th>Check-in Time</th>
+                                <th>Check-out Time</th>
+                                <th>Reason</th>
+                                <th>Working Hours</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lateCheckInTable"></tbody>
+                    </table>
+                </div>
+
                 <!-- Compensate Hours Modal -->
                 <div id="compensateHoursModal" class="modal-content compensation-popup"
                     style="display: none; max-width: 600px">
@@ -717,7 +782,6 @@
                                 <th>Day</th>
                                 <th>Check-In Time</th>
                                 <th>Check-Out Time</th>
-                                <th>Late Check-Ins</th>
                                 <th>Working Hours</th>
                             </tr>
                         </thead>
@@ -884,6 +948,8 @@
                         class="active">Attendance</button>
                     <button onclick="showAdminSection('weeklyAttendance'); closeAdminMobileMenu();">Weekly Attendance
                         Summary</button>
+                    <button onclick="showAdminSection('adminLateCheckIns'); closeAdminMobileMenu();">Late Check-in
+                        Records</button>
                     <button onclick="showAdminSection('adminProgress'); closeAdminMobileMenu();">Progress
                         Reports</button>
                     <button onclick="showAdminSection('adminHolidays'); closeAdminMobileMenu();">Holiday
@@ -899,6 +965,35 @@
             </div>
             <!--Admin Page main content Data-->
             <div class="main-content">
+                <div id="adminLateCheckIns" style="display: none">
+                    <h2>Employee Late Check-in Records</h2>
+                    <div class="filter-section">
+                        <span>Filter by status: </span>
+                        <select id="lateCheckInStatusFilter" onchange="loadAdminLateCheckInRecords()">
+                            <option value="all">All</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                        </select>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>Date</th>
+                                <th>Day</th>
+                                <th>Check-in Time</th>
+                                <th>Check-out Time</th>
+                                <th>Reason</th>
+                                <th>Working Hours</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminLateCheckInTable"></tbody>
+                    </table>
+                </div>
+
                 <div id="adminCompensations" style="display: none">
                     <h2>Employee Compensation Records</h2>
                     <table>
@@ -935,7 +1030,6 @@
                                     <th>Day</th>
                                     <th>Check-In Time</th>
                                     <th>Check-Out Time</th>
-                                    <th>Late Check-Ins</th>
                                     <th>Working Hours</th>
                                 </tr>
                             </thead>
@@ -1801,11 +1895,19 @@
                                 return currentTime < earlyWindow;
                             });
 
-                            if (nextSlot) {
-                                alert(`You are more than 30 minutes LATE, Please consider using Late check-in option and your Next available slot is at ${nextSlot.checkIn}`);
-                            } else {
-                                alert("You are more than 30 minutes LATE, Please consider using Late Check-in option. Thank you!");
-                            }
+                            // Check if employee can use late check-in
+                            canUseLateCheckIn().then(canUseLate => {
+                                if (canUseLate) {
+                                    // Show message instead of opening the modal
+                                    alert("You are more than 30 minutes late. Please use the Late Check-in option from the Late Check-in Records section.");
+                                } else {
+                                    if (nextSlot) {
+                                        alert(`You are more than 30 minutes LATE. Your next available slot is at ${nextSlot.checkIn}`);
+                                    } else {
+                                        alert("You are more than 30 minutes LATE. Please contact your administrator.");
+                                    }
+                                }
+                            });
                             return;
                         }
 
@@ -1991,133 +2093,8 @@
                     });
                 }
                 function handleLateCheckIn() {
-                    const now = new Date();
-                    const employee = document.getElementById("employeeDetails").textContent.split("|")[0].trim();
-                    const date = standardizeDate(now);
-                    const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
-                    const time = now.toLocaleTimeString('en-GB', { hour12: false });
-
-                    // Check timetable first
-                    getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables = firebaseTimeTables || [];
-                        const employeeSchedule = timeTables.find((t) => t.employee === employee);
-
-                        if (!employeeSchedule || !employeeSchedule[day.toLowerCase()]?.slots) {
-                            alert("No schedule found for today. Please set up your schedule first.");
-                            return;
-                        }
-
-                        // Check if already late checked in
-                        getFirebaseData("lateCheckIns", (firebaseLateCheckIns) => {
-                            const lateCheckIns = firebaseLateCheckIns || [];
-                            const existingLateCheckIn = lateCheckIns.find(
-                                checkIn => checkIn.employee === employee &&
-                                    checkIn.date === date
-                            );
-
-                            const reason = prompt("Please provide a reason for late check-in:") || "No reason provided";
-                            if (!reason) {
-                                alert("You must provide a reason for late check-in.");
-                                return;
-                            }
-
-                            // Create new late check-in record
-                            const newLateCheckIn = {
-                                employee: employee,
-                                date: date,
-                                day: day,
-                                time: time,
-                                timestamp: new Date().toISOString(),
-                                reason: reason
-                            };
-
-                            // Add the new late check-in
-                            lateCheckIns.push(newLateCheckIn);
-
-                            // Save to Firebase
-                            database.ref("lateCheckIns").set(lateCheckIns)
-                                .then(() => {
-                                    // Update attendance records as a late entry
-                                    return getFirebaseData("attendanceRecords", (firebaseRecords) => {
-                                        let attendanceRecords = firebaseRecords || [];
-                                        const recordIndex = attendanceRecords.findIndex(
-                                            record => record.employee === employee && record.date === date
-                                        );
-
-                                        if (recordIndex === -1) {
-                                            // Create new record if none exists
-                                            attendanceRecords.push({
-                                                employee: employee,
-                                                date: date,
-                                                day: day,
-                                                lateCheckIn: [time], // Store late check-in separately
-                                                isLate: true,
-                                                timestamp: new Date().toISOString()
-                                            });
-                                        } else {
-                                            // Update existing record
-                                            if (!attendanceRecords[recordIndex].lateCheckIn) {
-                                                attendanceRecords[recordIndex].lateCheckIn = [time];
-                                            } else if (Array.isArray(attendanceRecords[recordIndex].lateCheckIn)) {
-                                                attendanceRecords[recordIndex].lateCheckIn.push(time);
-                                            } else {
-                                                attendanceRecords[recordIndex].lateCheckIn = [attendanceRecords[recordIndex].lateCheckIn, time];
-                                            }
-                                            attendanceRecords[recordIndex].isLate = true;
-                                        }
-
-                                        return saveToFirebase("attendanceRecords", attendanceRecords);
-                                    });
-                                })
-                                .then(() => {
-                                    alert(`Late check-in recorded successfully at ${time}`);
-                                    loadAttendanceTable();
-                                    updateSummaryValues();
-                                })
-                                .catch((error) => {
-                                    console.error("Error saving late check-in:", error);
-                                    alert("Error recording late check-in. Please try again.");
-                                });
-                        });
-                    });
-                }
-                function validateLateCheckIn(employee, date, time) {
-                    return new Promise((resolve, reject) => {
-                        getFirebaseData("timeTables", (firebaseTimeTables) => {
-                            const timeTables = firebaseTimeTables || [];
-                            const schedule = timeTables.find(t => t.employee === employee);
-
-                            if (!schedule) {
-                                reject(new Error("No schedule found"));
-                                return;
-                            }
-
-                            const day = new Date(date).toLocaleDateString('en-US', { weekday: 'lowercase' });
-                            const daySchedule = schedule[day]?.slots;
-
-                            if (!daySchedule || daySchedule.length === 0) {
-                                reject(new Error("No schedule found for this day"));
-                                return;
-                            }
-
-                            const currentTime = new Date(`1970-01-01T${time}`);
-                            const isValid = daySchedule.some(slot => {
-                                const slotTime = new Date(`1970-01-01T${slot.checkIn}`);
-                                const lateWindow = new Date(slotTime.getTime() + 30 * 60000); // 30 minutes late window
-                                return currentTime <= lateWindow;
-                            });
-
-                            resolve(isValid);
-                        });
-                    });
-                }
-                function trackLateCheckInStatus(employee, date) {
-                    return {
-                        timestamp: new Date().toISOString(),
-                        status: 'pending',
-                        notified: false,
-                        followUpRequired: false
-                    };
+                    // Open the late check-in modal
+                    openLateCheckInModal();
                 }
                 function sendNotification(employee) {
                     const notificationCount =
@@ -2161,6 +2138,8 @@
                         loadEmployeeProgress();
                     } else if (sectionName === "employeeTasks") {
                         loadEmployeeTasks();
+                    } else if (sectionName === "lateCheckIn") {
+                        loadLateCheckInTable();
                     }
                 }
                 function handleUserSelect() {
@@ -2174,13 +2153,12 @@
                     loadAdminTimeTable(selectedUser);
                     loadAdminHolidayRequests(selectedUser);
                     loadAdminTasks(selectedUser);
+                    loadAdminLateCheckInRecords(selectedUser);
                 }
                 function updateWorkingHours(selectElement, date, employee) {
                     const row = selectElement.closest("tr");
                     const checkInSelect = row.querySelector("td:nth-child(4) select");
                     const checkOutSelect = row.querySelector("td:nth-child(5) select");
-                    const isLate =
-                        row.querySelector("td:nth-child(6)").textContent === "Yes";
                     const checkInTime = checkInSelect.value;
                     const checkOutTime = checkOutSelect.value;
                     const checkIn24 = convertTo24Hour(checkInTime);
@@ -2188,7 +2166,7 @@
                     const workingHours = calculateWorkingHours(
                         [checkIn24],
                         [checkOut24],
-                        isLate ? [checkIn24] : []
+                        []
                     );
                     row.querySelector("td:last-child").textContent = workingHours;
                     getFirebaseData(
@@ -2310,16 +2288,6 @@
                                         ${checkOutTimes.length > 0
                                         ? checkOutTimes.map(time =>
                                             `<option ${checkOutTimes[0] === time ? "selected" : ""}>${time}</option>`
-                                        ).join("")
-                                        : '<option value="-">-</option>'
-                                    }
-                </select>
-            </td>
-            <td>
-                                    <select onchange="updateWorkingHours(this, '${record.date}', '${record.employee}')">
-                                        ${lateCheckInTimes.length > 0
-                                        ? lateCheckInTimes.map(time =>
-                                            `<option ${lateCheckInTimes[0] === time ? "selected" : ""}>${time}</option>`
                                         ).join("")
                                         : '<option value="-">-</option>'
                                     }
@@ -3166,16 +3134,19 @@
                         const updatedTimeTables = firebaseTimeTables.map(timeTable => {
                             const tableWeekStart = timeTable.weekStart ? new Date(timeTable.weekStart) : null;
                             if (!tableWeekStart || tableWeekStart < weekStart) {
-                                // Instead of removing properties, just update the weekStart
-                                // This preserves the time table structure but marks it as current
-                                return {
-                                    ...timeTable,
-                                    weekStart: weekStart.toISOString()
-                                };
+                                const { lastSaved, adminEdited, ...rest } = timeTable;
+                                return rest;
                             }
                             return timeTable;
                         });
-                        saveToFirebase("timeTables", updatedTimeTables)
+
+                        // Use direct database reference to update only the timeTables
+                        // This prevents affecting attendance records
+                        database.ref("timeTables").set(updatedTimeTables)
+                            .then(() => {
+                                localStorage.setItem("timeTables", JSON.stringify(updatedTimeTables));
+                                console.log("Weekly timetables reset successfully");
+                            })
                             .catch(error => console.error("Error resetting weekly timetables:", error));
                     });
                 }
@@ -3213,7 +3184,8 @@
                         "adminTimeTable",
                         "adminTargets",
                         "weeklyAttendance",
-                        "adminCompensations"
+                        "adminCompensations",
+                        "adminLateCheckIns"
                     ];
                     sections.forEach((section) => {
                         const element = document.getElementById(section);
@@ -3246,6 +3218,9 @@
                             case "adminCompensations":
                                 loadAdminCompensations(selectedUser);
                                 break;
+                            case "adminLateCheckIns":
+                                loadAdminLateCheckInRecords(selectedUser);
+                                break;
                         }
                     }
                 }
@@ -3275,37 +3250,74 @@
                                 const row = document.createElement("tr");
 
                                 // Format check-in times
-                                let checkInDisplay = record.checkIn || "-";
-                                if (Array.isArray(record.checkIn)) {
-                                    checkInDisplay = record.checkIn.join(", ");
-                                }
-
-                                // Format check-out times
-                                let checkOutDisplay = record.checkOut || "-";
-                                if (Array.isArray(record.checkOut)) {
-                                    checkOutDisplay = record.checkOut.join(", ");
-                                }
-                                // Format late check-ins
-                                let lateCheckInDisplay = "-";
-                                if (record.lateCheckIn) {
-                                    if (Array.isArray(record.lateCheckIn)) {
-                                        lateCheckInDisplay = record.lateCheckIn.join(", ");
+                                let checkInDisplay = "-";
+                                if (record.checkIn) {
+                                    if (Array.isArray(record.checkIn)) {
+                                        checkInDisplay = record.checkIn.map(checkIn => {
+                                            if (typeof checkIn === 'object' && checkIn.time) {
+                                                return checkIn.time;
+                                            }
+                                            return checkIn;
+                                        }).join(", ");
+                                    } else if (typeof record.checkIn === 'object' && record.checkIn.time) {
+                                        checkInDisplay = record.checkIn.time;
                                     } else {
-                                        lateCheckInDisplay = record.lateCheckIn;
+                                        checkInDisplay = record.checkIn;
                                     }
                                 }
 
-                                // Calculate working hours including late check-ins
-                                let workingHours = calculateWorkingHours(record.checkIn, record.checkOut, record.lateCheckIn);
+                                // Format check-out times
+                                let checkOutDisplay = "-";
+                                if (record.checkOut) {
+                                    if (Array.isArray(record.checkOut)) {
+                                        checkOutDisplay = record.checkOut.join(", ");
+                                    } else {
+                                        checkOutDisplay = record.checkOut;
+                                    }
+                                }
+
+                                // Get late check-in time for this record
+                                const lateCheckIn = lateCheckIns.find(late =>
+                                    late.employee === employee &&
+                                    late.date === record.date
+                                );
+
+                                // Format late check-in display
+                                let lateCheckInDisplay = "-";
+                                if (lateCheckIn) {
+                                    lateCheckInDisplay = `(${lateCheckIn.time})`;
+                                } else if (record.isLate) {
+                                    lateCheckInDisplay = `(${checkInDisplay})`;
+                                }
+
+                                // Calculate working hours
+                                let workingHours = "-";
+                                if (record.checkIn && record.checkOut) {
+                                    const checkInTime = Array.isArray(record.checkIn) ?
+                                        (typeof record.checkIn[0] === 'object' ? record.checkIn[0].time : record.checkIn[0]) :
+                                        (typeof record.checkIn === 'object' ? record.checkIn.time : record.checkIn);
+
+                                    const checkOutTime = Array.isArray(record.checkOut) ?
+                                        record.checkOut[record.checkOut.length - 1] :
+                                        record.checkOut;
+
+                                    if (checkInTime && checkOutTime) {
+                                        const startTime = new Date(`2000-01-01T${checkInTime}`);
+                                        const endTime = new Date(`2000-01-01T${checkOutTime}`);
+                                        const diffMs = endTime - startTime;
+                                        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+                                        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                                        workingHours = `${diffHrs}h ${diffMins}m`;
+                                    }
+                                }
 
                                 row.innerHTML = `
-                    <td>${record.date}</td>
-                    <td>${record.day}</td>
+                                        <td>${record.date}</td>
+                                        <td>${record.day}</td>
                     <td>${checkInDisplay}</td>
                     <td>${checkOutDisplay}</td>
-                    <td>${lateCheckInDisplay}</td>
                     <td>${workingHours}</td>
-                `;
+                                    `;
                                 tableBody.appendChild(row);
                             });
                         });
@@ -3673,12 +3685,12 @@
                     );
                 }
                 function downloadCSV(data, filename) {
-                    let csv = "Date,Day,Check-In Time,Check-Out Time,Late Check-Ins\n";
+                    let csv = "Date,Day,Check-In Time,Check-Out Time,Working Hours\n";
                     data.forEach((record) => {
                         csv += `${record.date},${record.day},${record.checkIn || "-"},${Array.isArray(record.checkOut)
                             ? record.checkOut.join(" | ")
                             : record.checkOut || "-"
-                            },${record.lateCheckIns || "-"}\n`;
+                            },${record.workingHours || "-"}\n`;
                     });
                     const blob = new Blob([csv], { type: "text/csv" });
                     const link = document.createElement("a");
@@ -3912,6 +3924,7 @@
                         loadAdminTimeTable(selectedUser);
                         loadAdminHolidayRequests(selectedUser);
                         loadAdminTasks(selectedUser);
+                        loadAdminLateCheckInRecords(selectedUser);
                     };
                     const adminUserSelect = document.getElementById("adminUserSelect");
                     if (adminUserSelect) {
@@ -4120,12 +4133,6 @@
                                 }
                             }
 
-                            // Format late check-ins
-                            let lateCheckInDisplay = "-";
-                            if (record.isLate) {
-                                lateCheckInDisplay = "Yes";
-                            }
-
                             // Calculate working hours
                             let workingHours = "-";
                             if (record.checkIn && record.checkOut) {
@@ -4152,7 +4159,6 @@
                                     <td>${record.day}</td>
                                 <td>${checkInDisplay}</td>
                                 <td>${checkOutDisplay}</td>
-                                <td>${lateCheckInDisplay}</td>
                                 <td>${workingHours}</td>
                             `;
                             tableBody.appendChild(row);
@@ -4658,36 +4664,39 @@
                 }
                 function checkAndClearOldTimeTables() {
                     const currentDate = new Date();
-                    const weekStart = getWeekStart(currentDate);
-
+                    const weekStart = new Date(currentDate);
+                    weekStart.setDate(currentDate.getDate() - (currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1));
+                    weekStart.setHours(0, 0, 0, 0);
                     getFirebaseData("timeTables", (firebaseTimeTables) => {
-                        const timeTables = firebaseTimeTables || [];
+                        const timeTables = firebaseTimeTables || JSON.parse(localStorage.getItem("timeTables")) || [];
                         let needsUpdate = false;
 
-                        // Only archive old timetables instead of updating them
-                        const updatedTimeTables = timeTables.map(timeTable => {
-                            if (!timeTable.weekStart || new Date(timeTable.weekStart) < weekStart) {
-                                // Move to archive collection instead of updating
-                                archiveTimeTable(timeTable);
-                                // Create new timetable for current week
-                                return {
-                                    ...timeTable,
-                                    weekStart: weekStart.toISOString(),
-                                    isNew: true
-                                };
+                        // Create a new array instead of modifying the original array while iterating
+                        const updatedTimeTables = timeTables.filter(timeTable => {
+                            if (timeTable.weekStart) {
+                                const savedWeekStart = new Date(timeTable.weekStart);
+                                // Keep the time table if it's for the current week or newer
+                                return !(savedWeekStart < weekStart);
                             }
-                            return timeTable;
+                            return true; // Keep time tables without weekStart
                         });
 
+                        // Only update if there's a change
+                        if (updatedTimeTables.length !== timeTables.length) {
+                            needsUpdate = true;
+                        }
+
                         if (needsUpdate) {
-                            saveToFirebase("timeTables", updatedTimeTables);
+                            // Save only the time tables, don't affect attendance records
+                            database.ref("timeTables").set(updatedTimeTables)
+                                .then(() => {
+                                    localStorage.setItem("timeTables", JSON.stringify(updatedTimeTables));
+                                })
+                                .catch((error) => {
+                                    console.error("Error clearing old time tables:", error);
+                                });
                         }
                     });
-                }
-
-                function archiveTimeTable(timeTable) {
-                    // Save to archive collection with original dates
-                    saveToFirebase(`timeTableArchives/${timeTable.weekStart}`, timeTable);
                 }
                 window.addEventListener("load", () => {
                     setupDataListeners();
@@ -4824,6 +4833,24 @@
                                 if (employee) {
                                     openTimeTableModal();
                                 }
+                            }
+                        }
+                    });
+
+                    // Listen for late check-in records
+                    listenForChanges("lateCheckInRecords", (lateCheckInRecords) => {
+                        if (lateCheckInRecords) {
+                            localStorage.setItem("lateCheckInRecords", JSON.stringify(lateCheckInRecords));
+                            // Update employee view if visible
+                            if (document.getElementById("lateCheckIn-section") &&
+                                document.getElementById("lateCheckIn-section").style.display === "block") {
+                                loadLateCheckInTable();
+                            }
+                            // Update admin view if visible
+                            if (document.getElementById("adminLateCheckIns") &&
+                                document.getElementById("adminLateCheckIns").style.display === "block") {
+                                const selectedUser = document.getElementById("adminUserSelect").value;
+                                loadAdminLateCheckInRecords(selectedUser);
                             }
                         }
                     });
@@ -5033,6 +5060,8 @@
                     });
                 }
             </script>
+            <!-- Late Check-in Module Script -->
+            <script src="late_checkin.js"></script>
         </div>
     </div>
 </body>
