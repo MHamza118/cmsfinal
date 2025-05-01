@@ -7,7 +7,12 @@ const lateCheckInRef = firebase.database().ref("lateCheckInRecords");
 // Function to open the late check-in modal
 function openLateCheckInModal() {
     const now = new Date();
-    const currentTime = now.toLocaleTimeString();
+
+    // Use standard 24-hour format (HH:MM:SS) for consistency with the main system
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const currentTime = `${hours}:${minutes}:${seconds}`;
 
     // Set current time as default
     document.getElementById("lateCheckInTime").value = currentTime;
@@ -36,13 +41,22 @@ function submitLateCheckIn() {
     const day = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()];
 
     // Get values from form
-    const lateCheckInTime = document.getElementById("lateCheckInTime").value;
+    let lateCheckInTime = document.getElementById("lateCheckInTime").value;
     const lateCheckInReason = document.getElementById("lateCheckInReason").value;
 
     if (!lateCheckInReason) {
         alert("Please provide a reason for your late check-in.");
         return;
     }
+
+    // Standardize the time format to ensure consistency
+    const standardizedTime = standardizeTimeFormat(lateCheckInTime);
+    if (!standardizedTime) {
+        alert("Invalid time format. Please enter a valid time.");
+        return;
+    }
+
+    lateCheckInTime = standardizedTime;
 
     // Create late check-in record
     const lateCheckInRecord = {
@@ -83,7 +97,12 @@ function handleLateCheckOut() {
 
     // Use standardized date format
     const date = standardizeDate(now);
-    const time = now.toLocaleTimeString();
+
+    // Use standard 24-hour format (HH:MM:SS) for consistency with the main system
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const time = `${hours}:${minutes}:${seconds}`;
 
     // Get existing late check-in records
     lateCheckInRef.once('value', (snapshot) => {
@@ -126,8 +145,22 @@ function handleLateCheckOut() {
 function calculateLateWorkingHours(checkInTime, checkOutTime) {
     if (!checkInTime || !checkOutTime) return "-";
 
-    const checkIn = new Date(`1970-01-01T${checkInTime}`);
-    const checkOut = new Date(`1970-01-01T${checkOutTime}`);
+    // Standardize time format to ensure consistent parsing
+    const standardizedCheckInTime = standardizeTimeFormat(checkInTime);
+    const standardizedCheckOutTime = standardizeTimeFormat(checkOutTime);
+
+    if (!standardizedCheckInTime || !standardizedCheckOutTime) {
+        console.error("Invalid time format:", checkInTime, checkOutTime);
+        return "-";
+    }
+
+    const checkIn = new Date(`1970-01-01T${standardizedCheckInTime}`);
+    const checkOut = new Date(`1970-01-01T${standardizedCheckOutTime}`);
+
+    if (isNaN(checkIn.getTime()) || isNaN(checkOut.getTime())) {
+        console.error("Invalid date objects:", checkIn, checkOut);
+        return "-";
+    }
 
     // Calculate difference in milliseconds
     let diff = checkOut - checkIn;
@@ -142,6 +175,55 @@ function calculateLateWorkingHours(checkInTime, checkOutTime) {
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
     return `${hours}h ${minutes}m`;
+}
+
+// Helper function to standardize time format to HH:MM:SS
+function standardizeTimeFormat(timeStr) {
+    if (!timeStr) return null;
+
+    try {
+        // Handle different time formats
+
+        // If already in HH:MM:SS format
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(timeStr)) {
+            return timeStr.length === 8 ? timeStr : `0${timeStr}`;
+        }
+
+        // If in HH:MM format
+        if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+            return timeStr.length === 5 ? `${timeStr}:00` : `0${timeStr}:00`;
+        }
+
+        // If in AM/PM format
+        if (/\d{1,2}:\d{2}(:\d{2})?\s*(AM|PM|am|pm)/i.test(timeStr)) {
+            const isPM = /pm/i.test(timeStr);
+            const timeParts = timeStr.replace(/\s*(AM|PM|am|pm)/i, '').split(':');
+
+            let hours = parseInt(timeParts[0], 10);
+            const minutes = parseInt(timeParts[1], 10);
+            const seconds = timeParts.length > 2 ? parseInt(timeParts[2], 10) : 0;
+
+            // Convert to 24-hour format
+            if (isPM && hours < 12) hours += 12;
+            if (!isPM && hours === 12) hours = 0;
+
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Try to parse using Date object as fallback
+        const now = new Date();
+        const testDate = new Date(`${now.toDateString()} ${timeStr}`);
+
+        if (!isNaN(testDate.getTime())) {
+            return `${testDate.getHours().toString().padStart(2, '0')}:${testDate.getMinutes().toString().padStart(2, '0')}:${testDate.getSeconds().toString().padStart(2, '0')}`;
+        }
+
+        console.error("Unrecognized time format:", timeStr);
+        return null;
+    } catch (e) {
+        console.error("Error standardizing time format:", e);
+        return null;
+    }
 }
 
 // Function to load late check-in records for the employee
