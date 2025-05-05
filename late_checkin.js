@@ -318,6 +318,14 @@ function loadAdminLateCheckInRecords(selectedUser = "") {
 
         // Add records to table
         filteredRecords.forEach((record, index) => {
+            // Find the actual index of this record in the original array
+            const actualIndex = lateCheckInRecords.findIndex(r =>
+                r.employee === record.employee &&
+                r.date === record.date &&
+                r.checkInTime === record.checkInTime &&
+                r.timestamp === record.timestamp
+            );
+
             const row = document.createElement("tr");
 
             // Format check-out time display
@@ -340,8 +348,8 @@ function loadAdminLateCheckInRecords(selectedUser = "") {
                 default:
                     statusDisplay = '<span class="status-pending">Pending</span>';
                     actionButtons = `
-                        <button class="approve-btn" onclick="approveLateCheckIn(${index})">Approve</button>
-                        <button class="reject-btn" onclick="rejectLateCheckIn(${index})">Reject</button>
+                        <button class="approve-btn" onclick="approveLateCheckIn(${actualIndex})">Approve</button>
+                        <button class="reject-btn" onclick="rejectLateCheckIn(${actualIndex})">Reject</button>
                     `;
             }
 
@@ -364,42 +372,80 @@ function loadAdminLateCheckInRecords(selectedUser = "") {
 
 // Function for admin to approve late check-in
 function approveLateCheckIn(index) {
+    console.log("Approving late check-in at index:", index);
+
+    // Get the current selected user before making any changes
+    const selectedUser = document.getElementById("adminUserSelect") ?
+        document.getElementById("adminUserSelect").value : "";
+
     lateCheckInRef.once('value', (snapshot) => {
         let lateCheckInRecords = snapshot.val() || [];
+        console.log("Total records:", lateCheckInRecords.length);
 
         if (index >= 0 && index < lateCheckInRecords.length) {
-            lateCheckInRecords[index].status = "approved";
+            console.log("Record found at index:", index);
+            console.log("Current status:", lateCheckInRecords[index].status);
 
+            // Update the status directly without additional checks
+            lateCheckInRecords[index].status = "approved";
+            console.log("Status updated to approved");
+
+            // Save to Firebase
             lateCheckInRef.set(lateCheckInRecords)
                 .then(() => {
+                    console.log("Record successfully updated in Firebase");
                     alert("Late check-in approved successfully.");
-                    loadAdminLateCheckInRecords(document.getElementById("adminUserSelect").value);
+                    // Reload the table with the same user filter
+                    loadAdminLateCheckInRecords(selectedUser);
                 })
                 .catch((error) => {
                     console.error("Error approving late check-in:", error);
                     alert("Error approving late check-in. Please try again.");
                 });
+        } else {
+            console.error("Invalid record index:", index);
+            alert("Error: Record not found. Please refresh the page and try again.");
+            loadAdminLateCheckInRecords(selectedUser);
         }
     });
 }
 
 // Function for admin to reject late check-in
 function rejectLateCheckIn(index) {
+    console.log("Rejecting late check-in at index:", index);
+
+    // Get the current selected user before making any changes
+    const selectedUser = document.getElementById("adminUserSelect") ?
+        document.getElementById("adminUserSelect").value : "";
+
     lateCheckInRef.once('value', (snapshot) => {
         let lateCheckInRecords = snapshot.val() || [];
+        console.log("Total records:", lateCheckInRecords.length);
 
         if (index >= 0 && index < lateCheckInRecords.length) {
-            lateCheckInRecords[index].status = "rejected";
+            console.log("Record found at index:", index);
+            console.log("Current status:", lateCheckInRecords[index].status);
 
+            // Update the status directly without additional checks
+            lateCheckInRecords[index].status = "rejected";
+            console.log("Status updated to rejected");
+
+            // Save to Firebase
             lateCheckInRef.set(lateCheckInRecords)
                 .then(() => {
+                    console.log("Record successfully updated in Firebase");
                     alert("Late check-in rejected.");
-                    loadAdminLateCheckInRecords(document.getElementById("adminUserSelect").value);
+                    // Reload the table with the same user filter
+                    loadAdminLateCheckInRecords(selectedUser);
                 })
                 .catch((error) => {
                     console.error("Error rejecting late check-in:", error);
                     alert("Error rejecting late check-in. Please try again.");
                 });
+        } else {
+            console.error("Invalid record index:", index);
+            alert("Error: Record not found. Please refresh the page and try again.");
+            loadAdminLateCheckInRecords(selectedUser);
         }
     });
 }
