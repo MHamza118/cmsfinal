@@ -1889,6 +1889,20 @@
                         });
 
                         if (!availableSlot) {
+                            // Check if the employee is trying to check in early
+                            const earlySlot = todaySlots.find(slot => {
+                                const slotTime = new Date(`1970-01-01T${slot.checkIn}`);
+                                const earlyWindow = new Date(slotTime.getTime() - 60 * 60 * 1000); // 60 minutes before
+                                return currentTime < earlyWindow && currentTime > new Date(slotTime.getTime() - 120 * 60 * 1000); // Between 60-120 minutes early
+                            });
+
+                            if (earlySlot) {
+                                // Employee is trying to check in more than 60 minutes early
+                                alert(`You are trying to check in too early. Your scheduled check-in time is ${earlySlot.checkIn}. Please try again within 60 minutes of your scheduled time.`);
+                                return;
+                            }
+
+                            // Check for next available slot
                             const nextSlot = todaySlots.find(slot => {
                                 const slotTime = new Date(`1970-01-01T${slot.checkIn}`);
                                 const earlyWindow = new Date(slotTime.getTime() - 60 * 60 * 1000);
@@ -1904,7 +1918,7 @@
                                     if (nextSlot) {
                                         alert(`You are more than 30 minutes LATE. Your next available slot is at ${nextSlot.checkIn}`);
                                     } else {
-                                        alert("You are more than 30 minutes LATE. Please use the Late Check-in option from the Late Check-in Records section..");
+                                        alert("You are more than 30 minutes LATE. Please contact your administrator.");
                                     }
                                 }
                             });
@@ -3302,12 +3316,22 @@
                                         record.checkOut;
 
                                     if (checkInTime && checkOutTime) {
-                                        const startTime = new Date(`2000-01-01T${checkInTime}`);
-                                        const endTime = new Date(`2000-01-01T${checkOutTime}`);
-                                        const diffMs = endTime - startTime;
-                                        const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                                        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                                        workingHours = `${diffHrs}h ${diffMins}m`;
+                                        // Use our improved time handling functions
+                                        const checkInMinutes = timeToMinutes(checkInTime);
+                                        const checkOutMinutes = timeToMinutes(checkOutTime);
+
+                                        if (checkInMinutes > 0 && checkOutMinutes > 0) {
+                                            let diffMinutes = checkOutMinutes - checkInMinutes;
+
+                                            // If check-out is earlier than check-in, assume it's the next day
+                                            if (diffMinutes < 0) {
+                                                diffMinutes += 24 * 60; // Add 24 hours in minutes
+                                            }
+
+                                            const diffHrs = Math.floor(diffMinutes / 60);
+                                            const diffMins = diffMinutes % 60;
+                                            workingHours = `${diffHrs}h ${diffMins}m`;
+                                        }
                                     }
                                 }
 
@@ -4145,12 +4169,22 @@
                                     record.checkOut;
 
                                 if (checkInTime && checkOutTime) {
-                                    const startTime = new Date(`2000-01-01T${checkInTime}`);
-                                    const endTime = new Date(`2000-01-01T${checkOutTime}`);
-                                    const diffMs = endTime - startTime;
-                                    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
-                                    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                                    workingHours = `${diffHrs}h ${diffMins}m`;
+                                    // Use our improved time handling functions
+                                    const checkInMinutes = timeToMinutes(checkInTime);
+                                    const checkOutMinutes = timeToMinutes(checkOutTime);
+
+                                    if (checkInMinutes > 0 && checkOutMinutes > 0) {
+                                        let diffMinutes = checkOutMinutes - checkInMinutes;
+
+                                        // If check-out is earlier than check-in, assume it's the next day
+                                        if (diffMinutes < 0) {
+                                            diffMinutes += 24 * 60; // Add 24 hours in minutes
+                                        }
+
+                                        const diffHrs = Math.floor(diffMinutes / 60);
+                                        const diffMins = diffMinutes % 60;
+                                        workingHours = `${diffHrs}h ${diffMins}m`;
+                                    }
                                 }
                             }
 
@@ -4235,16 +4269,59 @@
                 function timeToMinutes(timeStr) {
                     if (!timeStr) return 0;
                     try {
-                        // Ensure consistent time format
-                        const time = new Date(`1970-01-01T${timeStr}`);
-                        if (isNaN(time.getTime())) {
-                            // Fallback to string parsing if Date parsing fails
-                            const [hours, minutes] = timeStr.split(':').map(Number);
-                            return (hours || 0) * 60 + (minutes || 0);
-                        }
-                        return time.getHours() * 60 + time.getMinutes();
+                        // First, standardize the time format
+                        const standardizedTime = standardizeTimeFormat(timeStr);
+                        if (!standardizedTime) return 0;
+
+                        // Parse the standardized time
+                        const [hours, minutes] = standardizedTime.split(':').map(Number);
+                        return (hours || 0) * 60 + (minutes || 0);
                     } catch (e) {
+                        console.error("Error converting time to minutes:", e, timeStr);
                         return 0;
+                    }
+                }
+
+                // Helper function to standardize time format to HH:MM:SS
+                function standardizeTimeFormat(timeStr) {
+                    if (!timeStr) return null;
+
+                    try {
+                        // First try to use convertTo24Hour if it's in AM/PM format
+                        if (timeStr.toLowerCase().includes('am') || timeStr.toLowerCase().includes('pm')) {
+                            return convertTo24Hour(timeStr);
+                        }
+
+                        // If already in HH:MM:SS format
+                        if (/^\d{1,2}:\d{2}:\d{2}$/.test(timeStr)) {
+                            return timeStr.length === 8 ? timeStr : `0${timeStr}`;
+                        }
+
+                        // If in HH:MM format
+                        if (/^\d{1,2}:\d{2}$/.test(timeStr)) {
+                            return timeStr.length === 5 ? `${timeStr}:00` : `0${timeStr}:00`;
+                        }
+
+                        // Try to parse using Date object as fallback
+                        const testDate = new Date(`1970-01-01T${timeStr}`);
+                        if (!isNaN(testDate.getTime())) {
+                            return `${testDate.getHours().toString().padStart(2, '0')}:${testDate.getMinutes().toString().padStart(2, '0')}:${testDate.getSeconds().toString().padStart(2, '0')}`;
+                        }
+
+                        // Last resort: try to extract numbers
+                        const matches = timeStr.match(/(\d{1,2})[:\s](\d{2})(?:[:\s](\d{2}))?/);
+                        if (matches) {
+                            const hours = parseInt(matches[1], 10);
+                            const minutes = parseInt(matches[2], 10);
+                            const seconds = matches[3] ? parseInt(matches[3], 10) : 0;
+                            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                        }
+
+                        console.error("Unrecognized time format:", timeStr);
+                        return null;
+                    } catch (e) {
+                        console.error("Error standardizing time format:", e, timeStr);
+                        return null;
                     }
                 }
                 function formatHours(hours) {
